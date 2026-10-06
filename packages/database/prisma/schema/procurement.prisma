@@ -205,12 +205,18 @@ model PurchaseOrderItem {
   productId       String?
   name            String
   sku             String?
+  /// Ordered quantity in supplier packs.
   quantity        Decimal  @db.Decimal(14, 3)
+  /// Pack description, e.g. "25 KG".
   unit            String
+  /// Pack price (pre-tax).
   unitPrice       Decimal  @db.Decimal(12, 4)
   gstRate         Decimal  @db.Decimal(5, 2)
   taxAmount       Decimal  @db.Decimal(12, 2)
   lineTotal       Decimal  @db.Decimal(14, 2)
+  /// Ingredient stock units per pack (conversion used on goods receipt).
+  baseQtyPerPack  Decimal  @default(1) @db.Decimal(14, 4)
+  ingredientUnit  String?
   confirmedQty    Decimal? @db.Decimal(14, 3)
   receivedQty     Decimal  @default(0) @db.Decimal(14, 3)
 

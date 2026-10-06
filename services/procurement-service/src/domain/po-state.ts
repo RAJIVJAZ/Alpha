@@ -1,0 +1,33 @@
+import type { PurchaseOrderStatus } from '@foodgrid/types';
+import { StateMachine } from '@foodgrid/utils';
+
+export const poStateMachine = new StateMachine<PurchaseOrderStatus>('Purchase order', {
+  DRAFT: ['PENDING_APPROVAL', 'APPROVED', 'CANCELLED'],
+  PENDING_APPROVAL: ['APPROVED', 'REJECTED', 'CANCELLED'],
+  APPROVED: ['SENT_TO_SUPPLIER', 'CANCELLED'],
+  REJECTED: ['DRAFT'],
+  SENT_TO_SUPPLIER: ['CONFIRMED', 'PARTIALLY_CONFIRMED', 'SUPPLIER_REJECTED', 'CANCELLED'],
+  CONFIRMED: ['DISPATCHED', 'CANCELLED', 'DELIVERED'],
+  PARTIALLY_CONFIRMED: ['DISPATCHED', 'CANCELLED', 'DELIVERED'],
+  SUPPLIER_REJECTED: ['CLOSED'],
+  DISPATCHED: ['IN_TRANSIT', 'DELIVERED', 'RECEIVED', 'PARTIALLY_RECEIVED'],
+  IN_TRANSIT: ['IN_TRANSIT', 'DELIVERED', 'RECEIVED', 'PARTIALLY_RECEIVED'],
+  DELIVERED: ['RECEIVED', 'PARTIALLY_RECEIVED'],
+  PARTIALLY_RECEIVED: ['RECEIVED', 'CLOSED'],
+  RECEIVED: ['CLOSED'],
+  CANCELLED: [],
+  CLOSED: [],
+});
+
+/** Statuses in which a PO is still "in flight" (used for alert de-duplication). */
+export const OPEN_PO_STATUSES: PurchaseOrderStatus[] = [
+  'DRAFT',
+  'PENDING_APPROVAL',
+  'APPROVED',
+  'SENT_TO_SUPPLIER',
+  'CONFIRMED',
+  'PARTIALLY_CONFIRMED',
+  'DISPATCHED',
+  'IN_TRANSIT',
+  'DELIVERED',
+];

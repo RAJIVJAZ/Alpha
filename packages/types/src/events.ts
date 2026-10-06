@@ -300,7 +300,9 @@ export const EventTypes = {
   StockLow: 'inventory.stock.low',
   StockConsumed: 'inventory.stock.consumed',
 
+  PurchaseOrderSubmitted: 'procurement.po.submitted',
   PurchaseOrderApproved: 'procurement.po.approved',
+  PurchaseOrderRejected: 'procurement.po.rejected',
   PurchaseOrderCancelled: 'procurement.po.cancelled',
   PurchaseOrderReceived: 'procurement.po.received',
 

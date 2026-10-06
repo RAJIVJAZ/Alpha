@@ -12,6 +12,12 @@ import { recipeCost } from '../domain/costing';
 export class InternalController {
   constructor(private readonly prisma: PrismaService) {}
 
+  @Get('tenants')
+  @ApiOperation({ summary: 'Tenant/outlet pairs with active ingredients (procurement batch jobs)' })
+  tenants() {
+    return this.prisma.ingredient.findMany({ where: { isActive: true }, distinct: ['tenantId', 'outletId'], select: { tenantId: true, outletId: true } });
+  }
+
   @Get('stock-status')
   @ApiOperation({ summary: 'Active ingredients with stock levels and 28-day usage statistics' })
   async stockStatus(@Query('tenantId') tenantId: string, @Query('outletId') outletId?: string) {
