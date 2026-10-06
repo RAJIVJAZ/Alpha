@@ -12,6 +12,7 @@
     "./client": "./src/client.ts",
     "./merchant": "./src/merchant/index.ts",
     "./seller": "./src/seller/index.ts",
+    "./admin": "./src/admin/index.ts",
     "./styles.css": "./src/styles.css"
   },
   "scripts": {

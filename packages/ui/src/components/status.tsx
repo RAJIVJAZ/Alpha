@@ -8,6 +8,7 @@ type Tone = 'good' | 'warning' | 'serious' | 'critical' | 'info' | 'neutral';
 const TONES: Record<string, Tone> = {
   // success / done
   DELIVERED: 'good',
+  SENT: 'good',
   COMPLETED: 'good',
   RECEIVED: 'good',
   PAID: 'good',
