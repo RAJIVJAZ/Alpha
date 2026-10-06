@@ -3,7 +3,7 @@ import { PrismaService } from '@foodgrid/database/nest';
 import { generateDocumentNumber, Prisma } from '@foodgrid/database';
 import type { InvoiceType } from '@foodgrid/database';
 import { computeGst, extractGst, isInterState, normalizePage, paginate, round2, STATUTORY_RATES, sumMoney } from '@foodgrid/utils';
-import { InternalHttpService, resolveRange } from '@foodgrid/utils/server';
+import { InternalHttpService, resolveIstRange } from '@foodgrid/utils/server';
 
 type Tx = Prisma.TransactionClient;
 
@@ -121,7 +121,7 @@ export class GstService {
   }
 
   async summary(q: { from?: string; to?: string; tenantId?: string }) {
-    const range = resolveRange(q);
+    const range = resolveIstRange(q);
     const rows = await this.prisma.gstInvoice.groupBy({
       by: ['type', 'isInterState'],
       where: { issuedAt: { gte: range.from, lte: range.to }, tenantId: q.tenantId },
@@ -152,7 +152,7 @@ export class GstService {
   }
 
   async invoices(q: { from?: string; to?: string; type?: InvoiceType; tenantId?: string; page?: number; pageSize?: number }) {
-    const range = resolveRange(q);
+    const range = resolveIstRange(q);
     const { page, pageSize, skip, take } = normalizePage(q);
     const where: Prisma.GstInvoiceWhereInput = { issuedAt: { gte: range.from, lte: range.to }, type: q.type, tenantId: q.tenantId };
     const [rows, total] = await Promise.all([

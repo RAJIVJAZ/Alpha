@@ -21,6 +21,12 @@ export function istDate(date: Date = new Date()): string {
   return `${p.year}-${String(p.month).padStart(2, '0')}-${String(p.day).padStart(2, '0')}`;
 }
 
+/** Instant at which the IST calendar month containing `date` began (e.g. 1 Oct 00:00 IST = 30 Sep 18:30 UTC). */
+export function istMonthStart(date: Date = new Date()): Date {
+  const p = istParts(date);
+  return new Date(Date.UTC(p.year, p.month - 1, 1) - IST_OFFSET_MS);
+}
+
 /** UTC midnight Date for a YYYY-MM-DD string — the representation Prisma uses for @db.Date. */
 export function dateOnly(ymd: string): Date {
   return new Date(`${ymd}T00:00:00.000Z`);

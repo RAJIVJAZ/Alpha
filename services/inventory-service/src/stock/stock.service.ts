@@ -3,7 +3,7 @@ import { PrismaService } from '@foodgrid/database/nest';
 import type { Ingredient, Prisma, StockMovementType } from '@foodgrid/database';
 import { EventTypes, StockLowEvent } from '@foodgrid/types';
 import { badRequest, dateOnly, istDate, normalizePage, notFound, paginate, round2 } from '@foodgrid/utils';
-import { OutboxService, resolveRange } from '@foodgrid/utils/server';
+import { OutboxService, resolveIstRange } from '@foodgrid/utils/server';
 import { allocateFefo, crossedReorderLevel, round3, weightedAverageCost } from '../domain/stock';
 import { AdjustStockDto, MovementsQueryDto, ReceiveStockDto, WastageDto } from './dto/stock.dto';
 
@@ -219,7 +219,7 @@ export class StockService {
   }
 
   async movements(tenantId: string, q: MovementsQueryDto) {
-    const range = resolveRange(q, 30);
+    const range = resolveIstRange(q, 30);
     const { page, pageSize, skip, take } = normalizePage({ page: q.page, pageSize: 50 });
     const where: Prisma.StockMovementWhereInput = {
       ingredientId: q.ingredientId,

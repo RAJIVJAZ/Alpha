@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@foodgrid/database/nest';
-import { round2, sumMoney } from '@foodgrid/utils';
+import { istMonthStart, round2, sumMoney } from '@foodgrid/utils';
 
 @Injectable()
 export class DashboardService {
@@ -8,9 +8,7 @@ export class DashboardService {
 
   async overview(tenantId: string) {
     const db = this.prisma.forTenant(tenantId);
-    const monthStart = new Date();
-    monthStart.setUTCDate(1);
-    monthStart.setUTCHours(0, 0, 0, 0);
+    const monthStart = istMonthStart();
     const [alerts, byStatus, monthPos, quotes] = await Promise.all([
       db.reorderAlert.groupBy({ by: ['severity'], where: { status: 'OPEN' }, _count: { _all: true } }),
       db.purchaseOrder.groupBy({ by: ['status'], _count: { _all: true }, _sum: { total: true } }),

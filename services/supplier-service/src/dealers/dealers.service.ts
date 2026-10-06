@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@foodgrid/database/nest';
 import type { Prisma } from '@foodgrid/database';
-import { badRequest, notFound, round2 } from '@foodgrid/utils';
+import { badRequest, istMonthStart, notFound, round2 } from '@foodgrid/utils';
 import { DealerDto, TerritoryDto, UpdateDealerDto, UpdateTerritoryDto } from './dto/dealer.dto';
 
 /** Wholesaler dealer network & territory management. */
@@ -14,15 +14,26 @@ export class DealersService {
       include: { _count: { select: { dealers: true } } },
       orderBy: { name: 'asc' },
     });
-    const monthStart = new Date();
-    monthStart.setUTCDate(1);
-    monthStart.setUTCHours(0, 0, 0, 0);
+    const monthStart = istMonthStart();
+    // An order counts towards the territory of the dealer who placed it; orders from
+    // other buyers count towards the territory covering the delivery pincode.
     const sales = await this.prisma.$queryRaw<{ territoryId: string; gmv: unknown }[]>`
-      SELECT d."territoryId", SUM(o.total) AS gmv
-      FROM "marketplace"."B2bOrder" o
-      JOIN "marketplace"."Dealer" d ON d."dealerTenantId" = o."buyerTenantId" AND d."tenantId" = o."sellerTenantId"
-      WHERE o."sellerTenantId" = ${tenantId} AND o.status = 'DELIVERED' AND o."deliveredAt" >= ${monthStart}
-      GROUP BY d."territoryId"`;
+      SELECT x."territoryId", SUM(x.total) AS gmv
+      FROM (
+        SELECT o.total,
+               COALESCE(
+                 (SELECT d."territoryId" FROM "marketplace"."Dealer" d
+                   WHERE d."tenantId" = o."sellerTenantId" AND d."dealerTenantId" = o."buyerTenantId" AND d."territoryId" IS NOT NULL
+                   ORDER BY d."createdAt" LIMIT 1),
+                 (SELECT t.id FROM "marketplace"."Territory" t
+                   WHERE t."tenantId" = o."sellerTenantId" AND t."isActive" AND (o."deliveryAddress"->>'pincode') = ANY(t.pincodes)
+                   ORDER BY t."createdAt" LIMIT 1)
+               ) AS "territoryId"
+        FROM "marketplace"."B2bOrder" o
+        WHERE o."sellerTenantId" = ${tenantId} AND o.status = 'DELIVERED' AND o."deliveredAt" >= ${monthStart}
+      ) x
+      WHERE x."territoryId" IS NOT NULL
+      GROUP BY x."territoryId"`;
     const byTerritory = new Map(sales.map((s) => [s.territoryId, Number(s.gmv)]));
     return territories.map((t) => {
       const mtd = round2(byTerritory.get(t.id) ?? 0);

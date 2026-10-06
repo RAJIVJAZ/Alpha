@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@foodgrid/database/nest';
-import { round2, sumMoney } from '@foodgrid/utils';
-import { resolveRange } from '@foodgrid/utils/server';
+import { istDate, round2, sumMoney } from '@foodgrid/utils';
+import { resolveIstRange } from '@foodgrid/utils/server';
 
 /** Seller-side analytics computed from the marketplace's own tables. */
 @Injectable()
@@ -9,7 +9,7 @@ export class SellerAnalyticsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async summary(tenantId: string, q: { from?: string; to?: string }) {
-    const { from, to } = resolveRange(q, 30);
+    const { from, to } = resolveIstRange(q, 30);
     const orders = await this.prisma.b2bOrder.findMany({
       where: { sellerTenantId: tenantId, createdAt: { gte: from, lte: to } },
       include: { items: true },
@@ -20,7 +20,7 @@ export class SellerAnalyticsService {
     const buyers = new Map<string, { buyerTenantId: string; name: string; orders: number; gmv: number }>();
     for (const o of orders) {
       if (['CANCELLED', 'REJECTED'].includes(o.status)) continue;
-      const d = o.createdAt.toISOString().slice(0, 10);
+      const d = istDate(o.createdAt);
       const day = byDay.get(d) ?? { date: d, orders: 0, gmv: 0 };
       day.orders += 1;
       day.gmv = sumMoney([day.gmv, o.total.toString()]);

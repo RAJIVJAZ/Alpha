@@ -1,6 +1,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
 import { IsDateString, IsInt, IsOptional, Max, Min } from 'class-validator';
+import { istDate } from '../time';
 
 /** Parses "true"/"false"/"1"/"0" query strings correctly (implicit conversion would not). */
 export const ToBoolean = () =>
@@ -46,10 +47,28 @@ export class DateRangeQueryDto {
   to?: string;
 }
 
-/** Resolves a date range defaulting to the last `days` days (inclusive). */
+/**
+ * Date range for `@db.Date` columns (which already hold IST business dates):
+ * UTC-midnight bounds, defaulting to the last `days` days (inclusive).
+ * Filtering timestamp columns? Use resolveIstRange.
+ */
 export function resolveRange(q: DateRangeQueryDto, days = 30): { from: Date; to: Date } {
   const to = q.to ? new Date(`${q.to.slice(0, 10)}T23:59:59.999Z`) : new Date();
   const from = q.from ? new Date(`${q.from.slice(0, 10)}T00:00:00.000Z`) : new Date(to.getTime() - (days - 1) * 86_400_000);
   if (!q.from) from.setUTCHours(0, 0, 0, 0);
   return { from, to };
+}
+
+const IST_OFFSET_MS = 330 * 60_000;
+const istDayStart = (ymd: string) => new Date(Date.parse(`${ymd}T00:00:00.000Z`) - IST_OFFSET_MS);
+
+/**
+ * Range for timestamp columns where `from`/`to` are IST business dates: from
+ * 00:00 IST on `from` to the last millisecond of `to` in IST. Defaults to the
+ * last `days` IST days including today (ending now).
+ */
+export function resolveIstRange(q: DateRangeQueryDto, days = 30): { from: Date; to: Date } {
+  const to = q.to ? new Date(istDayStart(q.to.slice(0, 10)).getTime() + 86_400_000 - 1) : new Date();
+  const fromDay = q.from ? q.from.slice(0, 10) : istDate(new Date(to.getTime() - (days - 1) * 86_400_000));
+  return { from: istDayStart(fromDay), to };
 }

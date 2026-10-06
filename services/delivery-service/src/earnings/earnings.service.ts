@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@foodgrid/database/nest';
 import { istDate, notFound, round2, sumMoney } from '@foodgrid/utils';
-import { resolveRange } from '@foodgrid/utils/server';
+import { resolveIstRange } from '@foodgrid/utils/server';
 
 @Injectable()
 export class EarningsService {
@@ -10,7 +10,7 @@ export class EarningsService {
   async summary(userId: string, q: { from?: string; to?: string }) {
     const rider = await this.prisma.riderProfile.findUnique({ where: { userId } });
     if (!rider) throw notFound('Rider profile');
-    const { from, to } = resolveRange(q, 7);
+    const { from, to } = resolveIstRange(q, 7);
     const rows = await this.prisma.riderEarning.findMany({ where: { riderId: rider.id, earnedAt: { gte: from, lte: to } }, orderBy: { earnedAt: 'desc' } });
     const byType: Record<string, number> = {};
     const byDay = new Map<string, { date: string; amount: number; deliveries: Set<string> }>();

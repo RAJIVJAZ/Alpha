@@ -3,7 +3,7 @@ import { PrismaService } from '@foodgrid/database/nest';
 import type { Prisma } from '@foodgrid/database';
 import type { AccessTokenClaims, OrderTrackingView } from '@foodgrid/types';
 import { conflict, forbidden, normalizePage, notFound, paginate } from '@foodgrid/utils';
-import { InternalHttpService, resolveRange } from '@foodgrid/utils/server';
+import { InternalHttpService, resolveIstRange } from '@foodgrid/utils/server';
 import { CartService } from '../cart/cart.service';
 import { outletScope } from '../common/outlet-access';
 import { CUSTOMER_CANCELLABLE } from '../domain/order-state';
@@ -122,7 +122,7 @@ export class OrdersService {
   // ─── merchant ──────────────────────────────────────────────────────────────
   async listForMerchant(user: AccessTokenClaims, q: MerchantOrdersQueryDto) {
     const { page, pageSize, skip, take } = normalizePage(q, 200);
-    const range = q.from || q.to ? resolveRange(q) : null;
+    const range = q.from || q.to ? resolveIstRange(q) : null;
     const where: Prisma.OrderWhereInput = {
       ...outletScope(user, q.outletId),
       ...(q.status?.length ? { status: { in: q.status } } : { status: { not: 'PENDING_PAYMENT' } }),

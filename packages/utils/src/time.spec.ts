@@ -1,4 +1,4 @@
-import { istDate, isWithinOpeningHours, isWithinWindow } from './time';
+import { istDate, istMonthStart, isWithinOpeningHours, isWithinWindow } from './time';
 
 describe('time (IST)', () => {
   it('derives IST business dates', () => {
@@ -18,5 +18,11 @@ describe('time (IST)', () => {
     const noonIst = new Date('2026-10-06T06:45:00Z'); // 12:15 IST
     expect(isWithinWindow([{ start: '12:00', end: '14:30' }], noonIst)).toBe(true);
     expect(isWithinWindow([{ start: '19:00', end: '22:00' }], noonIst)).toBe(false);
+  });
+
+  it('starts the month at IST midnight, not UTC midnight', () => {
+    expect(istMonthStart(new Date('2026-10-06T12:00:00Z')).toISOString()).toBe('2026-09-30T18:30:00.000Z');
+    // 31 Oct 20:00 UTC is already 1 Nov in India
+    expect(istMonthStart(new Date('2026-10-31T20:00:00Z')).toISOString()).toBe('2026-10-31T18:30:00.000Z');
   });
 });
