@@ -28,6 +28,13 @@ export class InternalController {
     return this.zones.quote({ lat: Number(pickupLat), lng: Number(pickupLng) }, { lat: Number(dropLat), lng: Number(dropLng) }, Number(prepMins) || 20);
   }
 
+  @Get('riders/by-user/:userId')
+  async riderByUser(@Param('userId') userId: string) {
+    const rider = await this.prisma.riderProfile.findUnique({ where: { userId }, select: { id: true, name: true, city: true, status: true } });
+    if (!rider) throw notFound('Rider profile');
+    return rider;
+  }
+
   @Get('deliveries/by-order/:orderId')
   @ApiOperation({ summary: 'Tracking snapshot for order-service' })
   async byOrder(@Param('orderId') orderId: string) {
