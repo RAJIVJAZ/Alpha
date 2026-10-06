@@ -61,3 +61,6 @@ export async function truncateSchemas(
   const list = rows.map((r) => `"${r.schemaname}"."${r.tablename}"`).join(', ');
   await prisma.$executeRawUnsafe(`TRUNCATE ${list} RESTART IDENTITY CASCADE`);
 }
+
+export { FakeInternalHttp, type FakeRequest } from './fake-internal-http';
+export { createTestApp } from './app';

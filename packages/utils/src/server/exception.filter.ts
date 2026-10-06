@@ -45,13 +45,20 @@ export class AllExceptionsFilter implements ExceptionFilter {
     if (e instanceof TenantScopeViolationError) return { status: 403, message: e.message, code: 'TENANT_SCOPE' };
     if (e instanceof UnitConversionError) return { status: 422, message: e.message, code: 'UNIT_MISMATCH' };
     if (e instanceof HttpException) {
+      const status = e.getStatus();
       const r = e.getResponse();
-      if (typeof r === 'string') return { status: e.getStatus(), message: r };
+      // every error carries a machine-readable code: explicit, validation, or the HTTP status name
+      const fallbackCode = String(HttpStatus[status] ?? 'HTTP_ERROR');
+      if (typeof r === 'string') return { status, message: r, code: fallbackCode };
       const obj = r as Record<string, unknown>;
+      if (status === 400 && Array.isArray(obj.message) && obj.code === undefined) {
+        // class-validator failures from the global ValidationPipe
+        return { status, message: 'Validation failed', code: 'VALIDATION_FAILED', details: { errors: obj.message } };
+      }
       return {
-        status: e.getStatus(),
+        status,
         message: (obj.message as string | string[]) ?? e.message,
-        code: obj.code as string | undefined,
+        code: (obj.code as string | undefined) ?? fallbackCode,
         details: obj.details,
       };
     }
