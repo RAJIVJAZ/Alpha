@@ -60,6 +60,16 @@ export interface RiderStatusChangedEvent {
   userId: string;
   status: string;
 }
+export interface ApprovalDecidedEvent {
+  approvalId: string;
+  entityType: 'TENANT' | 'OUTLET' | 'RIDER' | 'PRODUCT' | 'AD_CAMPAIGN';
+  entityId: string;
+  tenantId: string | null;
+  decision: 'APPROVED' | 'REJECTED' | 'CHANGES_REQUESTED';
+  notes: string | null;
+  reviewedBy: string;
+  submittedBy: string | null;
+}
 
 // ─── order ───────────────────────────────────────────────────────────────────
 export interface OrderLineSnapshot {
@@ -167,6 +177,14 @@ export interface DeliveryEvent {
   deliveryMins?: number | null;
 }
 
+export interface IncentiveAchievedEvent {
+  riderIncentiveId: string;
+  riderId: string;
+  userId: string;
+  schemeName: string;
+  rewardAmount: Money;
+}
+
 // ─── inventory ───────────────────────────────────────────────────────────────
 export interface StockLowEvent {
   tenantId: string;
@@ -247,6 +265,7 @@ export const EventTypes = {
   UserRegistered: 'identity.user.registered',
   TenantStatusChanged: 'identity.tenant.status_changed',
   RiderStatusChanged: 'identity.rider.status_changed',
+  ApprovalDecided: 'identity.approval.decided',
 
   OrderCreated: 'order.created',
   OrderPlaced: 'order.placed',
@@ -268,6 +287,7 @@ export const EventTypes = {
   DeliveryPickedUp: 'delivery.picked_up',
   DeliveryDelivered: 'delivery.delivered',
   DeliveryFailed: 'delivery.failed',
+  IncentiveAchieved: 'delivery.incentive.achieved',
 
   StockLow: 'inventory.stock.low',
   StockConsumed: 'inventory.stock.consumed',
