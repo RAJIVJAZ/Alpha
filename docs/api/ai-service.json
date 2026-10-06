@@ -1,0 +1,1130 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/api/v1/internal/ai/forecast/demand": {
+      "post": {
+        "operationId": "InternalAi_forecast",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DemandForecastDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Daily demand forecast (Holt-Winters + festival/weather signals) and depletion date",
+        "tags": [
+          "internal"
+        ],
+        "security": [
+          {
+            "service-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/internal/ai/inventory/optimize": {
+      "post": {
+        "operationId": "InternalAi_optimize",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InventoryOptimizeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Safety stock, reorder point, EOQ, ABC class and risk flags",
+        "tags": [
+          "internal"
+        ],
+        "security": [
+          {
+            "service-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/internal/ai/suppliers/rank": {
+      "post": {
+        "operationId": "InternalAi_rank",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RankSuppliersDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Rank supplier offers; also returns the best offer per strategy",
+        "tags": [
+          "internal"
+        ],
+        "security": [
+          {
+            "service-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/internal/ai/pricing/delivery-surge": {
+      "post": {
+        "operationId": "InternalAi_surge",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SurgeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "internal"
+        ],
+        "security": [
+          {
+            "service-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/internal/ai/pricing/markdown": {
+      "post": {
+        "operationId": "InternalAi_markdown",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MarkdownDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "internal"
+        ],
+        "security": [
+          {
+            "service-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/internal/ai/fraud/score": {
+      "post": {
+        "operationId": "InternalAi_fraud",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FraudScoreDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Order risk score with decision (ALLOW / REVIEW / BLOCK) and reasons",
+        "tags": [
+          "internal"
+        ],
+        "security": [
+          {
+            "service-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/internal/ai/fraud/rider-trajectory": {
+      "post": {
+        "operationId": "InternalAi_trajectory",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TrajectoryDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "internal"
+        ],
+        "security": [
+          {
+            "service-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/internal/ai/routes/optimize": {
+      "post": {
+        "operationId": "InternalAi_route",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RouteDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Pickup & drop route optimisation (precedence-constrained, 2-opt)",
+        "tags": [
+          "internal"
+        ],
+        "security": [
+          {
+            "service-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/internal/ai/recommendations/outlets": {
+      "post": {
+        "operationId": "InternalAi_outlets",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OutletRecoDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "internal"
+        ],
+        "security": [
+          {
+            "service-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/internal/ai/recommendations/items": {
+      "post": {
+        "operationId": "InternalAi_items",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ItemRecoDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "internal"
+        ],
+        "security": [
+          {
+            "service-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/internal/ai/outlets/score": {
+      "post": {
+        "operationId": "InternalAi_score",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OutletScoreDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Restaurant performance score (0-100, grade A–E) with tips",
+        "tags": [
+          "internal"
+        ],
+        "security": [
+          {
+            "service-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/internal/ai/signals": {
+      "get": {
+        "operationId": "InternalAi_listSignals",
+        "parameters": [
+          {
+            "name": "from",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Festival / weather / event signals for a city and window",
+        "tags": [
+          "internal"
+        ],
+        "security": [
+          {
+            "service-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/ai/pricing/menu-suggestions": {
+      "post": {
+        "operationId": "Ai_menuSuggestions",
+        "parameters": [
+          {
+            "name": "outletId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Generate price suggestions from sales history, elasticity and plate cost",
+        "tags": [
+          "ai"
+        ]
+      }
+    },
+    "/api/v1/ai/pricing/suggestions": {
+      "get": {
+        "operationId": "Ai_suggestions",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "ai"
+        ]
+      }
+    },
+    "/api/v1/ai/pricing/suggestions/{id}/{action}": {
+      "post": {
+        "operationId": "Ai_decide",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "action",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "ai"
+        ]
+      }
+    },
+    "/api/v1/ai/outlet-scores": {
+      "get": {
+        "operationId": "Ai_outletScores",
+        "parameters": [
+          {
+            "name": "outletId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Restaurant performance score history",
+        "tags": [
+          "ai"
+        ]
+      }
+    },
+    "/api/v1/admin/ai/outlet-scores": {
+      "get": {
+        "operationId": "Ai_leaderboard",
+        "parameters": [
+          {
+            "name": "grade",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "ai"
+        ]
+      }
+    },
+    "/api/v1/admin/ai/fraud/assessments": {
+      "get": {
+        "operationId": "Ai_fraudQueue",
+        "parameters": [
+          {
+            "name": "decision",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Fraud review queue",
+        "tags": [
+          "ai"
+        ]
+      }
+    },
+    "/api/v1/admin/ai/fraud/assessments/{id}/review": {
+      "post": {
+        "operationId": "Ai_review",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewFraudDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "ai"
+        ]
+      }
+    },
+    "/api/v1/admin/ai/fraud/stats": {
+      "get": {
+        "operationId": "Ai_fraudStats",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "ai"
+        ]
+      }
+    },
+    "/api/v1/admin/ai/signals": {
+      "get": {
+        "operationId": "Ai_listSignals",
+        "parameters": [
+          {
+            "name": "from",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "city",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "ai"
+        ]
+      },
+      "post": {
+        "operationId": "Ai_createSignal",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignalDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "ai"
+        ]
+      }
+    },
+    "/api/v1/admin/ai/signals/{id}": {
+      "delete": {
+        "operationId": "Ai_deleteSignal",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "ai"
+        ]
+      }
+    },
+    "/api/v1/admin/ai/signals/weather/sync": {
+      "post": {
+        "operationId": "Ai_syncWeather",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "ai"
+        ]
+      }
+    },
+    "/api/v1/admin/ai/model-runs": {
+      "get": {
+        "operationId": "Ai_modelRuns",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Model invocation stats (last 24h)",
+        "tags": [
+          "ai"
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "FoodGrid AI Service",
+    "description": "Demand forecasting, dynamic pricing, inventory optimisation, supplier recommendation, fraud detection, route optimisation, recommendations and outlet scoring.",
+    "version": "1.0.0",
+    "contact": {}
+  },
+  "tags": [],
+  "servers": [
+    {
+      "url": "/",
+      "description": "Gateway / local"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearer": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http"
+      },
+      "service-token": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-service-token"
+      }
+    },
+    "schemas": {
+      "SeriesPointDto": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string"
+          },
+          "value": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "date",
+          "value"
+        ]
+      },
+      "DemandForecastDto": {
+        "type": "object",
+        "properties": {
+          "series": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SeriesPointDto"
+            }
+          },
+          "horizonDays": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 90
+          },
+          "category": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string"
+          },
+          "currentStock": {
+            "type": "number",
+            "description": "If set, the response includes depletion prediction"
+          },
+          "tenantId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "series",
+          "horizonDays"
+        ]
+      },
+      "InventoryOptimizeDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "serviceLevel": {
+            "type": "number",
+            "default": 0.95
+          },
+          "reviewPeriodDays": {
+            "type": "number",
+            "default": 7
+          },
+          "tenantId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
+      "RankSuppliersDto": {
+        "type": "object",
+        "properties": {
+          "offers": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "quantity": {
+            "type": "number"
+          },
+          "strategy": {
+            "type": "string",
+            "enum": [
+              "LOWEST_COST",
+              "FASTEST",
+              "BEST_RATED",
+              "BALANCED"
+            ]
+          },
+          "tenantId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "offers",
+          "quantity",
+          "strategy"
+        ]
+      },
+      "SurgeDto": {
+        "type": "object",
+        "properties": {
+          "pendingOrders": {
+            "type": "number"
+          },
+          "onlineRiders": {
+            "type": "number"
+          },
+          "rainMm": {
+            "type": "number"
+          },
+          "hourOfDay": {
+            "type": "number"
+          },
+          "isFestival": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "pendingOrders",
+          "onlineRiders",
+          "hourOfDay"
+        ]
+      },
+      "MarkdownDto": {
+        "type": "object",
+        "properties": {
+          "products": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        },
+        "required": [
+          "products"
+        ]
+      },
+      "FraudScoreDto": {
+        "type": "object",
+        "properties": {
+          "entityType": {
+            "type": "string",
+            "enum": [
+              "ORDER",
+              "PAYMENT",
+              "USER",
+              "RIDER",
+              "COUPON_REDEMPTION",
+              "REFUND"
+            ]
+          },
+          "entityId": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string"
+          },
+          "features": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "entityType",
+          "entityId",
+          "features"
+        ]
+      },
+      "TrajectoryDto": {
+        "type": "object",
+        "properties": {
+          "riderId": {
+            "type": "string"
+          },
+          "deliveryId": {
+            "type": "string"
+          },
+          "pings": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "drop": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "riderId",
+          "deliveryId",
+          "pings"
+        ]
+      },
+      "RouteDto": {
+        "type": "object",
+        "properties": {
+          "start": {
+            "type": "object"
+          },
+          "stops": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "avgSpeedKmph": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "start",
+          "stops"
+        ]
+      },
+      "OutletRecoDto": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string"
+          },
+          "history": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "candidates": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "context": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "history",
+          "candidates"
+        ]
+      },
+      "ItemRecoDto": {
+        "type": "object",
+        "properties": {
+          "baskets": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "seedItemIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "limit": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "baskets",
+          "seedItemIds"
+        ]
+      },
+      "OutletScoreDto": {
+        "type": "object",
+        "properties": {
+          "tenantId": {
+            "type": "string"
+          },
+          "outletId": {
+            "type": "string"
+          },
+          "periodStart": {
+            "type": "string"
+          },
+          "periodEnd": {
+            "type": "string"
+          },
+          "metrics": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "tenantId",
+          "outletId",
+          "periodStart",
+          "periodEnd",
+          "metrics"
+        ]
+      },
+      "ReviewFraudDto": {
+        "type": "object",
+        "properties": {
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "CONFIRMED_FRAUD",
+              "FALSE_POSITIVE"
+            ]
+          }
+        },
+        "required": [
+          "outcome"
+        ]
+      },
+      "SignalDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "FESTIVAL",
+              "WEATHER",
+              "EVENT",
+              "HOLIDAY"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "example": "Diwali"
+          },
+          "city": {
+            "type": "string",
+            "description": "Null = nationwide"
+          },
+          "date": {
+            "type": "string"
+          },
+          "impact": {
+            "type": "number",
+            "example": 1.4
+          },
+          "categories": {
+            "example": [
+              "SUGAR",
+              "DAIRY",
+              "FLOUR"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "type",
+          "name",
+          "date",
+          "impact"
+        ]
+      }
+    }
+  }
+}

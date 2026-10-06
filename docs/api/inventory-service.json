@@ -1,0 +1,1396 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/api/v1/inventory/summary": {
+      "get": {
+        "operationId": "Inventory_summary",
+        "parameters": [
+          {
+            "name": "outletId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Stock value and health by category; batches expiring in 3 days",
+        "tags": [
+          "inventory"
+        ]
+      }
+    },
+    "/api/v1/inventory/ingredients": {
+      "get": {
+        "operationId": "Inventory_list",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "pageSize",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "outletId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "category",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "FLOUR",
+                "OIL",
+                "SUGAR",
+                "DAIRY",
+                "VEGETABLES",
+                "FRUITS",
+                "PACKAGING",
+                "SPICES",
+                "GRAINS",
+                "PULSES",
+                "MEAT_SEAFOOD",
+                "BEVERAGES",
+                "FROZEN",
+                "BAKERY",
+                "CONDIMENTS",
+                "OTHER"
+              ]
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "OK",
+                "LOW",
+                "OUT"
+              ]
+            }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Ingredients (flour, oil, sugar, dairy, vegetables, packaging, spices ...)",
+        "tags": [
+          "inventory"
+        ]
+      },
+      "post": {
+        "operationId": "Inventory_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IngredientDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "inventory"
+        ]
+      }
+    },
+    "/api/v1/inventory/ingredients/{id}": {
+      "get": {
+        "operationId": "Inventory_get",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "inventory"
+        ]
+      },
+      "patch": {
+        "operationId": "Inventory_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateIngredientDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "inventory"
+        ]
+      }
+    },
+    "/api/v1/inventory/stock/receive": {
+      "post": {
+        "operationId": "Inventory_receive",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReceiveStockDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Goods receipt (creates batches, updates weighted average cost)",
+        "tags": [
+          "inventory"
+        ]
+      }
+    },
+    "/api/v1/inventory/stock/adjust": {
+      "post": {
+        "operationId": "Inventory_adjust",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdjustStockDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Physical stock count adjustment",
+        "tags": [
+          "inventory"
+        ]
+      }
+    },
+    "/api/v1/inventory/stock/wastage": {
+      "post": {
+        "operationId": "Inventory_wastage",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WastageDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "inventory"
+        ]
+      }
+    },
+    "/api/v1/inventory/movements": {
+      "get": {
+        "operationId": "Inventory_movements",
+        "parameters": [
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "2026-09-01",
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "2026-09-30",
+              "type": "string"
+            }
+          },
+          {
+            "name": "ingredientId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "outletId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "type",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "OPENING",
+                "PURCHASE",
+                "CONSUMPTION",
+                "WASTAGE",
+                "ADJUSTMENT",
+                "TRANSFER_IN",
+                "TRANSFER_OUT",
+                "PRODUCTION",
+                "RETURN"
+              ]
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Stock ledger",
+        "tags": [
+          "inventory"
+        ]
+      }
+    },
+    "/api/v1/inventory/recipes": {
+      "get": {
+        "operationId": "Recipes_list",
+        "parameters": [
+          {
+            "name": "outletId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "inventory"
+        ]
+      },
+      "put": {
+        "operationId": "Recipes_upsert",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecipeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create or replace the recipe (BOM) for a menu item",
+        "tags": [
+          "inventory"
+        ]
+      }
+    },
+    "/api/v1/inventory/recipes/{menuItemId}": {
+      "get": {
+        "operationId": "Recipes_get",
+        "parameters": [
+          {
+            "name": "menuItemId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "inventory"
+        ]
+      },
+      "delete": {
+        "operationId": "Recipes_remove",
+        "parameters": [
+          {
+            "name": "menuItemId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "inventory"
+        ]
+      }
+    },
+    "/api/v1/inventory/recipes/{menuItemId}/cost": {
+      "get": {
+        "operationId": "Recipes_cost",
+        "parameters": [
+          {
+            "name": "menuItemId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Plate cost breakdown from current ingredient costs",
+        "tags": [
+          "inventory"
+        ]
+      }
+    },
+    "/api/v1/inventory/costing": {
+      "get": {
+        "operationId": "Costing_report",
+        "parameters": [
+          {
+            "name": "outletId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Costing system: food cost % and margin per menu item",
+        "tags": [
+          "inventory"
+        ]
+      }
+    },
+    "/api/v1/inventory/costing/snapshot": {
+      "post": {
+        "operationId": "Costing_snapshot",
+        "parameters": [
+          {
+            "name": "outletId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "inventory"
+        ]
+      }
+    },
+    "/api/v1/inventory/costing/trend/{menuItemId}": {
+      "get": {
+        "operationId": "Costing_trend",
+        "parameters": [
+          {
+            "name": "menuItemId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "inventory"
+        ]
+      }
+    },
+    "/api/v1/inventory/production-plans/generate": {
+      "post": {
+        "operationId": "Production_generate",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GeneratePlanDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Generate a production plan from forecast dish demand",
+        "tags": [
+          "inventory"
+        ]
+      }
+    },
+    "/api/v1/inventory/production-plans": {
+      "get": {
+        "operationId": "Production_list",
+        "parameters": [
+          {
+            "name": "outletId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "inventory"
+        ]
+      }
+    },
+    "/api/v1/inventory/production-plans/{id}": {
+      "get": {
+        "operationId": "Production_get",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Plan with ingredient requirements and shortages",
+        "tags": [
+          "inventory"
+        ]
+      }
+    },
+    "/api/v1/inventory/production-plans/{id}/items/{itemId}": {
+      "patch": {
+        "operationId": "Production_updateItem",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "itemId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePlanItemDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "inventory"
+        ]
+      }
+    },
+    "/api/v1/inventory/production-plans/{id}/confirm": {
+      "post": {
+        "operationId": "Production_confirm",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "inventory"
+        ]
+      }
+    },
+    "/api/v1/inventory/production-plans/{id}/start": {
+      "post": {
+        "operationId": "Production_start",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "inventory"
+        ]
+      }
+    },
+    "/api/v1/inventory/production-plans/{id}/complete": {
+      "post": {
+        "operationId": "Production_complete",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "inventory"
+        ]
+      }
+    },
+    "/api/v1/internal/inventory/tenants": {
+      "get": {
+        "operationId": "Internal_tenants",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Tenant/outlet pairs with active ingredients (procurement batch jobs)",
+        "tags": [
+          "internal"
+        ],
+        "security": [
+          {
+            "service-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/internal/inventory/stock-status": {
+      "get": {
+        "operationId": "Internal_stockStatus",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "outletId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Active ingredients with stock levels and 28-day usage statistics",
+        "tags": [
+          "internal"
+        ],
+        "security": [
+          {
+            "service-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/internal/inventory/ingredients/{id}": {
+      "get": {
+        "operationId": "Internal_ingredient",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "internal"
+        ],
+        "security": [
+          {
+            "service-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/internal/inventory/ingredients/{id}/consumption": {
+      "get": {
+        "operationId": "Internal_consumption",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Zero-filled daily consumption series (forecasting input)",
+        "tags": [
+          "internal"
+        ],
+        "security": [
+          {
+            "service-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/internal/inventory/outlets/{outletId}/plate-costs": {
+      "get": {
+        "operationId": "Internal_plateCosts",
+        "parameters": [
+          {
+            "name": "outletId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Current plate cost per menu item (dynamic pricing input)",
+        "tags": [
+          "internal"
+        ],
+        "security": [
+          {
+            "service-token": []
+          }
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "FoodGrid Inventory Service",
+    "description": "Ingredients, FEFO stock batches, stock ledger, consumption tracking, recipes, costing and production planning.",
+    "version": "1.0.0",
+    "contact": {}
+  },
+  "tags": [],
+  "servers": [
+    {
+      "url": "/",
+      "description": "Gateway / local"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearer": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http"
+      },
+      "service-token": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-service-token"
+      }
+    },
+    "schemas": {
+      "IngredientDto": {
+        "type": "object",
+        "properties": {
+          "outletId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string",
+            "example": "Maida (refined flour)"
+          },
+          "sku": {
+            "type": "string",
+            "example": "FLR-MAIDA"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "FLOUR",
+              "OIL",
+              "SUGAR",
+              "DAIRY",
+              "VEGETABLES",
+              "FRUITS",
+              "PACKAGING",
+              "SPICES",
+              "GRAINS",
+              "PULSES",
+              "MEAT_SEAFOOD",
+              "BEVERAGES",
+              "FROZEN",
+              "BAKERY",
+              "CONDIMENTS",
+              "OTHER"
+            ]
+          },
+          "unit": {
+            "type": "string",
+            "enum": [
+              "KG",
+              "G",
+              "L",
+              "ML",
+              "PCS",
+              "PACK",
+              "DOZEN",
+              "BOX"
+            ]
+          },
+          "reorderLevel": {
+            "type": "number"
+          },
+          "reorderQty": {
+            "type": "number"
+          },
+          "safetyStock": {
+            "type": "number"
+          },
+          "maxStock": {
+            "type": "number"
+          },
+          "shelfLifeDays": {
+            "type": "number"
+          },
+          "storageType": {
+            "type": "string",
+            "enum": [
+              "DRY",
+              "CHILLED",
+              "FROZEN"
+            ]
+          },
+          "isPerishable": {
+            "type": "boolean"
+          },
+          "leadTimeDays": {
+            "type": "number"
+          },
+          "marketplaceCategory": {
+            "type": "string",
+            "description": "Marketplace category code for supplier matching (e.g. FLOUR, DAIRY)"
+          },
+          "preferredSupplierId": {
+            "type": "string"
+          },
+          "marketplaceProductId": {
+            "type": "string"
+          },
+          "openingStock": {
+            "type": "number",
+            "description": "Opening stock (creates an OPENING movement)"
+          },
+          "openingUnitCost": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "outletId",
+          "name",
+          "sku",
+          "category",
+          "unit"
+        ]
+      },
+      "UpdateIngredientDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Maida (refined flour)"
+          },
+          "sku": {
+            "type": "string",
+            "example": "FLR-MAIDA"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "FLOUR",
+              "OIL",
+              "SUGAR",
+              "DAIRY",
+              "VEGETABLES",
+              "FRUITS",
+              "PACKAGING",
+              "SPICES",
+              "GRAINS",
+              "PULSES",
+              "MEAT_SEAFOOD",
+              "BEVERAGES",
+              "FROZEN",
+              "BAKERY",
+              "CONDIMENTS",
+              "OTHER"
+            ]
+          },
+          "unit": {
+            "type": "string",
+            "enum": [
+              "KG",
+              "G",
+              "L",
+              "ML",
+              "PCS",
+              "PACK",
+              "DOZEN",
+              "BOX"
+            ]
+          },
+          "reorderLevel": {
+            "type": "number"
+          },
+          "reorderQty": {
+            "type": "number"
+          },
+          "safetyStock": {
+            "type": "number"
+          },
+          "maxStock": {
+            "type": "number"
+          },
+          "shelfLifeDays": {
+            "type": "number"
+          },
+          "storageType": {
+            "type": "string",
+            "enum": [
+              "DRY",
+              "CHILLED",
+              "FROZEN"
+            ]
+          },
+          "isPerishable": {
+            "type": "boolean"
+          },
+          "leadTimeDays": {
+            "type": "number"
+          },
+          "marketplaceCategory": {
+            "type": "string",
+            "description": "Marketplace category code for supplier matching (e.g. FLOUR, DAIRY)"
+          },
+          "preferredSupplierId": {
+            "type": "string"
+          },
+          "marketplaceProductId": {
+            "type": "string"
+          },
+          "isActive": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ReceiveLineDto": {
+        "type": "object",
+        "properties": {
+          "ingredientId": {
+            "type": "string"
+          },
+          "quantity": {
+            "type": "number"
+          },
+          "unitCost": {
+            "type": "number",
+            "description": "Cost per stock unit (pre-tax)"
+          },
+          "batchNumber": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "ingredientId",
+          "quantity",
+          "unitCost"
+        ]
+      },
+      "ReceiveStockDto": {
+        "type": "object",
+        "properties": {
+          "outletId": {
+            "type": "string"
+          },
+          "lines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReceiveLineDto"
+            }
+          },
+          "purchaseOrderId": {
+            "type": "string"
+          },
+          "supplierTenantId": {
+            "type": "string"
+          },
+          "note": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "outletId",
+          "lines"
+        ]
+      },
+      "AdjustStockDto": {
+        "type": "object",
+        "properties": {
+          "ingredientId": {
+            "type": "string"
+          },
+          "countedQuantity": {
+            "type": "number",
+            "description": "Physically counted quantity"
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "ingredientId",
+          "countedQuantity",
+          "reason"
+        ]
+      },
+      "WastageDto": {
+        "type": "object",
+        "properties": {
+          "ingredientId": {
+            "type": "string"
+          },
+          "quantity": {
+            "type": "number"
+          },
+          "reason": {
+            "type": "string",
+            "example": "Spoiled — fridge failure"
+          }
+        },
+        "required": [
+          "ingredientId",
+          "quantity",
+          "reason"
+        ]
+      },
+      "RecipeLineDto": {
+        "type": "object",
+        "properties": {
+          "ingredientId": {
+            "type": "string"
+          },
+          "quantity": {
+            "type": "number",
+            "example": 150
+          },
+          "unit": {
+            "type": "string",
+            "enum": [
+              "KG",
+              "G",
+              "L",
+              "ML",
+              "PCS",
+              "PACK",
+              "DOZEN",
+              "BOX"
+            ],
+            "example": "G"
+          },
+          "wastagePct": {
+            "type": "number",
+            "example": 5
+          }
+        },
+        "required": [
+          "ingredientId",
+          "quantity",
+          "unit"
+        ]
+      },
+      "RecipeDto": {
+        "type": "object",
+        "properties": {
+          "outletId": {
+            "type": "string"
+          },
+          "menuItemId": {
+            "type": "string",
+            "description": "Menu item this recipe produces"
+          },
+          "name": {
+            "type": "string"
+          },
+          "yieldQty": {
+            "type": "number",
+            "default": 1,
+            "description": "Portions produced by the quantities below"
+          },
+          "prepTimeMins": {
+            "type": "number"
+          },
+          "instructions": {
+            "type": "string"
+          },
+          "lines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RecipeLineDto"
+            }
+          }
+        },
+        "required": [
+          "outletId",
+          "menuItemId",
+          "name",
+          "lines"
+        ]
+      },
+      "GeneratePlanDto": {
+        "type": "object",
+        "properties": {
+          "outletId": {
+            "type": "string"
+          },
+          "date": {
+            "type": "string",
+            "example": "2026-10-07"
+          },
+          "bufferPct": {
+            "type": "number",
+            "default": 10,
+            "description": "Safety buffer %"
+          }
+        },
+        "required": [
+          "outletId",
+          "date"
+        ]
+      },
+      "UpdatePlanItemDto": {
+        "type": "object",
+        "properties": {
+          "plannedQty": {
+            "type": "number"
+          },
+          "producedQty": {
+            "type": "number"
+          }
+        }
+      }
+    }
+  }
+}

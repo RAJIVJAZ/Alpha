@@ -1,0 +1,2487 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/api/v1/marketplace/categories": {
+      "get": {
+        "operationId": "Catalog_categories",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Dairy, Flour, Sugar, Rice, Vegetables, Fruits, Packaging, Spices, Beverages, Frozen …",
+        "tags": [
+          "marketplace"
+        ],
+        "security": []
+      }
+    },
+    "/api/v1/marketplace/products": {
+      "get": {
+        "operationId": "Catalog_catalog",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "pageSize",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "category",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "DAIRY",
+              "type": "string"
+            }
+          },
+          {
+            "name": "brand",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sellerType",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "SUPPLIER",
+                "WHOLESALER",
+                "RETAILER"
+              ]
+            }
+          },
+          {
+            "name": "sellerId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "minPrice",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "maxPrice",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "inStock",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "sort",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "relevance",
+                "price_asc",
+                "price_desc",
+                "rating",
+                "fastest"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Browse the B2B product marketplace",
+        "tags": [
+          "marketplace"
+        ],
+        "security": []
+      }
+    },
+    "/api/v1/marketplace/products/{idOrSlug}": {
+      "get": {
+        "operationId": "Catalog_detail",
+        "parameters": [
+          {
+            "name": "idOrSlug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "marketplace"
+        ],
+        "security": []
+      }
+    },
+    "/api/v1/seller/products": {
+      "get": {
+        "operationId": "SellerProducts_list",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "pageSize",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "category",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "DAIRY",
+              "type": "string"
+            }
+          },
+          {
+            "name": "brand",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sellerType",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "SUPPLIER",
+                "WHOLESALER",
+                "RETAILER"
+              ]
+            }
+          },
+          {
+            "name": "sellerId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "minPrice",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "maxPrice",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "inStock",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "sort",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "relevance",
+                "price_asc",
+                "price_desc",
+                "rating",
+                "fastest"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "seller"
+        ]
+      },
+      "post": {
+        "operationId": "SellerProducts_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProductDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List a product (name, SKU, brand, images, price, MOQ, unit, GST, delivery time, stock)",
+        "tags": [
+          "seller"
+        ]
+      }
+    },
+    "/api/v1/seller/products/bulk": {
+      "post": {
+        "operationId": "SellerProducts_bulk",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkProductsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Bulk upsert by SKU (catalogue import)",
+        "tags": [
+          "seller"
+        ]
+      }
+    },
+    "/api/v1/seller/products/{id}": {
+      "patch": {
+        "operationId": "SellerProducts_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateProductDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "seller"
+        ]
+      }
+    },
+    "/api/v1/seller/products/{id}/stock": {
+      "patch": {
+        "operationId": "SellerProducts_stock",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StockUpdateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "seller"
+        ]
+      }
+    },
+    "/api/v1/seller/products/{id}/price-tiers": {
+      "put": {
+        "operationId": "SellerProducts_tiers",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PriceTiersDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Bulk pricing tiers (optionally per buyer segment)",
+        "tags": [
+          "seller"
+        ]
+      }
+    },
+    "/api/v1/seller/delivery-zones": {
+      "get": {
+        "operationId": "Logistics_zones",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delivery zones (pincodes or radius) with charges and lead times",
+        "tags": [
+          "seller"
+        ]
+      },
+      "post": {
+        "operationId": "Logistics_createZone",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ZoneDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "seller"
+        ]
+      }
+    },
+    "/api/v1/seller/delivery-zones/{id}": {
+      "patch": {
+        "operationId": "Logistics_updateZone",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateZoneDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "seller"
+        ]
+      },
+      "delete": {
+        "operationId": "Logistics_deleteZone",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "seller"
+        ]
+      }
+    },
+    "/api/v1/seller/delivery-slots": {
+      "get": {
+        "operationId": "Logistics_slots",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delivery slots (retailers / distributors)",
+        "tags": [
+          "seller"
+        ]
+      },
+      "post": {
+        "operationId": "Logistics_createSlot",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SlotDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "seller"
+        ]
+      }
+    },
+    "/api/v1/seller/delivery-slots/{id}": {
+      "patch": {
+        "operationId": "Logistics_updateSlot",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSlotDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "seller"
+        ]
+      }
+    },
+    "/api/v1/marketplace/sellers/{sellerId}/slots": {
+      "get": {
+        "operationId": "SellerSlots_availability",
+        "parameters": [
+          {
+            "name": "sellerId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "date",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Bookable delivery slots for a date",
+        "tags": [
+          "marketplace"
+        ],
+        "security": []
+      }
+    },
+    "/api/v1/seller/territories": {
+      "get": {
+        "operationId": "Dealers_territories",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Territories with month-to-date sales vs target",
+        "tags": [
+          "seller"
+        ]
+      },
+      "post": {
+        "operationId": "Dealers_createTerritory",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TerritoryDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "seller"
+        ]
+      }
+    },
+    "/api/v1/seller/territories/{id}": {
+      "patch": {
+        "operationId": "Dealers_updateTerritory",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTerritoryDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "seller"
+        ]
+      }
+    },
+    "/api/v1/seller/dealers": {
+      "get": {
+        "operationId": "Dealers_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Dealer network",
+        "tags": [
+          "seller"
+        ]
+      },
+      "post": {
+        "operationId": "Dealers_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DealerDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "seller"
+        ]
+      }
+    },
+    "/api/v1/seller/dealers/{id}": {
+      "patch": {
+        "operationId": "Dealers_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateDealerDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "seller"
+        ]
+      }
+    },
+    "/api/v1/seller/dealers/{id}/orders": {
+      "get": {
+        "operationId": "Dealers_orders",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "seller"
+        ]
+      }
+    },
+    "/api/v1/marketplace/orders": {
+      "post": {
+        "operationId": "BuyerOrders_place",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlaceB2bOrderDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Place a B2B order directly from the marketplace",
+        "tags": [
+          "marketplace"
+        ]
+      },
+      "get": {
+        "operationId": "BuyerOrders_list",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "pageSize",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "PLACED",
+                  "CONFIRMED",
+                  "PARTIALLY_CONFIRMED",
+                  "REJECTED",
+                  "PACKED",
+                  "DISPATCHED",
+                  "IN_TRANSIT",
+                  "DELIVERED",
+                  "CANCELLED"
+                ]
+              }
+            }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "marketplace"
+        ]
+      }
+    },
+    "/api/v1/marketplace/orders/{id}": {
+      "get": {
+        "operationId": "BuyerOrders_get",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Order with tracking timeline",
+        "tags": [
+          "marketplace"
+        ]
+      }
+    },
+    "/api/v1/marketplace/orders/{id}/cancel": {
+      "post": {
+        "operationId": "BuyerOrders_cancel",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RejectDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "marketplace"
+        ]
+      }
+    },
+    "/api/v1/marketplace/orders/{id}/rating": {
+      "post": {
+        "operationId": "BuyerOrders_rate",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RateSellerDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "marketplace"
+        ]
+      }
+    },
+    "/api/v1/seller/orders": {
+      "get": {
+        "operationId": "SellerOrders_list",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "pageSize",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "PLACED",
+                  "CONFIRMED",
+                  "PARTIALLY_CONFIRMED",
+                  "REJECTED",
+                  "PACKED",
+                  "DISPATCHED",
+                  "IN_TRANSIT",
+                  "DELIVERED",
+                  "CANCELLED"
+                ]
+              }
+            }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Incoming orders (incl. auto-generated purchase orders from restaurants)",
+        "tags": [
+          "seller"
+        ]
+      }
+    },
+    "/api/v1/seller/orders/{id}": {
+      "get": {
+        "operationId": "SellerOrders_get",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "seller"
+        ]
+      }
+    },
+    "/api/v1/seller/orders/{id}/confirm": {
+      "post": {
+        "operationId": "SellerOrders_confirm",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmB2bOrderDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Supplier order confirmation (full or partial) — reserves stock",
+        "tags": [
+          "seller"
+        ]
+      }
+    },
+    "/api/v1/seller/orders/{id}/reject": {
+      "post": {
+        "operationId": "SellerOrders_reject",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RejectDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "seller"
+        ]
+      }
+    },
+    "/api/v1/seller/orders/{id}/pack": {
+      "post": {
+        "operationId": "SellerOrders_pack",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "seller"
+        ]
+      }
+    },
+    "/api/v1/seller/orders/{id}/dispatch": {
+      "post": {
+        "operationId": "SellerOrders_dispatch",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DispatchDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delivery management: dispatch with vehicle / driver details",
+        "tags": [
+          "seller"
+        ]
+      }
+    },
+    "/api/v1/seller/orders/{id}/location": {
+      "post": {
+        "operationId": "SellerOrders_location",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LocationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "In-transit location update (delivery tracking)",
+        "tags": [
+          "seller"
+        ]
+      }
+    },
+    "/api/v1/seller/orders/{id}/deliver": {
+      "post": {
+        "operationId": "SellerOrders_deliver",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "seller"
+        ]
+      }
+    },
+    "/api/v1/seller/analytics/summary": {
+      "get": {
+        "operationId": "SellerAnalytics_summary",
+        "parameters": [
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "2026-09-01",
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "2026-09-30",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Sales, fulfilment, on-time rate, top products and buyers",
+        "tags": [
+          "seller"
+        ]
+      }
+    },
+    "/api/v1/internal/marketplace/quotes": {
+      "post": {
+        "operationId": "Internal_quote",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuoteRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Comparable supplier offers for an ingredient (procurement engine)",
+        "tags": [
+          "internal"
+        ],
+        "security": [
+          {
+            "service-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/internal/marketplace/orders/{id}": {
+      "get": {
+        "operationId": "Internal_order",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "internal"
+        ],
+        "security": [
+          {
+            "service-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/internal/marketplace/orders/{id}/payable": {
+      "get": {
+        "operationId": "Internal_payable",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "internal"
+        ],
+        "security": [
+          {
+            "service-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/internal/marketplace/products/{id}": {
+      "get": {
+        "operationId": "Internal_product",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "internal"
+        ],
+        "security": [
+          {
+            "service-token": []
+          }
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "FoodGrid Supplier Service",
+    "description": "B2B marketplace for suppliers, wholesalers and retailers: catalog, bulk pricing, MOQ, zones, slots, territories, dealers and B2B orders.",
+    "version": "1.0.0",
+    "contact": {}
+  },
+  "tags": [],
+  "servers": [
+    {
+      "url": "/",
+      "description": "Gateway / local"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearer": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http"
+      },
+      "service-token": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-service-token"
+      }
+    },
+    "schemas": {
+      "ProductDto": {
+        "type": "object",
+        "properties": {
+          "categoryCode": {
+            "type": "string",
+            "example": "FLOUR",
+            "description": "Marketplace category code"
+          },
+          "name": {
+            "type": "string",
+            "example": "Chakki Fresh Atta"
+          },
+          "sku": {
+            "type": "string",
+            "example": "ATTA-25"
+          },
+          "brand": {
+            "type": "string",
+            "example": "Aashirvaad"
+          },
+          "description": {
+            "type": "string"
+          },
+          "images": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "unit": {
+            "type": "string",
+            "enum": [
+              "KG",
+              "G",
+              "L",
+              "ML",
+              "PCS",
+              "PACK",
+              "DOZEN",
+              "BOX"
+            ],
+            "example": "KG"
+          },
+          "packSize": {
+            "type": "number",
+            "example": 25,
+            "description": "Units per pack"
+          },
+          "price": {
+            "type": "number",
+            "example": 1150,
+            "description": "Price per pack, pre-tax"
+          },
+          "mrp": {
+            "type": "number"
+          },
+          "moq": {
+            "type": "number",
+            "example": 2
+          },
+          "maxOrderQty": {
+            "type": "number"
+          },
+          "stepQty": {
+            "type": "number"
+          },
+          "gstRate": {
+            "type": "number",
+            "example": 0
+          },
+          "hsnCode": {
+            "type": "string",
+            "example": "11010000"
+          },
+          "deliveryTimeHours": {
+            "type": "number",
+            "example": 24
+          },
+          "stockQty": {
+            "type": "number"
+          },
+          "lowStockThreshold": {
+            "type": "number"
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "attributes": {
+            "type": "object"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "categoryCode",
+          "name",
+          "sku",
+          "unit",
+          "price",
+          "gstRate"
+        ]
+      },
+      "BulkProductsDto": {
+        "type": "object",
+        "properties": {
+          "products": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProductDto"
+            }
+          }
+        },
+        "required": [
+          "products"
+        ]
+      },
+      "UpdateProductDto": {
+        "type": "object",
+        "properties": {
+          "categoryCode": {
+            "type": "string",
+            "example": "FLOUR",
+            "description": "Marketplace category code"
+          },
+          "name": {
+            "type": "string",
+            "example": "Chakki Fresh Atta"
+          },
+          "brand": {
+            "type": "string",
+            "example": "Aashirvaad"
+          },
+          "description": {
+            "type": "string"
+          },
+          "images": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "unit": {
+            "type": "string",
+            "enum": [
+              "KG",
+              "G",
+              "L",
+              "ML",
+              "PCS",
+              "PACK",
+              "DOZEN",
+              "BOX"
+            ],
+            "example": "KG"
+          },
+          "packSize": {
+            "type": "number",
+            "example": 25,
+            "description": "Units per pack"
+          },
+          "price": {
+            "type": "number",
+            "example": 1150,
+            "description": "Price per pack, pre-tax"
+          },
+          "mrp": {
+            "type": "number"
+          },
+          "moq": {
+            "type": "number",
+            "example": 2
+          },
+          "maxOrderQty": {
+            "type": "number"
+          },
+          "stepQty": {
+            "type": "number"
+          },
+          "gstRate": {
+            "type": "number",
+            "example": 0
+          },
+          "hsnCode": {
+            "type": "string",
+            "example": "11010000"
+          },
+          "deliveryTimeHours": {
+            "type": "number",
+            "example": 24
+          },
+          "stockQty": {
+            "type": "number"
+          },
+          "lowStockThreshold": {
+            "type": "number"
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "attributes": {
+            "type": "object"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "StockUpdateDto": {
+        "type": "object",
+        "properties": {
+          "stockQty": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "stockQty"
+        ]
+      },
+      "PriceTierDto": {
+        "type": "object",
+        "properties": {
+          "minQty": {
+            "type": "number",
+            "example": 10
+          },
+          "maxQty": {
+            "type": "number"
+          },
+          "unitPrice": {
+            "type": "number",
+            "example": 1100
+          },
+          "segment": {
+            "type": "string",
+            "enum": [
+              "ALL",
+              "RESTAURANT",
+              "RETAILER",
+              "DEALER"
+            ]
+          },
+          "validFrom": {
+            "type": "string"
+          },
+          "validTo": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "minQty",
+          "unitPrice"
+        ]
+      },
+      "PriceTiersDto": {
+        "type": "object",
+        "properties": {
+          "tiers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PriceTierDto"
+            }
+          }
+        },
+        "required": [
+          "tiers"
+        ]
+      },
+      "ZoneDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Bengaluru East"
+          },
+          "pincodes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "centerLat": {
+            "type": "number"
+          },
+          "centerLng": {
+            "type": "number"
+          },
+          "radiusKm": {
+            "type": "number"
+          },
+          "deliveryCharge": {
+            "type": "number"
+          },
+          "freeDeliveryAbove": {
+            "type": "number"
+          },
+          "minOrderValue": {
+            "type": "number"
+          },
+          "leadTimeHours": {
+            "type": "number"
+          },
+          "isActive": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "deliveryCharge"
+        ]
+      },
+      "UpdateZoneDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Bengaluru East"
+          },
+          "pincodes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "centerLat": {
+            "type": "number"
+          },
+          "centerLng": {
+            "type": "number"
+          },
+          "radiusKm": {
+            "type": "number"
+          },
+          "deliveryCharge": {
+            "type": "number"
+          },
+          "freeDeliveryAbove": {
+            "type": "number"
+          },
+          "minOrderValue": {
+            "type": "number"
+          },
+          "leadTimeHours": {
+            "type": "number"
+          },
+          "isActive": {
+            "type": "boolean"
+          }
+        }
+      },
+      "SlotDto": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "example": "Morning"
+          },
+          "dayOfWeek": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 6
+          },
+          "startTime": {
+            "type": "string",
+            "example": "07:00"
+          },
+          "endTime": {
+            "type": "string",
+            "example": "10:00"
+          },
+          "capacity": {
+            "type": "number",
+            "example": 20
+          },
+          "cutoffMinutes": {
+            "type": "number",
+            "example": 720
+          },
+          "isActive": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "dayOfWeek",
+          "startTime",
+          "endTime",
+          "capacity"
+        ]
+      },
+      "UpdateSlotDto": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "example": "Morning"
+          },
+          "dayOfWeek": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 6
+          },
+          "startTime": {
+            "type": "string",
+            "example": "07:00"
+          },
+          "endTime": {
+            "type": "string",
+            "example": "10:00"
+          },
+          "capacity": {
+            "type": "number",
+            "example": 20
+          },
+          "cutoffMinutes": {
+            "type": "number",
+            "example": 720
+          },
+          "isActive": {
+            "type": "boolean"
+          }
+        }
+      },
+      "TerritoryDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "North Karnataka"
+          },
+          "code": {
+            "type": "string"
+          },
+          "states": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "cities": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "pincodes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "managerUserId": {
+            "type": "string"
+          },
+          "monthlyTarget": {
+            "type": "number"
+          },
+          "isActive": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "UpdateTerritoryDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "North Karnataka"
+          },
+          "code": {
+            "type": "string"
+          },
+          "states": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "cities": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "pincodes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "managerUserId": {
+            "type": "string"
+          },
+          "monthlyTarget": {
+            "type": "number"
+          },
+          "isActive": {
+            "type": "boolean"
+          }
+        }
+      },
+      "DealerDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "contactName": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "gstin": {
+            "type": "string"
+          },
+          "address": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string"
+          },
+          "territoryId": {
+            "type": "string"
+          },
+          "dealerTenantId": {
+            "type": "string",
+            "description": "Platform tenant id of the dealer (enables dealer pricing)"
+          },
+          "tier": {
+            "type": "string",
+            "enum": [
+              "PLATINUM",
+              "GOLD",
+              "SILVER",
+              "BRONZE"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PROSPECT",
+              "ACTIVE",
+              "INACTIVE",
+              "BLOCKED"
+            ]
+          },
+          "creditLimit": {
+            "type": "number"
+          },
+          "paymentTerms": {
+            "type": "string",
+            "enum": [
+              "PREPAID",
+              "COD",
+              "NET_7",
+              "NET_15",
+              "NET_30"
+            ]
+          },
+          "discountPct": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "name",
+          "phone",
+          "city"
+        ]
+      },
+      "UpdateDealerDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "contactName": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "gstin": {
+            "type": "string"
+          },
+          "address": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string"
+          },
+          "territoryId": {
+            "type": "string"
+          },
+          "dealerTenantId": {
+            "type": "string",
+            "description": "Platform tenant id of the dealer (enables dealer pricing)"
+          },
+          "tier": {
+            "type": "string",
+            "enum": [
+              "PLATINUM",
+              "GOLD",
+              "SILVER",
+              "BRONZE"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PROSPECT",
+              "ACTIVE",
+              "INACTIVE",
+              "BLOCKED"
+            ]
+          },
+          "creditLimit": {
+            "type": "number"
+          },
+          "paymentTerms": {
+            "type": "string",
+            "enum": [
+              "PREPAID",
+              "COD",
+              "NET_7",
+              "NET_15",
+              "NET_30"
+            ]
+          },
+          "discountPct": {
+            "type": "number"
+          }
+        }
+      },
+      "B2bLineDto": {
+        "type": "object",
+        "properties": {
+          "productId": {
+            "type": "string"
+          },
+          "quantity": {
+            "type": "number",
+            "description": "Number of packs"
+          }
+        },
+        "required": [
+          "productId",
+          "quantity"
+        ]
+      },
+      "B2bAddressDto": {
+        "type": "object",
+        "properties": {
+          "contactName": {
+            "type": "string"
+          },
+          "contactPhone": {
+            "type": "string"
+          },
+          "line1": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          },
+          "pincode": {
+            "type": "string"
+          },
+          "lat": {
+            "type": "number"
+          },
+          "lng": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "line1",
+          "city",
+          "state",
+          "pincode"
+        ]
+      },
+      "PlaceB2bOrderDto": {
+        "type": "object",
+        "properties": {
+          "sellerTenantId": {
+            "type": "string"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/B2bLineDto"
+            }
+          },
+          "deliveryAddress": {
+            "$ref": "#/components/schemas/B2bAddressDto"
+          },
+          "deliverySlotId": {
+            "type": "string"
+          },
+          "deliveryDate": {
+            "type": "string",
+            "example": "2026-10-08"
+          },
+          "paymentTerms": {
+            "type": "string",
+            "enum": [
+              "PREPAID",
+              "COD",
+              "NET_7",
+              "NET_15",
+              "NET_30"
+            ]
+          },
+          "notes": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "sellerTenantId",
+          "items",
+          "deliveryAddress"
+        ]
+      },
+      "RejectDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ]
+      },
+      "RateSellerDto": {
+        "type": "object",
+        "properties": {
+          "rating": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 5
+          },
+          "qualityRating": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 5
+          },
+          "onTime": {
+            "type": "boolean"
+          },
+          "comment": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "rating"
+        ]
+      },
+      "ConfirmLineDto": {
+        "type": "object",
+        "properties": {
+          "productId": {
+            "type": "string"
+          },
+          "confirmedQty": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "productId",
+          "confirmedQty"
+        ]
+      },
+      "ConfirmB2bOrderDto": {
+        "type": "object",
+        "properties": {
+          "lines": {
+            "description": "Omit to confirm everything as ordered",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConfirmLineDto"
+            }
+          },
+          "expectedDeliveryAt": {
+            "type": "string"
+          },
+          "note": {
+            "type": "string"
+          }
+        }
+      },
+      "DispatchDto": {
+        "type": "object",
+        "properties": {
+          "vehicleNumber": {
+            "type": "string"
+          },
+          "driverName": {
+            "type": "string"
+          },
+          "driverPhone": {
+            "type": "string"
+          },
+          "eta": {
+            "type": "string"
+          }
+        }
+      },
+      "LocationDto": {
+        "type": "object",
+        "properties": {
+          "lat": {
+            "type": "number"
+          },
+          "lng": {
+            "type": "number"
+          },
+          "note": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "lat",
+          "lng"
+        ]
+      },
+      "QuoteRequestDto": {
+        "type": "object",
+        "properties": {
+          "buyerTenantId": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string",
+            "example": "FLOUR"
+          },
+          "searchTerm": {
+            "type": "string"
+          },
+          "unit": {
+            "type": "string",
+            "enum": [
+              "KG",
+              "G",
+              "L",
+              "ML",
+              "PCS",
+              "PACK",
+              "DOZEN",
+              "BOX"
+            ]
+          },
+          "quantity": {
+            "type": "number"
+          },
+          "pincode": {
+            "type": "string"
+          },
+          "lat": {
+            "type": "number"
+          },
+          "lng": {
+            "type": "number"
+          },
+          "productIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "buyerTenantId",
+          "category",
+          "unit",
+          "quantity"
+        ]
+      }
+    }
+  }
+}

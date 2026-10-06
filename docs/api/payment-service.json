@@ -1,0 +1,1485 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/api/v1/payments/intents": {
+      "post": {
+        "operationId": "Payments_createIntent",
+        "parameters": [
+          {
+            "name": "idempotency-key",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePaymentIntentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Start a payment (UPI / card / netbanking via Razorpay, or wallet)",
+        "tags": [
+          "payments"
+        ]
+      }
+    },
+    "/api/v1/payments/verify": {
+      "post": {
+        "operationId": "Payments_verify",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyPaymentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Confirm Razorpay Checkout success (signature verified server-side)",
+        "tags": [
+          "payments"
+        ]
+      }
+    },
+    "/api/v1/payments/sandbox/{paymentId}/complete": {
+      "post": {
+        "operationId": "Payments_sandbox",
+        "parameters": [
+          {
+            "name": "paymentId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SandboxCompleteDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "[non-production] Simulate checkout success/failure with the sandbox gateway",
+        "tags": [
+          "payments"
+        ]
+      }
+    },
+    "/api/v1/payments": {
+      "get": {
+        "operationId": "Payments_mine",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "pageSize",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "purpose",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ORDER",
+                "WALLET_TOPUP",
+                "MEMBERSHIP",
+                "MEAL_SUBSCRIPTION",
+                "B2B_ORDER",
+                "AD_CAMPAIGN"
+              ]
+            }
+          },
+          {
+            "name": "referenceId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "state",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "payments"
+        ]
+      }
+    },
+    "/api/v1/payments/{id}": {
+      "get": {
+        "operationId": "Payments_get",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "payments"
+        ]
+      }
+    },
+    "/api/v1/admin/payments": {
+      "get": {
+        "operationId": "AdminPayments_list",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "pageSize",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "purpose",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ORDER",
+                "WALLET_TOPUP",
+                "MEMBERSHIP",
+                "MEAL_SUBSCRIPTION",
+                "B2B_ORDER",
+                "AD_CAMPAIGN"
+              ]
+            }
+          },
+          {
+            "name": "referenceId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "state",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/payments/{id}/refunds": {
+      "post": {
+        "operationId": "AdminPayments_refund",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefundDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Issue a full or partial refund",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/wallets/me": {
+      "get": {
+        "operationId": "Wallets_me",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "pageSize",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "as",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "CUSTOMER",
+              "type": "string",
+              "enum": [
+                "CUSTOMER",
+                "RIDER"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Wallet balance and statement (customer or rider wallet)",
+        "tags": [
+          "wallets"
+        ]
+      }
+    },
+    "/api/v1/wallets/me/payouts": {
+      "post": {
+        "operationId": "Wallets_payout",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PayoutRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Rider cash-out request",
+        "tags": [
+          "wallets"
+        ]
+      },
+      "get": {
+        "operationId": "Wallets_payouts",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "wallets"
+        ]
+      }
+    },
+    "/api/v1/admin/payouts": {
+      "get": {
+        "operationId": "AdminWallets_payouts",
+        "parameters": [
+          {
+            "name": "status",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/payouts/{id}/mark-paid": {
+      "post": {
+        "operationId": "AdminWallets_markPaid",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MarkPayoutDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/payouts/{id}/mark-failed": {
+      "post": {
+        "operationId": "AdminWallets_markFailed",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MarkPayoutDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/wallets/{id}/reconcile": {
+      "get": {
+        "operationId": "AdminWallets_reconcile",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Replay the ledger and compare with the stored balance",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/settlements": {
+      "get": {
+        "operationId": "MerchantFinance_list",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "pageSize",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "tenantId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "PENDING",
+                "PROCESSING",
+                "PAID",
+                "FAILED",
+                "ON_HOLD"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "My payouts (weekly settlements)",
+        "tags": [
+          "settlements"
+        ]
+      }
+    },
+    "/api/v1/settlements/pending": {
+      "get": {
+        "operationId": "MerchantFinance_pending",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Accrued but not yet settled amounts",
+        "tags": [
+          "settlements"
+        ]
+      }
+    },
+    "/api/v1/settlements/{id}": {
+      "get": {
+        "operationId": "MerchantFinance_get",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "settlements"
+        ]
+      }
+    },
+    "/api/v1/gst/invoices": {
+      "get": {
+        "operationId": "MerchantFinance_invoices",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "settlements"
+        ]
+      }
+    },
+    "/api/v1/gst/summary": {
+      "get": {
+        "operationId": "MerchantFinance_summary",
+        "parameters": [
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "2026-09-01",
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "2026-09-30",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "settlements"
+        ]
+      }
+    },
+    "/api/v1/admin/commission-rules": {
+      "get": {
+        "operationId": "AdminFinance_rules",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "admin"
+        ]
+      },
+      "post": {
+        "operationId": "AdminFinance_createRule",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommissionRuleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Commission management: create a rule (platform / tenant type / tenant / outlet)",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/commission-rules/{id}": {
+      "patch": {
+        "operationId": "AdminFinance_updateRule",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCommissionRuleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/settlements": {
+      "get": {
+        "operationId": "AdminFinance_list",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "pageSize",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "tenantId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "PENDING",
+                "PROCESSING",
+                "PAID",
+                "FAILED",
+                "ON_HOLD"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/settlements/{id}": {
+      "get": {
+        "operationId": "AdminFinance_get",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/settlements/run": {
+      "post": {
+        "operationId": "AdminFinance_run",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RunSettlementDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Payment settlement: generate settlements for a period",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/settlements/{id}/mark-paid": {
+      "post": {
+        "operationId": "AdminFinance_markPaid",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MarkSettlementPaidDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/gst/summary": {
+      "get": {
+        "operationId": "AdminFinance_gstSummary",
+        "parameters": [
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "2026-09-01",
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "2026-09-30",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "GST report: taxable value and CGST/SGST/IGST by invoice type",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/gst/invoices": {
+      "get": {
+        "operationId": "AdminFinance_gstInvoices",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/gst/gstr8": {
+      "get": {
+        "operationId": "AdminFinance_gstr8",
+        "parameters": [
+          {
+            "name": "month",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "GSTR-8 TCS report for a month (YYYY-MM)",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/internal/payments/{id}": {
+      "get": {
+        "operationId": "Internal_payment",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "internal"
+        ],
+        "security": [
+          {
+            "service-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/internal/payments/wallets/credit": {
+      "post": {
+        "operationId": "Internal_credit",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InternalCreditDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "internal"
+        ],
+        "security": [
+          {
+            "service-token": []
+          }
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "FoodGrid Payment Service",
+    "description": "Razorpay/UPI/card payments, wallets & ledger, refunds, commissions, settlements, payouts, GST invoices & reports.",
+    "version": "1.0.0",
+    "contact": {}
+  },
+  "tags": [],
+  "servers": [
+    {
+      "url": "/",
+      "description": "Gateway / local"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearer": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http"
+      },
+      "service-token": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-service-token"
+      }
+    },
+    "schemas": {
+      "CreatePaymentIntentDto": {
+        "type": "object",
+        "properties": {
+          "purpose": {
+            "type": "string",
+            "enum": [
+              "ORDER",
+              "WALLET_TOPUP",
+              "MEMBERSHIP",
+              "MEAL_SUBSCRIPTION",
+              "B2B_ORDER",
+              "AD_CAMPAIGN"
+            ]
+          },
+          "referenceId": {
+            "type": "string",
+            "description": "Order / membership / subscription / B2B order / campaign id (not for WALLET_TOPUP)"
+          },
+          "method": {
+            "type": "string",
+            "enum": [
+              "UPI",
+              "CARD",
+              "NETBANKING",
+              "WALLET"
+            ],
+            "description": "WALLET pays from FoodGrid wallet balance"
+          },
+          "amount": {
+            "type": "number",
+            "description": "Top-up amount (WALLET_TOPUP only)",
+            "minimum": 10,
+            "maximum": 10000
+          }
+        },
+        "required": [
+          "purpose",
+          "method"
+        ]
+      },
+      "VerifyPaymentDto": {
+        "type": "object",
+        "properties": {
+          "paymentId": {
+            "type": "string"
+          },
+          "razorpayOrderId": {
+            "type": "string"
+          },
+          "razorpayPaymentId": {
+            "type": "string"
+          },
+          "razorpaySignature": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "paymentId",
+          "razorpayOrderId",
+          "razorpayPaymentId",
+          "razorpaySignature"
+        ]
+      },
+      "SandboxCompleteDto": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "method": {
+            "type": "string",
+            "enum": [
+              "upi",
+              "card",
+              "netbanking"
+            ]
+          }
+        },
+        "required": [
+          "success"
+        ]
+      },
+      "RefundDto": {
+        "type": "object",
+        "properties": {
+          "amount": {
+            "type": "number",
+            "description": "Defaults to the full refundable amount"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "toWallet": {
+            "type": "boolean",
+            "description": "Refund instantly to the FoodGrid wallet"
+          }
+        },
+        "required": [
+          "reason"
+        ]
+      },
+      "PayoutRequestDto": {
+        "type": "object",
+        "properties": {
+          "amount": {
+            "type": "number",
+            "minimum": 100
+          },
+          "method": {
+            "type": "string",
+            "enum": [
+              "UPI",
+              "BANK_TRANSFER"
+            ]
+          },
+          "destination": {
+            "type": "object",
+            "example": {
+              "upiId": "rider@okicici"
+            }
+          }
+        },
+        "required": [
+          "amount",
+          "method",
+          "destination"
+        ]
+      },
+      "MarkPayoutDto": {
+        "type": "object",
+        "properties": {
+          "utr": {
+            "type": "string",
+            "description": "Bank UTR reference"
+          },
+          "reason": {
+            "type": "string"
+          }
+        }
+      },
+      "CommissionRuleDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "tenantType": {
+            "type": "string",
+            "enum": [
+              "PLATFORM",
+              "RESTAURANT",
+              "FOOD_CART",
+              "SUPPLIER",
+              "WHOLESALER",
+              "RETAILER"
+            ]
+          },
+          "tenantId": {
+            "type": "string"
+          },
+          "outletId": {
+            "type": "string"
+          },
+          "ratePct": {
+            "type": "number",
+            "example": 18
+          },
+          "fixedFee": {
+            "type": "number"
+          },
+          "minFee": {
+            "type": "number"
+          },
+          "maxFee": {
+            "type": "number"
+          },
+          "priority": {
+            "type": "number"
+          },
+          "effectiveFrom": {
+            "type": "string"
+          },
+          "effectiveTo": {
+            "type": "string"
+          },
+          "isActive": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "ratePct"
+        ]
+      },
+      "UpdateCommissionRuleDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "tenantType": {
+            "type": "string",
+            "enum": [
+              "PLATFORM",
+              "RESTAURANT",
+              "FOOD_CART",
+              "SUPPLIER",
+              "WHOLESALER",
+              "RETAILER"
+            ]
+          },
+          "tenantId": {
+            "type": "string"
+          },
+          "outletId": {
+            "type": "string"
+          },
+          "ratePct": {
+            "type": "number",
+            "example": 18
+          },
+          "fixedFee": {
+            "type": "number"
+          },
+          "minFee": {
+            "type": "number"
+          },
+          "maxFee": {
+            "type": "number"
+          },
+          "priority": {
+            "type": "number"
+          },
+          "effectiveFrom": {
+            "type": "string"
+          },
+          "effectiveTo": {
+            "type": "string"
+          },
+          "isActive": {
+            "type": "boolean"
+          }
+        }
+      },
+      "RunSettlementDto": {
+        "type": "object",
+        "properties": {
+          "periodStart": {
+            "type": "string",
+            "example": "2026-09-28"
+          },
+          "periodEnd": {
+            "type": "string",
+            "example": "2026-10-05",
+            "description": "Exclusive"
+          }
+        },
+        "required": [
+          "periodStart",
+          "periodEnd"
+        ]
+      },
+      "MarkSettlementPaidDto": {
+        "type": "object",
+        "properties": {
+          "payoutReference": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "payoutReference"
+        ]
+      },
+      "InternalCreditDto": {
+        "type": "object",
+        "properties": {
+          "ownerType": {
+            "type": "string",
+            "enum": [
+              "CUSTOMER",
+              "RIDER",
+              "TENANT"
+            ]
+          },
+          "ownerId": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "number"
+          },
+          "reason": {
+            "type": "string",
+            "enum": [
+              "CASHBACK",
+              "REFERRAL_BONUS",
+              "ADJUSTMENT",
+              "INCENTIVE"
+            ]
+          },
+          "idempotencyKey": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "referenceType": {
+            "type": "string"
+          },
+          "referenceId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "ownerType",
+          "ownerId",
+          "amount",
+          "reason",
+          "idempotencyKey"
+        ]
+      }
+    }
+  }
+}

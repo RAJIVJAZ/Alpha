@@ -1,0 +1,1571 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/api/v1/riders/onboarding": {
+      "post": {
+        "operationId": "Rider_onboard",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RiderOnboardingDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Apply to become a delivery partner (goes to admin approval)",
+        "tags": [
+          "rider"
+        ]
+      }
+    },
+    "/api/v1/riders/me": {
+      "get": {
+        "operationId": "Rider_me",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "rider"
+        ]
+      }
+    },
+    "/api/v1/riders/me/online": {
+      "post": {
+        "operationId": "Rider_online",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LocationPingDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Go online (attendance check-in)",
+        "tags": [
+          "rider"
+        ]
+      }
+    },
+    "/api/v1/riders/me/offline": {
+      "post": {
+        "operationId": "Rider_offline",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "rider"
+        ]
+      }
+    },
+    "/api/v1/riders/me/location": {
+      "post": {
+        "operationId": "Rider_location",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LocationPingDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Live GPS update (streams to customers tracking the order)",
+        "tags": [
+          "rider"
+        ]
+      }
+    },
+    "/api/v1/riders/me/offers": {
+      "get": {
+        "operationId": "Rider_offers",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Pending delivery offers (also pushed over the socket)",
+        "tags": [
+          "rider"
+        ]
+      }
+    },
+    "/api/v1/riders/me/deliveries/current": {
+      "get": {
+        "operationId": "Rider_current",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "rider"
+        ]
+      }
+    },
+    "/api/v1/riders/me/deliveries": {
+      "get": {
+        "operationId": "Rider_history",
+        "parameters": [
+          {
+            "name": "page",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "rider"
+        ]
+      }
+    },
+    "/api/v1/riders/me/route": {
+      "get": {
+        "operationId": "Rider_route",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "AI-optimised route for open deliveries with a navigation link",
+        "tags": [
+          "rider"
+        ]
+      }
+    },
+    "/api/v1/riders/me/attendance": {
+      "get": {
+        "operationId": "Rider_attendance",
+        "parameters": [
+          {
+            "name": "month",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "rider"
+        ]
+      }
+    },
+    "/api/v1/riders/me/earnings": {
+      "get": {
+        "operationId": "Rider_earningsSummary",
+        "parameters": [
+          {
+            "name": "from",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Earnings dashboard (by type and by day)",
+        "tags": [
+          "rider"
+        ]
+      }
+    },
+    "/api/v1/riders/me/incentives": {
+      "get": {
+        "operationId": "Rider_myIncentives",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "rider"
+        ]
+      }
+    },
+    "/api/v1/riders/heatmap": {
+      "get": {
+        "operationId": "Rider_heat",
+        "parameters": [
+          {
+            "name": "city",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Demand heat map: where orders are and riders are not",
+        "tags": [
+          "rider"
+        ]
+      }
+    },
+    "/api/v1/deliveries/offers/{offerId}/accept": {
+      "post": {
+        "operationId": "Deliveries_accept",
+        "parameters": [
+          {
+            "name": "offerId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "rider"
+        ]
+      }
+    },
+    "/api/v1/deliveries/offers/{offerId}/reject": {
+      "post": {
+        "operationId": "Deliveries_reject",
+        "parameters": [
+          {
+            "name": "offerId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RejectOfferDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "rider"
+        ]
+      }
+    },
+    "/api/v1/deliveries/{id}": {
+      "get": {
+        "operationId": "Deliveries_get",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "rider"
+        ]
+      }
+    },
+    "/api/v1/deliveries/{id}/arrived-pickup": {
+      "post": {
+        "operationId": "Deliveries_arrivedPickup",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "rider"
+        ]
+      }
+    },
+    "/api/v1/deliveries/{id}/picked-up": {
+      "post": {
+        "operationId": "Deliveries_pickedUp",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "rider"
+        ]
+      }
+    },
+    "/api/v1/deliveries/{id}/arrived-drop": {
+      "post": {
+        "operationId": "Deliveries_arrivedDrop",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "rider"
+        ]
+      }
+    },
+    "/api/v1/deliveries/{id}/complete": {
+      "post": {
+        "operationId": "Deliveries_complete",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompleteDeliveryDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Complete with customer OTP or photo proof (upload via /media/presign)",
+        "tags": [
+          "rider"
+        ]
+      }
+    },
+    "/api/v1/deliveries/{id}/fail": {
+      "post": {
+        "operationId": "Deliveries_fail",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FailDeliveryDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "rider"
+        ]
+      }
+    },
+    "/api/v1/admin/riders": {
+      "get": {
+        "operationId": "DeliveryAdmin_listRiders",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "pageSize",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "PENDING_APPROVAL",
+                "ACTIVE",
+                "SUSPENDED",
+                "REJECTED",
+                "OFFBOARDED"
+              ]
+            }
+          },
+          {
+            "name": "city",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "online",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/riders/{id}": {
+      "patch": {
+        "operationId": "DeliveryAdmin_setRider",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminRiderStatusDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Suspend / reactivate / offboard a rider, move zone",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/riders/live": {
+      "get": {
+        "operationId": "DeliveryAdmin_live",
+        "parameters": [
+          {
+            "name": "city",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Live rider map",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/deliveries": {
+      "get": {
+        "operationId": "DeliveryAdmin_deliveries",
+        "parameters": [
+          {
+            "name": "status",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/deliveries/{id}/reassign": {
+      "post": {
+        "operationId": "DeliveryAdmin_reassign",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReassignDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/incentives": {
+      "get": {
+        "operationId": "DeliveryAdmin_listIncentives",
+        "parameters": [
+          {
+            "name": "active",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "admin"
+        ]
+      },
+      "post": {
+        "operationId": "DeliveryAdmin_createIncentive",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IncentiveSchemeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/incentives/{id}": {
+      "patch": {
+        "operationId": "DeliveryAdmin_updateIncentive",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateIncentiveSchemeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/heatmap": {
+      "get": {
+        "operationId": "DeliveryAdmin_heat",
+        "parameters": [
+          {
+            "name": "city",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/delivery-zones": {
+      "get": {
+        "operationId": "Zones_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "admin"
+        ]
+      },
+      "post": {
+        "operationId": "Zones_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeliveryZoneDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/delivery-zones/{id}": {
+      "patch": {
+        "operationId": "Zones_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateDeliveryZoneDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/internal/delivery/quote": {
+      "get": {
+        "operationId": "Internal_quote",
+        "parameters": [
+          {
+            "name": "pickupLat",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "pickupLng",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "dropLat",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "dropLng",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "prepMins",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Serviceability, distance, fee (with surge) and ETA for checkout",
+        "tags": [
+          "internal"
+        ],
+        "security": [
+          {
+            "service-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/internal/riders/by-user/{userId}": {
+      "get": {
+        "operationId": "Internal_riderByUser",
+        "parameters": [
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "internal"
+        ],
+        "security": [
+          {
+            "service-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/internal/deliveries/by-order/{orderId}": {
+      "get": {
+        "operationId": "Internal_byOrder",
+        "parameters": [
+          {
+            "name": "orderId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Tracking snapshot for order-service",
+        "tags": [
+          "internal"
+        ],
+        "security": [
+          {
+            "service-token": []
+          }
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "FoodGrid Delivery Service",
+    "description": "Riders, dispatch & offers, live tracking, navigation routes, proof of delivery, attendance, earnings, incentives and heat maps.",
+    "version": "1.0.0",
+    "contact": {}
+  },
+  "tags": [],
+  "servers": [
+    {
+      "url": "/",
+      "description": "Gateway / local"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearer": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http"
+      },
+      "service-token": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-service-token"
+      }
+    },
+    "schemas": {
+      "RiderDocumentDto": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "example": "DRIVING_LICENSE"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "url"
+        ]
+      },
+      "RiderOnboardingDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string",
+            "example": "Bengaluru"
+          },
+          "vehicleType": {
+            "type": "string",
+            "enum": [
+              "BICYCLE",
+              "SCOOTER",
+              "MOTORCYCLE",
+              "EV_SCOOTER"
+            ]
+          },
+          "vehicleNumber": {
+            "type": "string",
+            "example": "KA01AB1234"
+          },
+          "licenseNumber": {
+            "type": "string"
+          },
+          "aadhaarLast4": {
+            "type": "string"
+          },
+          "upiId": {
+            "type": "string",
+            "example": "rider@okaxis"
+          },
+          "documents": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RiderDocumentDto"
+            }
+          }
+        },
+        "required": [
+          "name",
+          "city",
+          "vehicleType"
+        ]
+      },
+      "LocationPingDto": {
+        "type": "object",
+        "properties": {
+          "lat": {
+            "type": "number"
+          },
+          "lng": {
+            "type": "number"
+          },
+          "accuracyM": {
+            "type": "number"
+          },
+          "speedKmph": {
+            "type": "number"
+          },
+          "heading": {
+            "type": "number"
+          },
+          "batteryPct": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "lat",
+          "lng"
+        ]
+      },
+      "RejectOfferDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "example": "Too far"
+          }
+        }
+      },
+      "CompleteDeliveryDto": {
+        "type": "object",
+        "properties": {
+          "otp": {
+            "type": "string",
+            "description": "4-digit OTP shown in the customer app"
+          },
+          "proofPhotoUrl": {
+            "type": "string",
+            "description": "Proof photo (required for contact-less drops without OTP)"
+          },
+          "proofSignatureUrl": {
+            "type": "string"
+          },
+          "note": {
+            "type": "string"
+          },
+          "codCollected": {
+            "type": "boolean",
+            "description": "Cash collected for COD orders"
+          }
+        }
+      },
+      "FailDeliveryDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "example": "Customer unreachable"
+          },
+          "proofPhotoUrl": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ]
+      },
+      "AdminRiderStatusDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "SUSPENDED",
+              "OFFBOARDED"
+            ]
+          },
+          "zoneId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "ReassignDto": {
+        "type": "object",
+        "properties": {
+          "riderId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "riderId"
+        ]
+      },
+      "IncentiveSchemeDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Weekend warrior: 40 orders"
+          },
+          "description": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "ORDER_COUNT",
+              "PEAK_HOURS",
+              "LOGIN_HOURS",
+              "STREAK",
+              "RATING"
+            ]
+          },
+          "zoneId": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string"
+          },
+          "target": {
+            "type": "number",
+            "example": 40
+          },
+          "rewardAmount": {
+            "type": "number",
+            "example": 600
+          },
+          "peakWindows": {
+            "example": [
+              {
+                "start": "12:00",
+                "end": "14:30"
+              }
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "minRating": {
+            "type": "number"
+          },
+          "startsAt": {
+            "type": "string"
+          },
+          "endsAt": {
+            "type": "string"
+          },
+          "isActive": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "type",
+          "target",
+          "rewardAmount",
+          "startsAt",
+          "endsAt"
+        ]
+      },
+      "UpdateIncentiveSchemeDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Weekend warrior: 40 orders"
+          },
+          "description": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "ORDER_COUNT",
+              "PEAK_HOURS",
+              "LOGIN_HOURS",
+              "STREAK",
+              "RATING"
+            ]
+          },
+          "zoneId": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string"
+          },
+          "target": {
+            "type": "number",
+            "example": 40
+          },
+          "rewardAmount": {
+            "type": "number",
+            "example": 600
+          },
+          "peakWindows": {
+            "example": [
+              {
+                "start": "12:00",
+                "end": "14:30"
+              }
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "minRating": {
+            "type": "number"
+          },
+          "startsAt": {
+            "type": "string"
+          },
+          "endsAt": {
+            "type": "string"
+          },
+          "isActive": {
+            "type": "boolean"
+          }
+        }
+      },
+      "DeliveryZoneDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Indiranagar"
+          },
+          "city": {
+            "type": "string",
+            "example": "Bengaluru"
+          },
+          "polygon": {
+            "type": "array",
+            "description": "GeoJSON polygon ring: [[lng, lat], ...]",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            }
+          },
+          "centerLat": {
+            "type": "number"
+          },
+          "centerLng": {
+            "type": "number"
+          },
+          "baseFee": {
+            "type": "number",
+            "example": 25
+          },
+          "perKmFee": {
+            "type": "number",
+            "example": 8
+          },
+          "freeKm": {
+            "type": "number",
+            "example": 2
+          },
+          "surgeMultiplier": {
+            "type": "number",
+            "example": 1
+          },
+          "riderBasePay": {
+            "type": "number",
+            "example": 30
+          },
+          "riderPerKm": {
+            "type": "number",
+            "example": 6
+          },
+          "isActive": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "city",
+          "polygon",
+          "centerLat",
+          "centerLng",
+          "baseFee",
+          "perKmFee",
+          "riderBasePay",
+          "riderPerKm"
+        ]
+      },
+      "UpdateDeliveryZoneDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Indiranagar"
+          },
+          "city": {
+            "type": "string",
+            "example": "Bengaluru"
+          },
+          "polygon": {
+            "type": "array",
+            "description": "GeoJSON polygon ring: [[lng, lat], ...]",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            }
+          },
+          "centerLat": {
+            "type": "number"
+          },
+          "centerLng": {
+            "type": "number"
+          },
+          "baseFee": {
+            "type": "number",
+            "example": 25
+          },
+          "perKmFee": {
+            "type": "number",
+            "example": 8
+          },
+          "freeKm": {
+            "type": "number",
+            "example": 2
+          },
+          "surgeMultiplier": {
+            "type": "number",
+            "example": 1
+          },
+          "riderBasePay": {
+            "type": "number",
+            "example": 30
+          },
+          "riderPerKm": {
+            "type": "number",
+            "example": 6
+          },
+          "isActive": {
+            "type": "boolean"
+          }
+        }
+      }
+    }
+  }
+}

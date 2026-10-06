@@ -1,0 +1,4474 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/api/v1/cart": {
+      "get": {
+        "operationId": "Cart_get",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Current cart (re-priced from the live menu)",
+        "tags": [
+          "cart"
+        ]
+      },
+      "delete": {
+        "operationId": "Cart_clear",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "cart"
+        ]
+      }
+    },
+    "/api/v1/cart/items": {
+      "post": {
+        "operationId": "Cart_add",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddCartItemDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Add an item (409 CART_OUTLET_MISMATCH when switching outlets)",
+        "tags": [
+          "cart"
+        ]
+      }
+    },
+    "/api/v1/cart/items/{lineId}": {
+      "patch": {
+        "operationId": "Cart_update",
+        "parameters": [
+          {
+            "name": "lineId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCartLineDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "cart"
+        ]
+      },
+      "delete": {
+        "operationId": "Cart_remove",
+        "parameters": [
+          {
+            "name": "lineId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "cart"
+        ]
+      }
+    },
+    "/api/v1/cart/coupon": {
+      "post": {
+        "operationId": "Cart_applyCoupon",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApplyCouponDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "cart"
+        ]
+      },
+      "delete": {
+        "operationId": "Cart_removeCoupon",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "cart"
+        ]
+      }
+    },
+    "/api/v1/cart/quote": {
+      "post": {
+        "operationId": "Cart_quote",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuoteDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Full bill: delivery fee, coupon, membership, GST, round-off",
+        "tags": [
+          "cart"
+        ]
+      }
+    },
+    "/api/v1/orders": {
+      "post": {
+        "operationId": "Orders_place",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "Retry-safe checkout",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckoutDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Checkout the cart (creates the order; pay next via payment-service)",
+        "tags": [
+          "orders"
+        ]
+      },
+      "get": {
+        "operationId": "Orders_list",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "pageSize",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "description": "Comma separated statuses",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "PENDING_PAYMENT",
+                  "PLACED",
+                  "ACCEPTED",
+                  "PREPARING",
+                  "READY",
+                  "PICKED_UP",
+                  "OUT_FOR_DELIVERY",
+                  "DELIVERED",
+                  "COMPLETED",
+                  "CANCELLED",
+                  "REJECTED"
+                ]
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "My orders",
+        "tags": [
+          "orders"
+        ]
+      }
+    },
+    "/api/v1/orders/{id}": {
+      "get": {
+        "operationId": "Orders_get",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "orders"
+        ]
+      }
+    },
+    "/api/v1/orders/{id}/track": {
+      "get": {
+        "operationId": "Orders_track",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Live order tracking (timeline, rider, ETA, delivery OTP)",
+        "tags": [
+          "orders"
+        ]
+      }
+    },
+    "/api/v1/orders/{id}/cancel": {
+      "post": {
+        "operationId": "Orders_cancel",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CancelOrderDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "orders"
+        ]
+      }
+    },
+    "/api/v1/orders/{id}/reorder": {
+      "post": {
+        "operationId": "Orders_reorder",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Reorder: refill the cart with this order’s items",
+        "tags": [
+          "orders"
+        ]
+      }
+    },
+    "/api/v1/orders/{id}/review": {
+      "post": {
+        "operationId": "Orders_review",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Rate the food and delivery",
+        "tags": [
+          "orders"
+        ]
+      }
+    },
+    "/api/v1/merchant/orders": {
+      "get": {
+        "operationId": "MerchantOrders_list",
+        "parameters": [
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "2026-09-01",
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "2026-09-30",
+              "type": "string"
+            }
+          },
+          {
+            "name": "outletId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "PENDING_PAYMENT",
+                  "PLACED",
+                  "ACCEPTED",
+                  "PREPARING",
+                  "READY",
+                  "PICKED_UP",
+                  "OUT_FOR_DELIVERY",
+                  "DELIVERED",
+                  "COMPLETED",
+                  "CANCELLED",
+                  "REJECTED"
+                ]
+              }
+            }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "description": "Order number search",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "pageSize",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": 50,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Order management board with 24h status counts",
+        "tags": [
+          "merchant"
+        ]
+      }
+    },
+    "/api/v1/merchant/orders/{id}": {
+      "get": {
+        "operationId": "MerchantOrders_get",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "merchant"
+        ]
+      }
+    },
+    "/api/v1/merchant/orders/{id}/accept": {
+      "post": {
+        "operationId": "MerchantOrders_accept",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AcceptOrderDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "merchant"
+        ]
+      }
+    },
+    "/api/v1/merchant/orders/{id}/reject": {
+      "post": {
+        "operationId": "MerchantOrders_reject",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CancelOrderDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "merchant"
+        ]
+      }
+    },
+    "/api/v1/merchant/orders/{id}/preparing": {
+      "post": {
+        "operationId": "MerchantOrders_preparing",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "merchant"
+        ]
+      }
+    },
+    "/api/v1/merchant/orders/{id}/ready": {
+      "post": {
+        "operationId": "MerchantOrders_ready",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "merchant"
+        ]
+      }
+    },
+    "/api/v1/merchant/orders/{id}/complete": {
+      "post": {
+        "operationId": "MerchantOrders_complete",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Hand over a takeaway / dine-in order",
+        "tags": [
+          "merchant"
+        ]
+      }
+    },
+    "/api/v1/merchant/orders/{id}/cancel": {
+      "post": {
+        "operationId": "MerchantOrders_cancel",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CancelOrderDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "merchant"
+        ]
+      }
+    },
+    "/api/v1/kds/tickets": {
+      "get": {
+        "operationId": "Kds_board",
+        "parameters": [
+          {
+            "name": "outletId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "station",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "statuses",
+            "required": false,
+            "in": "query",
+            "description": "Comma separated statuses",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Kitchen display board (oldest first, priority tickets on top)",
+        "tags": [
+          "kds"
+        ]
+      }
+    },
+    "/api/v1/kds/tickets/{id}/start": {
+      "post": {
+        "operationId": "Kds_start",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "kds"
+        ]
+      }
+    },
+    "/api/v1/kds/tickets/{id}/ready": {
+      "post": {
+        "operationId": "Kds_ready",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Station finished; order turns READY when all stations are done",
+        "tags": [
+          "kds"
+        ]
+      }
+    },
+    "/api/v1/kds/tickets/{id}/bump": {
+      "post": {
+        "operationId": "Kds_bump",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Clear the ticket from the screen (served / handed over)",
+        "tags": [
+          "kds"
+        ]
+      }
+    },
+    "/api/v1/kds/tickets/{id}/recall": {
+      "post": {
+        "operationId": "Kds_recall",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "kds"
+        ]
+      }
+    },
+    "/api/v1/pos/orders": {
+      "post": {
+        "operationId": "Pos_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PosOrderDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Bill a counter / table order (paid, goes straight to the kitchen)",
+        "tags": [
+          "pos"
+        ]
+      }
+    },
+    "/api/v1/pos/orders/{id}/complete": {
+      "post": {
+        "operationId": "Pos_complete",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "pos"
+        ]
+      }
+    },
+    "/api/v1/pos/summary": {
+      "get": {
+        "operationId": "Pos_summary",
+        "parameters": [
+          {
+            "name": "outletId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "date",
+            "required": false,
+            "in": "query",
+            "description": "Business date (IST); defaults to today",
+            "schema": {
+              "example": "2026-10-06",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Daily sales: totals, payment split, hourly, top items",
+        "tags": [
+          "pos"
+        ]
+      }
+    },
+    "/api/v1/qr/{token}": {
+      "get": {
+        "operationId": "Qr_scan",
+        "parameters": [
+          {
+            "name": "token",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Resolve a table QR code to the outlet menu",
+        "tags": [
+          "qr-ordering"
+        ],
+        "security": []
+      }
+    },
+    "/api/v1/qr/{token}/orders": {
+      "post": {
+        "operationId": "Qr_order",
+        "parameters": [
+          {
+            "name": "token",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QrOrderDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Place a table order (pay at counter or online)",
+        "tags": [
+          "qr-ordering"
+        ],
+        "security": []
+      }
+    },
+    "/api/v1/merchant/outlets/{outletId}/tables": {
+      "get": {
+        "operationId": "Qr_tables",
+        "parameters": [
+          {
+            "name": "outletId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "qr-ordering"
+        ]
+      },
+      "post": {
+        "operationId": "Qr_createTable",
+        "parameters": [
+          {
+            "name": "outletId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TableDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "qr-ordering"
+        ]
+      }
+    },
+    "/api/v1/merchant/tables/{id}/rotate-qr": {
+      "post": {
+        "operationId": "Qr_rotate",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Invalidate a printed QR code and issue a new one",
+        "tags": [
+          "qr-ordering"
+        ]
+      }
+    },
+    "/api/v1/coupons": {
+      "get": {
+        "operationId": "Coupons_available",
+        "parameters": [
+          {
+            "name": "outletId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Coupons available at an outlet with eligibility",
+        "tags": [
+          "coupons"
+        ]
+      }
+    },
+    "/api/v1/merchant/coupons": {
+      "get": {
+        "operationId": "Coupons_merchantList",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "coupons"
+        ]
+      },
+      "post": {
+        "operationId": "Coupons_merchantCreate",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CouponDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "coupons"
+        ]
+      }
+    },
+    "/api/v1/merchant/coupons/{id}": {
+      "patch": {
+        "operationId": "Coupons_merchantUpdate",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCouponDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "coupons"
+        ]
+      }
+    },
+    "/api/v1/admin/coupons": {
+      "get": {
+        "operationId": "Coupons_adminList",
+        "parameters": [
+          {
+            "name": "active",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "coupons"
+        ]
+      },
+      "post": {
+        "operationId": "Coupons_adminCreate",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlatformCouponDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "coupons"
+        ]
+      }
+    },
+    "/api/v1/admin/coupons/{id}": {
+      "patch": {
+        "operationId": "Coupons_adminUpdate",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCouponDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "coupons"
+        ]
+      }
+    },
+    "/api/v1/outlets/{outletId}/reviews": {
+      "get": {
+        "operationId": "Reviews_forOutlet",
+        "parameters": [
+          {
+            "name": "outletId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "reviews"
+        ],
+        "security": []
+      }
+    },
+    "/api/v1/merchant/reviews": {
+      "get": {
+        "operationId": "Reviews_merchant",
+        "parameters": [
+          {
+            "name": "outletId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "reviews"
+        ]
+      }
+    },
+    "/api/v1/merchant/reviews/{id}/reply": {
+      "post": {
+        "operationId": "Reviews_reply",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReplyDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "reviews"
+        ]
+      }
+    },
+    "/api/v1/admin/reviews/{id}": {
+      "patch": {
+        "operationId": "Reviews_moderate",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ModerateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "reviews"
+        ]
+      }
+    },
+    "/api/v1/outlets/{outletId}/subscription-plans": {
+      "get": {
+        "operationId": "Subscriptions_plans",
+        "parameters": [
+          {
+            "name": "outletId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "meal-subscriptions"
+        ],
+        "security": []
+      }
+    },
+    "/api/v1/meal-subscriptions": {
+      "post": {
+        "operationId": "Subscriptions_subscribe",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubscribeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Subscribe to a meal plan (then pay with purpose MEAL_SUBSCRIPTION)",
+        "tags": [
+          "meal-subscriptions"
+        ]
+      },
+      "get": {
+        "operationId": "Subscriptions_mine",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "meal-subscriptions"
+        ]
+      }
+    },
+    "/api/v1/meal-subscriptions/{id}/pause": {
+      "post": {
+        "operationId": "Subscriptions_pause",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PauseDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Skip days; the plan end date extends automatically",
+        "tags": [
+          "meal-subscriptions"
+        ]
+      }
+    },
+    "/api/v1/meal-subscriptions/{id}/cancel": {
+      "post": {
+        "operationId": "Subscriptions_cancel",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "meal-subscriptions"
+        ]
+      }
+    },
+    "/api/v1/merchant/subscription-plans": {
+      "post": {
+        "operationId": "Subscriptions_createPlan",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubscriptionPlanDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "meal-subscriptions"
+        ]
+      },
+      "get": {
+        "operationId": "Subscriptions_merchantPlans",
+        "parameters": [
+          {
+            "name": "outletId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "meal-subscriptions"
+        ]
+      }
+    },
+    "/api/v1/merchant/subscription-plans/{id}": {
+      "patch": {
+        "operationId": "Subscriptions_updatePlan",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSubscriptionPlanDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "meal-subscriptions"
+        ]
+      }
+    },
+    "/api/v1/merchant/subscribers": {
+      "get": {
+        "operationId": "Subscriptions_subscribers",
+        "parameters": [
+          {
+            "name": "outletId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "meal-subscriptions"
+        ]
+      }
+    },
+    "/api/v1/memberships/plans": {
+      "get": {
+        "operationId": "Memberships_plans",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "memberships"
+        ],
+        "security": []
+      }
+    },
+    "/api/v1/memberships/me": {
+      "get": {
+        "operationId": "Memberships_mine",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "memberships"
+        ]
+      }
+    },
+    "/api/v1/memberships": {
+      "post": {
+        "operationId": "Memberships_purchase",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PurchaseMembershipDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Start a membership purchase (pay with purpose MEMBERSHIP)",
+        "tags": [
+          "memberships"
+        ]
+      }
+    },
+    "/api/v1/recommendations/home": {
+      "get": {
+        "operationId": "Recommendations_home",
+        "parameters": [
+          {
+            "name": "lat",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "lng",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "AI-ranked home feed: recommended, reorder, top rated, fastest",
+        "tags": [
+          "recommendations"
+        ],
+        "security": []
+      }
+    },
+    "/api/v1/recommendations/reorder": {
+      "get": {
+        "operationId": "Recommendations_reorder",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Your usual orders",
+        "tags": [
+          "recommendations"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/recommendations/dishes": {
+      "get": {
+        "operationId": "Recommendations_dishes",
+        "parameters": [
+          {
+            "name": "outletId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "itemIds",
+            "required": false,
+            "in": "query",
+            "description": "Comma separated item ids in the cart",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Dishes frequently ordered together",
+        "tags": [
+          "recommendations"
+        ],
+        "security": []
+      }
+    },
+    "/api/v1/internal/orders/{id}": {
+      "get": {
+        "operationId": "Internal_order",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "internal"
+        ],
+        "security": [
+          {
+            "service-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/internal/orders/{id}/payable": {
+      "get": {
+        "operationId": "Internal_orderPayable",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Amount due for an order (payment-service)",
+        "tags": [
+          "internal"
+        ],
+        "security": [
+          {
+            "service-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/internal/memberships/{id}/payable": {
+      "get": {
+        "operationId": "Internal_membershipPayable",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "internal"
+        ],
+        "security": [
+          {
+            "service-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/internal/meal-subscriptions/{id}/payable": {
+      "get": {
+        "operationId": "Internal_subscriptionPayable",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "internal"
+        ],
+        "security": [
+          {
+            "service-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/internal/outlets/{id}": {
+      "get": {
+        "operationId": "Internal_outlet",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "internal"
+        ],
+        "security": [
+          {
+            "service-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/internal/outlets/{id}/menu-prices": {
+      "get": {
+        "operationId": "Internal_menuPrices",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Selling prices for costing (inventory-service)",
+        "tags": [
+          "internal"
+        ],
+        "security": [
+          {
+            "service-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/internal/outlets/{id}/item-sales": {
+      "get": {
+        "operationId": "Internal_itemSales",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Daily item quantities for production planning",
+        "tags": [
+          "internal"
+        ],
+        "security": [
+          {
+            "service-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/internal/orders/{id}/assert-active": {
+      "get": {
+        "operationId": "Internal_assertActive",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "internal"
+        ],
+        "security": [
+          {
+            "service-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/outlets/nearby": {
+      "get": {
+        "operationId": "OutletsPublic_nearby",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "pageSize",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "lat",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "lng",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "radiusKm",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": 8,
+              "type": "number"
+            }
+          },
+          {
+            "name": "type",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "RESTAURANT",
+                "FOOD_CART",
+                "CLOUD_KITCHEN"
+              ]
+            }
+          },
+          {
+            "name": "veg",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "cuisines",
+            "required": false,
+            "in": "query",
+            "description": "Comma separated cuisines",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "openNow",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "minRating",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "maxCostForTwo",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "sort",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "relevance",
+                "rating",
+                "distance",
+                "eta",
+                "cost_low",
+                "cost_high"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Discover restaurants and food carts near a location",
+        "tags": [
+          "outlets"
+        ],
+        "security": []
+      }
+    },
+    "/api/v1/outlets/{idOrSlug}": {
+      "get": {
+        "operationId": "OutletsPublic_details",
+        "parameters": [
+          {
+            "name": "idOrSlug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Outlet details",
+        "tags": [
+          "outlets"
+        ],
+        "security": []
+      }
+    },
+    "/api/v1/outlets/{idOrSlug}/menu": {
+      "get": {
+        "operationId": "OutletsPublic_menu",
+        "parameters": [
+          {
+            "name": "idOrSlug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Browse the menu (categories, items, variants, add-ons)",
+        "tags": [
+          "outlets"
+        ],
+        "security": []
+      }
+    },
+    "/api/v1/merchant/outlets": {
+      "get": {
+        "operationId": "OutletsMerchant_mine",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "merchant"
+        ]
+      },
+      "post": {
+        "operationId": "OutletsMerchant_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateOutletDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "merchant"
+        ]
+      }
+    },
+    "/api/v1/merchant/outlets/{id}": {
+      "patch": {
+        "operationId": "OutletsMerchant_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateOutletDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "merchant"
+        ]
+      }
+    },
+    "/api/v1/merchant/outlets/{id}/submit": {
+      "post": {
+        "operationId": "OutletsMerchant_submit",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Submit the outlet for platform approval",
+        "tags": [
+          "merchant"
+        ]
+      }
+    },
+    "/api/v1/merchant/outlets/{id}/availability": {
+      "post": {
+        "operationId": "OutletsMerchant_availability",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OutletAvailabilityDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Open / close for orders",
+        "tags": [
+          "merchant"
+        ]
+      }
+    },
+    "/api/v1/merchant/outlets/{id}/pause": {
+      "post": {
+        "operationId": "OutletsMerchant_pause",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "merchant"
+        ]
+      }
+    },
+    "/api/v1/merchant/outlets/{id}/resume": {
+      "post": {
+        "operationId": "OutletsMerchant_resume",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "merchant"
+        ]
+      }
+    },
+    "/api/v1/merchant/outlets/{id}/location": {
+      "post": {
+        "operationId": "OutletsMerchant_location",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OutletLocationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update a food cart’s live location",
+        "tags": [
+          "merchant"
+        ]
+      }
+    },
+    "/api/v1/merchant/outlets/{outletId}/menu": {
+      "get": {
+        "operationId": "Menu_full",
+        "parameters": [
+          {
+            "name": "outletId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Full menu including unavailable items",
+        "tags": [
+          "merchant"
+        ]
+      }
+    },
+    "/api/v1/merchant/outlets/{outletId}/categories": {
+      "post": {
+        "operationId": "Menu_createCategory",
+        "parameters": [
+          {
+            "name": "outletId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CategoryDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "merchant"
+        ]
+      }
+    },
+    "/api/v1/merchant/categories/{id}": {
+      "patch": {
+        "operationId": "Menu_updateCategory",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCategoryDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "merchant"
+        ]
+      },
+      "delete": {
+        "operationId": "Menu_deleteCategory",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "merchant"
+        ]
+      }
+    },
+    "/api/v1/merchant/outlets/{outletId}/items": {
+      "post": {
+        "operationId": "Menu_createItem",
+        "parameters": [
+          {
+            "name": "outletId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MenuItemDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create a menu item with variants and add-on groups",
+        "tags": [
+          "merchant"
+        ]
+      }
+    },
+    "/api/v1/merchant/items/{id}": {
+      "patch": {
+        "operationId": "Menu_updateItem",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateMenuItemDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "merchant"
+        ]
+      },
+      "delete": {
+        "operationId": "Menu_deleteItem",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "merchant"
+        ]
+      }
+    },
+    "/api/v1/merchant/items/availability": {
+      "post": {
+        "operationId": "Menu_bulkAvailability",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkAvailabilityDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Mark items in / out of stock in bulk",
+        "tags": [
+          "merchant"
+        ]
+      }
+    },
+    "/api/v1/search": {
+      "get": {
+        "operationId": "Search_find",
+        "parameters": [
+          {
+            "name": "q",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "example": "biryani",
+              "type": "string"
+            }
+          },
+          {
+            "name": "lat",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "lng",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "type",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "RESTAURANT",
+                "FOOD_CART",
+                "CLOUD_KITCHEN"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Search restaurants, food carts and dishes near a location",
+        "tags": [
+          "search"
+        ],
+        "security": []
+      }
+    },
+    "/api/v1/search/suggest": {
+      "get": {
+        "operationId": "Search_suggest",
+        "parameters": [
+          {
+            "name": "q",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "example": "biryani",
+              "type": "string"
+            }
+          },
+          {
+            "name": "lat",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "lng",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "type",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "RESTAURANT",
+                "FOOD_CART",
+                "CLOUD_KITCHEN"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Autocomplete suggestions (cuisines, outlets, dishes)",
+        "tags": [
+          "search"
+        ],
+        "security": []
+      }
+    }
+  },
+  "info": {
+    "title": "FoodGrid Order Service",
+    "description": "Outlets, menus, search, cart, checkout, order lifecycle, KDS, POS, QR ordering, coupons, reviews, meal subscriptions, memberships.",
+    "version": "1.0.0",
+    "contact": {}
+  },
+  "tags": [],
+  "servers": [
+    {
+      "url": "/",
+      "description": "Gateway / local"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearer": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http"
+      },
+      "service-token": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-service-token"
+      }
+    },
+    "schemas": {
+      "AddCartItemDto": {
+        "type": "object",
+        "properties": {
+          "menuItemId": {
+            "type": "string"
+          },
+          "quantity": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 50
+          },
+          "variantId": {
+            "type": "string"
+          },
+          "addonIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "notes": {
+            "type": "string"
+          },
+          "replace": {
+            "type": "boolean",
+            "description": "Replace a cart from a different outlet"
+          }
+        },
+        "required": [
+          "menuItemId",
+          "quantity"
+        ]
+      },
+      "UpdateCartLineDto": {
+        "type": "object",
+        "properties": {
+          "quantity": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 50,
+            "description": "0 removes the line"
+          }
+        },
+        "required": [
+          "quantity"
+        ]
+      },
+      "ApplyCouponDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "WELCOME50"
+          }
+        },
+        "required": [
+          "code"
+        ]
+      },
+      "QuoteDto": {
+        "type": "object",
+        "properties": {
+          "orderType": {
+            "type": "string",
+            "enum": [
+              "DELIVERY",
+              "TAKEAWAY"
+            ]
+          },
+          "lat": {
+            "type": "number"
+          },
+          "lng": {
+            "type": "number"
+          },
+          "tip": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 500
+          },
+          "paymentMethod": {
+            "type": "string",
+            "enum": [
+              "UPI",
+              "CARD",
+              "NETBANKING",
+              "WALLET",
+              "COD"
+            ]
+          }
+        },
+        "required": [
+          "orderType"
+        ]
+      },
+      "AddressSnapshotDto": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "contactName": {
+            "type": "string"
+          },
+          "contactPhone": {
+            "type": "string"
+          },
+          "line1": {
+            "type": "string"
+          },
+          "line2": {
+            "type": "string"
+          },
+          "landmark": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          },
+          "pincode": {
+            "type": "string"
+          },
+          "lat": {
+            "type": "number"
+          },
+          "lng": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "line1",
+          "city",
+          "state",
+          "pincode",
+          "lat",
+          "lng"
+        ]
+      },
+      "CheckoutDto": {
+        "type": "object",
+        "properties": {
+          "orderType": {
+            "type": "string",
+            "enum": [
+              "DELIVERY",
+              "TAKEAWAY"
+            ]
+          },
+          "paymentMethod": {
+            "type": "string",
+            "enum": [
+              "UPI",
+              "CARD",
+              "NETBANKING",
+              "WALLET",
+              "COD"
+            ]
+          },
+          "deliveryAddress": {
+            "$ref": "#/components/schemas/AddressSnapshotDto"
+          },
+          "tip": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 500
+          },
+          "specialInstructions": {
+            "type": "string"
+          },
+          "scheduledFor": {
+            "type": "string",
+            "description": "Schedule for later (ISO time, 45 min – 7 days ahead)"
+          },
+          "deviceId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "orderType",
+          "paymentMethod"
+        ]
+      },
+      "CancelOrderDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ]
+      },
+      "ReviewDto": {
+        "type": "object",
+        "properties": {
+          "rating": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 5
+          },
+          "foodRating": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 5
+          },
+          "deliveryRating": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 5
+          },
+          "comment": {
+            "type": "string"
+          },
+          "photos": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "tags": {
+            "example": [
+              "Tasty",
+              "Well packed"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "rating"
+        ]
+      },
+      "AcceptOrderDto": {
+        "type": "object",
+        "properties": {
+          "prepTimeMins": {
+            "type": "number",
+            "minimum": 5,
+            "maximum": 120,
+            "description": "Override preparation time"
+          }
+        }
+      },
+      "OrderLineDto": {
+        "type": "object",
+        "properties": {
+          "menuItemId": {
+            "type": "string"
+          },
+          "quantity": {
+            "type": "number"
+          },
+          "variantId": {
+            "type": "string"
+          },
+          "addonIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "notes": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "menuItemId",
+          "quantity"
+        ]
+      },
+      "PosOrderDto": {
+        "type": "object",
+        "properties": {
+          "outletId": {
+            "type": "string"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OrderLineDto"
+            }
+          },
+          "paymentMethod": {
+            "type": "string",
+            "enum": [
+              "CASH",
+              "UPI",
+              "CARD"
+            ]
+          },
+          "orderType": {
+            "type": "string",
+            "enum": [
+              "TAKEAWAY",
+              "DINE_IN"
+            ]
+          },
+          "tableId": {
+            "type": "string"
+          },
+          "customerName": {
+            "type": "string"
+          },
+          "customerPhone": {
+            "type": "string"
+          },
+          "discount": {
+            "type": "number",
+            "description": "Manual flat discount (₹)"
+          },
+          "notes": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "outletId",
+          "items",
+          "paymentMethod",
+          "orderType"
+        ]
+      },
+      "QrOrderDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OrderLineDto"
+            }
+          },
+          "customerName": {
+            "type": "string"
+          },
+          "customerPhone": {
+            "type": "string"
+          },
+          "notes": {
+            "type": "string"
+          },
+          "payAtCounter": {
+            "type": "boolean",
+            "description": "Pay at the counter instead of online",
+            "default": true
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
+      "TableDto": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "example": "T4"
+          },
+          "seats": {
+            "type": "number",
+            "example": 4
+          }
+        },
+        "required": [
+          "label"
+        ]
+      },
+      "CouponDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "TASTY50"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "FLAT",
+              "PERCENT",
+              "FREE_DELIVERY"
+            ]
+          },
+          "value": {
+            "type": "number"
+          },
+          "maxDiscount": {
+            "type": "number"
+          },
+          "minOrderValue": {
+            "type": "number"
+          },
+          "usageLimit": {
+            "type": "number"
+          },
+          "perUserLimit": {
+            "type": "number"
+          },
+          "firstOrderOnly": {
+            "type": "boolean"
+          },
+          "membersOnly": {
+            "type": "boolean"
+          },
+          "outletIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "paymentMethods": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "UPI",
+                "CARD",
+                "NETBANKING",
+                "WALLET",
+                "COD",
+                "CASH"
+              ]
+            }
+          },
+          "validFrom": {
+            "type": "string"
+          },
+          "validTo": {
+            "type": "string"
+          },
+          "isActive": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "code",
+          "title",
+          "type",
+          "value",
+          "validFrom",
+          "validTo"
+        ]
+      },
+      "UpdateCouponDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "TASTY50"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "FLAT",
+              "PERCENT",
+              "FREE_DELIVERY"
+            ]
+          },
+          "value": {
+            "type": "number"
+          },
+          "maxDiscount": {
+            "type": "number"
+          },
+          "minOrderValue": {
+            "type": "number"
+          },
+          "usageLimit": {
+            "type": "number"
+          },
+          "perUserLimit": {
+            "type": "number"
+          },
+          "firstOrderOnly": {
+            "type": "boolean"
+          },
+          "membersOnly": {
+            "type": "boolean"
+          },
+          "outletIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "paymentMethods": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "UPI",
+                "CARD",
+                "NETBANKING",
+                "WALLET",
+                "COD",
+                "CASH"
+              ]
+            }
+          },
+          "validFrom": {
+            "type": "string"
+          },
+          "validTo": {
+            "type": "string"
+          },
+          "isActive": {
+            "type": "boolean"
+          }
+        }
+      },
+      "PlatformCouponDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "TASTY50"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "FLAT",
+              "PERCENT",
+              "FREE_DELIVERY"
+            ]
+          },
+          "value": {
+            "type": "number"
+          },
+          "maxDiscount": {
+            "type": "number"
+          },
+          "minOrderValue": {
+            "type": "number"
+          },
+          "usageLimit": {
+            "type": "number"
+          },
+          "perUserLimit": {
+            "type": "number"
+          },
+          "firstOrderOnly": {
+            "type": "boolean"
+          },
+          "membersOnly": {
+            "type": "boolean"
+          },
+          "outletIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "paymentMethods": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "UPI",
+                "CARD",
+                "NETBANKING",
+                "WALLET",
+                "COD",
+                "CASH"
+              ]
+            }
+          },
+          "validFrom": {
+            "type": "string"
+          },
+          "validTo": {
+            "type": "string"
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "fundedBy": {
+            "type": "string",
+            "enum": [
+              "PLATFORM",
+              "MERCHANT",
+              "SHARED"
+            ]
+          },
+          "tenantId": {
+            "type": "string",
+            "description": "Restrict to a tenant (restaurant chain)"
+          }
+        },
+        "required": [
+          "code",
+          "title",
+          "type",
+          "value",
+          "validFrom",
+          "validTo"
+        ]
+      },
+      "ReplyDto": {
+        "type": "object",
+        "properties": {
+          "reply": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "reply"
+        ]
+      },
+      "ModerateDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "PUBLISHED",
+              "HIDDEN",
+              "FLAGGED"
+            ]
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "SubscribeDto": {
+        "type": "object",
+        "properties": {
+          "planId": {
+            "type": "string"
+          },
+          "startDate": {
+            "type": "string",
+            "example": "2026-10-12"
+          },
+          "deliveryTime": {
+            "type": "string",
+            "example": "12:30"
+          },
+          "deliveryAddress": {
+            "$ref": "#/components/schemas/AddressSnapshotDto"
+          }
+        },
+        "required": [
+          "planId",
+          "startDate",
+          "deliveryTime",
+          "deliveryAddress"
+        ]
+      },
+      "PauseDto": {
+        "type": "object",
+        "properties": {
+          "dates": {
+            "example": [
+              "2026-10-20"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "dates"
+        ]
+      },
+      "SubscriptionPlanDto": {
+        "type": "object",
+        "properties": {
+          "outletId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string",
+            "example": "Weekday Veg Thali (Lunch)"
+          },
+          "description": {
+            "type": "string"
+          },
+          "slot": {
+            "type": "string",
+            "enum": [
+              "BREAKFAST",
+              "LUNCH",
+              "DINNER"
+            ]
+          },
+          "durationDays": {
+            "type": "number",
+            "example": 30
+          },
+          "daysOfWeek": {
+            "example": [
+              1,
+              2,
+              3,
+              4,
+              5
+            ],
+            "description": "ISO weekdays served",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "pricePerMeal": {
+            "type": "number",
+            "example": 120
+          },
+          "isVeg": {
+            "type": "boolean"
+          },
+          "menuRotation": {
+            "type": "object",
+            "description": "{ \"1\": [\"menuItemId\"], ... } menu per ISO weekday"
+          },
+          "isActive": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "outletId",
+          "name",
+          "slot",
+          "durationDays",
+          "daysOfWeek",
+          "pricePerMeal",
+          "menuRotation"
+        ]
+      },
+      "UpdateSubscriptionPlanDto": {
+        "type": "object",
+        "properties": {
+          "outletId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string",
+            "example": "Weekday Veg Thali (Lunch)"
+          },
+          "description": {
+            "type": "string"
+          },
+          "slot": {
+            "type": "string",
+            "enum": [
+              "BREAKFAST",
+              "LUNCH",
+              "DINNER"
+            ]
+          },
+          "durationDays": {
+            "type": "number",
+            "example": 30
+          },
+          "daysOfWeek": {
+            "example": [
+              1,
+              2,
+              3,
+              4,
+              5
+            ],
+            "description": "ISO weekdays served",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "pricePerMeal": {
+            "type": "number",
+            "example": 120
+          },
+          "isVeg": {
+            "type": "boolean"
+          },
+          "menuRotation": {
+            "type": "object",
+            "description": "{ \"1\": [\"menuItemId\"], ... } menu per ISO weekday"
+          },
+          "isActive": {
+            "type": "boolean"
+          }
+        }
+      },
+      "PurchaseMembershipDto": {
+        "type": "object",
+        "properties": {
+          "planId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "planId"
+        ]
+      },
+      "OpeningWindowDto": {
+        "type": "object",
+        "properties": {
+          "day": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 6,
+            "description": "0 = Sunday"
+          },
+          "open": {
+            "type": "string",
+            "example": "11:00"
+          },
+          "close": {
+            "type": "string",
+            "example": "23:00"
+          }
+        },
+        "required": [
+          "day",
+          "open",
+          "close"
+        ]
+      },
+      "CreateOutletDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "RESTAURANT",
+              "FOOD_CART",
+              "CLOUD_KITCHEN"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "example": "Spice Route — Indiranagar"
+          },
+          "description": {
+            "type": "string"
+          },
+          "cuisines": {
+            "example": [
+              "North Indian",
+              "Biryani"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "phone": {
+            "type": "string"
+          },
+          "addressLine1": {
+            "type": "string"
+          },
+          "addressLine2": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          },
+          "stateCode": {
+            "type": "string",
+            "example": "29"
+          },
+          "pincode": {
+            "type": "string"
+          },
+          "lat": {
+            "type": "number"
+          },
+          "lng": {
+            "type": "number"
+          },
+          "isPureVeg": {
+            "type": "boolean"
+          },
+          "costForTwo": {
+            "type": "number",
+            "example": 400
+          },
+          "avgPrepTimeMins": {
+            "type": "number",
+            "example": 20
+          },
+          "deliveryRadiusKm": {
+            "type": "number",
+            "example": 6
+          },
+          "minOrderValue": {
+            "type": "number"
+          },
+          "packagingCharge": {
+            "type": "number"
+          },
+          "openingHours": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OpeningWindowDto"
+            }
+          },
+          "fssaiNumber": {
+            "type": "string"
+          },
+          "gstin": {
+            "type": "string"
+          },
+          "logoUrl": {
+            "type": "string"
+          },
+          "coverImageUrl": {
+            "type": "string"
+          },
+          "images": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "acceptsDelivery": {
+            "type": "boolean"
+          },
+          "acceptsTakeaway": {
+            "type": "boolean"
+          },
+          "acceptsDineIn": {
+            "type": "boolean"
+          },
+          "acceptsQrOrders": {
+            "type": "boolean"
+          },
+          "kdsStations": {
+            "example": [
+              "MAIN",
+              "TANDOOR",
+              "BAR"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "type",
+          "name",
+          "addressLine1",
+          "city",
+          "state",
+          "pincode",
+          "lat",
+          "lng"
+        ]
+      },
+      "UpdateOutletDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "RESTAURANT",
+              "FOOD_CART",
+              "CLOUD_KITCHEN"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "example": "Spice Route — Indiranagar"
+          },
+          "description": {
+            "type": "string"
+          },
+          "cuisines": {
+            "example": [
+              "North Indian",
+              "Biryani"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "phone": {
+            "type": "string"
+          },
+          "addressLine1": {
+            "type": "string"
+          },
+          "addressLine2": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          },
+          "stateCode": {
+            "type": "string",
+            "example": "29"
+          },
+          "pincode": {
+            "type": "string"
+          },
+          "lat": {
+            "type": "number"
+          },
+          "lng": {
+            "type": "number"
+          },
+          "isPureVeg": {
+            "type": "boolean"
+          },
+          "costForTwo": {
+            "type": "number",
+            "example": 400
+          },
+          "avgPrepTimeMins": {
+            "type": "number",
+            "example": 20
+          },
+          "deliveryRadiusKm": {
+            "type": "number",
+            "example": 6
+          },
+          "minOrderValue": {
+            "type": "number"
+          },
+          "packagingCharge": {
+            "type": "number"
+          },
+          "openingHours": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OpeningWindowDto"
+            }
+          },
+          "fssaiNumber": {
+            "type": "string"
+          },
+          "gstin": {
+            "type": "string"
+          },
+          "logoUrl": {
+            "type": "string"
+          },
+          "coverImageUrl": {
+            "type": "string"
+          },
+          "images": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "acceptsDelivery": {
+            "type": "boolean"
+          },
+          "acceptsTakeaway": {
+            "type": "boolean"
+          },
+          "acceptsDineIn": {
+            "type": "boolean"
+          },
+          "acceptsQrOrders": {
+            "type": "boolean"
+          },
+          "kdsStations": {
+            "example": [
+              "MAIN",
+              "TANDOOR",
+              "BAR"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "OutletAvailabilityDto": {
+        "type": "object",
+        "properties": {
+          "isOpen": {
+            "type": "boolean",
+            "description": "Accepting orders right now"
+          }
+        },
+        "required": [
+          "isOpen"
+        ]
+      },
+      "OutletLocationDto": {
+        "type": "object",
+        "properties": {
+          "lat": {
+            "type": "number"
+          },
+          "lng": {
+            "type": "number"
+          },
+          "addressLine1": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "lat",
+          "lng"
+        ]
+      },
+      "CategoryDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "sortOrder": {
+            "type": "number"
+          },
+          "isActive": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "UpdateCategoryDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "sortOrder": {
+            "type": "number"
+          },
+          "isActive": {
+            "type": "boolean"
+          }
+        }
+      },
+      "VariantDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string",
+            "example": "Full"
+          },
+          "priceDelta": {
+            "type": "number",
+            "example": 80
+          },
+          "isDefault": {
+            "type": "boolean"
+          },
+          "isAvailable": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "priceDelta"
+        ]
+      },
+      "AddonDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Extra cheese"
+          },
+          "price": {
+            "type": "number",
+            "example": 30
+          },
+          "isVeg": {
+            "type": "boolean"
+          },
+          "isAvailable": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "price"
+        ]
+      },
+      "AddonGroupDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Add-ons"
+          },
+          "minSelect": {
+            "type": "number"
+          },
+          "maxSelect": {
+            "type": "number"
+          },
+          "addons": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AddonDto"
+            }
+          }
+        },
+        "required": [
+          "name",
+          "addons"
+        ]
+      },
+      "MenuItemDto": {
+        "type": "object",
+        "properties": {
+          "categoryId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string",
+            "example": "Hyderabadi Chicken Biryani"
+          },
+          "description": {
+            "type": "string"
+          },
+          "imageUrl": {
+            "type": "string"
+          },
+          "sku": {
+            "type": "string"
+          },
+          "price": {
+            "type": "number",
+            "example": 289
+          },
+          "compareAtPrice": {
+            "type": "number"
+          },
+          "isVeg": {
+            "type": "boolean"
+          },
+          "isAvailable": {
+            "type": "boolean"
+          },
+          "isRecommended": {
+            "type": "boolean"
+          },
+          "prepTimeMins": {
+            "type": "number"
+          },
+          "gstRate": {
+            "type": "number",
+            "example": 5
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "spiceLevel": {
+            "type": "number"
+          },
+          "calories": {
+            "type": "number"
+          },
+          "kdsStation": {
+            "type": "string",
+            "example": "TANDOOR"
+          },
+          "sortOrder": {
+            "type": "number"
+          },
+          "variants": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VariantDto"
+            }
+          },
+          "addonGroups": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AddonGroupDto"
+            }
+          }
+        },
+        "required": [
+          "categoryId",
+          "name",
+          "price",
+          "isVeg"
+        ]
+      },
+      "UpdateMenuItemDto": {
+        "type": "object",
+        "properties": {
+          "categoryId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string",
+            "example": "Hyderabadi Chicken Biryani"
+          },
+          "description": {
+            "type": "string"
+          },
+          "imageUrl": {
+            "type": "string"
+          },
+          "sku": {
+            "type": "string"
+          },
+          "price": {
+            "type": "number",
+            "example": 289
+          },
+          "compareAtPrice": {
+            "type": "number"
+          },
+          "isVeg": {
+            "type": "boolean"
+          },
+          "isAvailable": {
+            "type": "boolean"
+          },
+          "isRecommended": {
+            "type": "boolean"
+          },
+          "prepTimeMins": {
+            "type": "number"
+          },
+          "gstRate": {
+            "type": "number",
+            "example": 5
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "spiceLevel": {
+            "type": "number"
+          },
+          "calories": {
+            "type": "number"
+          },
+          "kdsStation": {
+            "type": "string",
+            "example": "TANDOOR"
+          },
+          "sortOrder": {
+            "type": "number"
+          },
+          "variants": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VariantDto"
+            }
+          },
+          "addonGroups": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AddonGroupDto"
+            }
+          }
+        }
+      },
+      "BulkAvailabilityDto": {
+        "type": "object",
+        "properties": {
+          "itemIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "isAvailable": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "itemIds",
+          "isAvailable"
+        ]
+      }
+    }
+  }
+}

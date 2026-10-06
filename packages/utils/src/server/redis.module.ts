@@ -28,7 +28,8 @@ export class RedisModule {
             new Redis(url, {
               maxRetriesPerRequest: 3,
               enableReadyCheck: true,
-              lazyConnect: false,
+              // connect on first command: tooling (e.g. OpenAPI generation) can build the app without Redis
+              lazyConnect: true,
             }),
         },
         RedisLifecycle,

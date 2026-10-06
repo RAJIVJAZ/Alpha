@@ -1,0 +1,565 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/api/v1/ads/campaigns": {
+      "get": {
+        "operationId": "Campaigns_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "ads"
+        ]
+      },
+      "post": {
+        "operationId": "Campaigns_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CampaignDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create a sponsored listing campaign (draft)",
+        "tags": [
+          "ads"
+        ]
+      }
+    },
+    "/api/v1/ads/campaigns/{id}": {
+      "patch": {
+        "operationId": "Campaigns_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCampaignDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "ads"
+        ]
+      }
+    },
+    "/api/v1/ads/campaigns/{id}/submit": {
+      "post": {
+        "operationId": "Campaigns_submit",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "ads"
+        ]
+      }
+    },
+    "/api/v1/ads/campaigns/{id}/pause": {
+      "post": {
+        "operationId": "Campaigns_pause",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "ads"
+        ]
+      }
+    },
+    "/api/v1/ads/campaigns/{id}/resume": {
+      "post": {
+        "operationId": "Campaigns_resume",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "ads"
+        ]
+      }
+    },
+    "/api/v1/ads/campaigns/{id}/stats": {
+      "get": {
+        "operationId": "Campaigns_stats",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Impressions, clicks, CTR, CPC, conversions, ROAS",
+        "tags": [
+          "ads"
+        ]
+      }
+    },
+    "/api/v1/ads/events/click": {
+      "post": {
+        "operationId": "AdsPublic_click",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClickDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "ads"
+        ],
+        "security": []
+      }
+    },
+    "/api/v1/ads/admin/campaigns": {
+      "get": {
+        "operationId": "AdsPublic_adminList",
+        "parameters": [
+          {
+            "name": "status",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "ads"
+        ]
+      }
+    },
+    "/api/v1/internal/ads/serve": {
+      "post": {
+        "operationId": "Internal_serve",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ServeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Run the auction for a placement and return sponsored targets",
+        "tags": [
+          "internal"
+        ],
+        "security": [
+          {
+            "service-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/internal/ads/campaigns/{id}/payable": {
+      "get": {
+        "operationId": "Internal_payable",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "internal"
+        ],
+        "security": [
+          {
+            "service-token": []
+          }
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "FoodGrid Ads Service",
+    "description": "Sponsored listings: campaigns, auctions, budget pacing, impression/click/conversion tracking.",
+    "version": "1.0.0",
+    "contact": {}
+  },
+  "tags": [],
+  "servers": [
+    {
+      "url": "/",
+      "description": "Gateway / local"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearer": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http"
+      },
+      "service-token": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-service-token"
+      }
+    },
+    "schemas": {
+      "CampaignDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "placement": {
+            "type": "string",
+            "enum": [
+              "SEARCH_TOP",
+              "HOME_CAROUSEL",
+              "CATEGORY_TOP",
+              "MARKETPLACE_TOP",
+              "MENU_HIGHLIGHT"
+            ]
+          },
+          "targetType": {
+            "type": "string",
+            "enum": [
+              "OUTLET",
+              "MENU_ITEM",
+              "PRODUCT"
+            ]
+          },
+          "targetId": {
+            "type": "string"
+          },
+          "bidType": {
+            "type": "string",
+            "enum": [
+              "CPC",
+              "CPM"
+            ]
+          },
+          "bidAmount": {
+            "type": "number",
+            "example": 6
+          },
+          "dailyBudget": {
+            "type": "number",
+            "example": 500
+          },
+          "totalBudget": {
+            "type": "number",
+            "example": 10000
+          },
+          "keywords": {
+            "example": [
+              "biryani",
+              "hyderabadi"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "cities": {
+            "example": [
+              "Bengaluru"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "startsAt": {
+            "type": "string"
+          },
+          "endsAt": {
+            "type": "string"
+          },
+          "creative": {
+            "type": "object",
+            "example": {
+              "title": "20% off on biryanis",
+              "imageUrl": "https://…",
+              "cta": "Order now"
+            }
+          }
+        },
+        "required": [
+          "name",
+          "placement",
+          "targetType",
+          "targetId",
+          "bidAmount",
+          "dailyBudget",
+          "totalBudget",
+          "startsAt"
+        ]
+      },
+      "UpdateCampaignDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "placement": {
+            "type": "string",
+            "enum": [
+              "SEARCH_TOP",
+              "HOME_CAROUSEL",
+              "CATEGORY_TOP",
+              "MARKETPLACE_TOP",
+              "MENU_HIGHLIGHT"
+            ]
+          },
+          "targetType": {
+            "type": "string",
+            "enum": [
+              "OUTLET",
+              "MENU_ITEM",
+              "PRODUCT"
+            ]
+          },
+          "targetId": {
+            "type": "string"
+          },
+          "bidType": {
+            "type": "string",
+            "enum": [
+              "CPC",
+              "CPM"
+            ]
+          },
+          "bidAmount": {
+            "type": "number",
+            "example": 6
+          },
+          "dailyBudget": {
+            "type": "number",
+            "example": 500
+          },
+          "totalBudget": {
+            "type": "number",
+            "example": 10000
+          },
+          "keywords": {
+            "example": [
+              "biryani",
+              "hyderabadi"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "cities": {
+            "example": [
+              "Bengaluru"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "startsAt": {
+            "type": "string"
+          },
+          "endsAt": {
+            "type": "string"
+          },
+          "creative": {
+            "type": "object",
+            "example": {
+              "title": "20% off on biryanis",
+              "imageUrl": "https://…",
+              "cta": "Order now"
+            }
+          }
+        }
+      },
+      "ClickDto": {
+        "type": "object",
+        "properties": {
+          "campaignId": {
+            "type": "string"
+          },
+          "sessionId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "campaignId"
+        ]
+      },
+      "ServeDto": {
+        "type": "object",
+        "properties": {
+          "placement": {
+            "type": "string",
+            "enum": [
+              "SEARCH_TOP",
+              "HOME_CAROUSEL",
+              "CATEGORY_TOP",
+              "MARKETPLACE_TOP",
+              "MENU_HIGHLIGHT"
+            ]
+          },
+          "city": {
+            "type": "string"
+          },
+          "keywords": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "limit": {
+            "type": "number"
+          },
+          "userId": {
+            "type": "string"
+          },
+          "sessionId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "placement"
+        ]
+      }
+    }
+  }
+}
