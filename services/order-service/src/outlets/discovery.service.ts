@@ -75,12 +75,12 @@ export class DiscoveryService {
     if (q.openNow) rows = rows.filter((r) => r.openNow);
     rows = this.sort(rows, q.sort ?? 'relevance');
 
-    const sponsored = await this.sponsoredOutletIds(rows[0]?.outlet.city);
+    const sponsored = await this.sponsoredOutlets(rows[0]?.outlet.city);
     if (sponsored.size && (q.sort ?? 'relevance') === 'relevance') {
       rows = [...rows.filter((r) => sponsored.has(r.outlet.id) && r.openNow), ...rows.filter((r) => !(sponsored.has(r.outlet.id) && r.openNow))];
     }
     const { page, pageSize, skip } = normalizePage(q);
-    const slice = rows.slice(skip, skip + pageSize).map((r) => toCard(r, sponsored.has(r.outlet.id)));
+    const slice = rows.slice(skip, skip + pageSize).map((r) => toCard(r, sponsored.get(r.outlet.id)));
     return paginate(slice, rows.length, page, pageSize);
   }
 
@@ -109,25 +109,26 @@ export class DiscoveryService {
     }
   }
 
-  /** Sponsored placements from ads-service; discovery never fails because of ads. */
-  private async sponsoredOutletIds(city?: string): Promise<Set<string>> {
-    if (!city) return new Set();
+  /** Sponsored placements from ads-service (outlet id → campaign id); discovery never fails because of ads. */
+  private async sponsoredOutlets(city?: string): Promise<Map<string, string>> {
+    if (!city) return new Map();
     try {
-      const ads = await this.internal.post<{ targetType: string; targetId: string }[]>(
+      const ads = await this.internal.post<{ campaignId: string; targetType: string; targetId: string }[]>(
         'ads',
         'internal/ads/serve',
         { placement: 'SEARCH_TOP', city, limit: 3 },
         { timeoutMs: 300 },
       );
-      return new Set(ads.filter((a) => a.targetType === 'OUTLET').map((a) => a.targetId));
+      return new Map(ads.filter((a) => a.targetType === 'OUTLET').map((a) => [a.targetId, a.campaignId]));
     } catch (err) {
       this.logger.debug(`ads unavailable: ${(err as Error).message}`);
-      return new Set();
+      return new Map();
     }
   }
 }
 
-export function toCard(r: ScoredOutlet, sponsored = false): OutletCard {
+/** `adCampaignId` marks a sponsored placement; clients report clicks with it (POST ads/events/click). */
+export function toCard(r: ScoredOutlet, adCampaignId?: string): OutletCard {
   const o = r.outlet;
   return {
     id: o.id,
@@ -147,6 +148,7 @@ export function toCard(r: ScoredOutlet, sponsored = false): OutletCard {
     coverImageUrl: o.coverImageUrl,
     distanceKm: Math.round(r.distanceKm * 10) / 10,
     etaMins: r.etaMins,
-    sponsored,
+    sponsored: !!adCampaignId,
+    adCampaignId: adCampaignId ?? null,
   };
 }

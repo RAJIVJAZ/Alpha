@@ -34,6 +34,8 @@ export interface OutletCard {
   distanceKm?: number;
   etaMins?: number;
   sponsored?: boolean;
+  /** campaign behind a sponsored placement, for click attribution */
+  adCampaignId?: string | null;
   offer?: string | null;
 }
 

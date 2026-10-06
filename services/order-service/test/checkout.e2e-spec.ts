@@ -179,6 +179,20 @@ describe('order-service checkout & lifecycle (e2e)', () => {
     await api().get('/api/v1/merchant/orders').set('Authorization', `Bearer ${token}`).expect(403);
   });
 
+  it('lists open sponsored outlets first, with the campaign id for click attribution', async () => {
+    await prisma.outlet.create({
+      data: {
+        id: 'outlet_2', tenantId: OTHER_TENANT, type: 'FOOD_CART', status: 'ACTIVE', name: 'Momo Cart', slug: 'momo-cart', addressLine1: '1st Main',
+        city: 'Bengaluru', state: 'Karnataka', stateCode: '29', pincode: '560034', lat: 12.9452, lng: 77.6345, geohash: 'tdr1y0', isOpen: true,
+      },
+    });
+    http.on('POST', 'ads', 'internal/ads/serve', [{ campaignId: 'cmp_1', targetType: 'OUTLET', targetId: 'outlet_2', rank: 1, sponsored: true }]);
+    const { body } = await api().get('/api/v1/outlets/nearby').query({ lat: 12.9352, lng: 77.6245 }).expect(200);
+    expect(body.data.map((o: { id: string }) => o.id)).toEqual(['outlet_2', 'outlet_1']);
+    expect(body.data[0]).toMatchObject({ sponsored: true, adCampaignId: 'cmp_1' });
+    expect(body.data[1]).toMatchObject({ sponsored: false, adCampaignId: null });
+  });
+
   it('reports daily item sales on IST calendar days for production planning', async () => {
     // 00:30 IST on day D is 19:00 UTC on day D-1: it must count towards day D
     const placedAt = new Date(Date.now() - 2 * 86_400_000);
