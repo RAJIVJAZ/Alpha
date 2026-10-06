@@ -3,6 +3,7 @@
 import * as React from 'react';
 import { Layers, PackagePlus, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import { Button } from '../components/button';
+import { Thumb } from '../components/thumb';
 import { DataTable, type Column } from '../components/data-table';
 import {
   Dialog,
@@ -69,16 +70,7 @@ export function ProductCatalog({
       sortValue: (p) => p.name,
       cell: (p) => (
         <div className="flex items-center gap-3">
-          {p.images[0] ? (
-            <img
-              src={p.images[0]}
-              alt=""
-              className="size-10 shrink-0 rounded-md border object-cover"
-              loading="lazy"
-            />
-          ) : (
-            <span className="size-10 shrink-0 rounded-md bg-muted" aria-hidden />
-          )}
+          <Thumb src={p.images[0]} className="size-10" />
           <div>
             <p className="font-medium">{p.name}</p>
             <p className="text-xs text-muted-foreground">
@@ -105,12 +97,14 @@ export function ProductCatalog({
     },
     {
       key: 'moq',
+      className: 'whitespace-nowrap',
       header: 'MOQ',
       align: 'right',
       cell: (p) => `${n(p.moq)} pack${Number(p.moq) === 1 ? '' : 's'}`,
     },
     {
       key: 'tiers',
+      className: 'whitespace-nowrap',
       header: 'Bulk tiers',
       align: 'right',
       cell: (p) =>
@@ -120,6 +114,7 @@ export function ProductCatalog({
     },
     {
       key: 'lead',
+      className: 'whitespace-nowrap',
       header: 'Delivery',
       align: 'right',
       cell: (p) =>

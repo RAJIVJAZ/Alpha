@@ -105,15 +105,13 @@ export function SettlementsView({
       cell: (s) => <span className="font-mono text-xs">{s.payoutReference ?? '—'}</span>,
     },
   ];
-  const chart = [...rows]
-    .reverse()
-    .map((s) => ({
-      week: formatShortDate(s.periodStart),
-      payout: Math.round(Number(s.netPayable)),
-      deductions: Math.round(
-        Number(s.commission) + Number(s.commissionGst) + Number(s.tcs) + Number(s.tds),
-      ),
-    }));
+  const chart = [...rows].reverse().map((s) => ({
+    week: formatShortDate(s.periodStart),
+    payout: Math.round(Number(s.netPayable)),
+    deductions: Math.round(
+      Number(s.commission) + Number(s.commissionGst) + Number(s.tcs) + Number(s.tds),
+    ),
+  }));
 
   return (
     <>

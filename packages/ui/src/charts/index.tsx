@@ -213,7 +213,10 @@ export function TrendChart({
     >
       <div style={{ height }}>
         <ResponsiveContainer width="100%" height="100%">
-          <Chart data={data} margin={{ top: 8, right: endLabels ? labelRoom : 12, bottom: 0, left: 0 }}>
+          <Chart
+            data={data}
+            margin={{ top: 8, right: endLabels ? labelRoom : 12, bottom: 0, left: 0 }}
+          >
             <CartesianGrid vertical={false} stroke="var(--chart-grid)" />
             <XAxis
               dataKey={xKey}

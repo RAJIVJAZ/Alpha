@@ -6,6 +6,7 @@ export * from './components/form';
 export * from './components/badge';
 export * from './components/table';
 export * from './components/misc';
+export * from './components/thumb';
 export * from './components/dialog';
 export * from './components/menu';
 export * from './components/status';

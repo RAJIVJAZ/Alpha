@@ -84,6 +84,7 @@ interface Receipt {
   items: { name: string; qty: number; rate: string; amount: string }[];
   subtotal: string;
   discount: string;
+  packaging: string;
   cgst: string;
   sgst: string;
   roundOff: string;
@@ -601,6 +602,12 @@ function ReceiptDialog({ receipt: r, onClose }: { receipt: Receipt | null; onClo
               <>
                 <dt>Discount</dt>
                 <dd className="text-right">-{Number(r.discount).toFixed(2)}</dd>
+              </>
+            ) : null}
+            {Number(r.packaging) ? (
+              <>
+                <dt>Packaging</dt>
+                <dd className="text-right">{Number(r.packaging).toFixed(2)}</dd>
               </>
             ) : null}
             <dt>CGST</dt>

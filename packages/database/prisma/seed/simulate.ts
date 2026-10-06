@@ -277,8 +277,10 @@ export function buildOrder(
   const serviceTaxable = r2(deliveryFee + platformFee);
   const foodGst = r2(foodTaxable * 0.05);
   const serviceGst = r2(serviceTaxable * 0.18);
-  const cgst = r2(foodGst / 2 + serviceGst / 2);
-  const sgst = r2(foodGst + serviceGst - cgst);
+  // split once on the bill like order-service: CGST takes the lower half-paisa
+  const taxPaise = Math.round((foodGst + serviceGst) * 100);
+  const cgst = Math.floor(taxPaise / 2) / 100;
+  const sgst = (taxPaise - Math.floor(taxPaise / 2)) / 100;
   const taxTotal = r2(foodGst + serviceGst);
   const tip = type === 'DELIVERY' && rng.chance(0.12) ? rng.pick([10, 20, 30]) : 0;
   const raw = r2(foodTaxable + serviceTaxable + taxTotal + tip);
