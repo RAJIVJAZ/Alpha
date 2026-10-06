@@ -27,7 +27,9 @@
     "docs:erd": "pnpm --filter @foodgrid/database docs:erd",
     "docs:openapi": "tsx scripts/generate-openapi.ts",
     "keys:generate": "bash scripts/generate-jwt-keys.sh",
-    "clean": "turbo run clean && rm -rf node_modules"
+    "clean": "turbo run clean && rm -rf node_modules",
+    "gateway:routes": "tsx scripts/generate-gateway-routes.ts",
+    "dev:gateway": "tsx scripts/dev-gateway.ts"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.0",
