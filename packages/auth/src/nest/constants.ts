@@ -1,0 +1,9 @@
+export const IS_PUBLIC_KEY = 'auth:isPublic';
+export const IS_INTERNAL_KEY = 'auth:isInternal';
+export const ALLOW_SERVICE_KEY = 'auth:allowService';
+export const ROLES_KEY = 'auth:roles';
+export const TENANT_TYPES_KEY = 'auth:tenantTypes';
+export const PERMISSIONS_KEY = 'auth:permissions';
+export const AUTH_MODULE_OPTIONS = Symbol('AUTH_MODULE_OPTIONS');
+export const SESSION_REVOCATION_CHECKER = Symbol('SESSION_REVOCATION_CHECKER');
+export const SERVICE_TOKEN_HEADER = 'x-service-token';
