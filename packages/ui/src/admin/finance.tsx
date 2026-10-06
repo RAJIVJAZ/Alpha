@@ -78,13 +78,14 @@ export function FinanceAdmin() {
     <>
       <PageHeader
         title="Finance"
-        description="Weekly merchant settlements, commission rules and rider payouts"
+        description="Weekly merchant settlements, commission rules, rider payouts and COD cash"
       />
       <Tabs defaultValue="settlements">
         <TabsList>
           <TabsTrigger value="settlements">Settlements</TabsTrigger>
           <TabsTrigger value="commission">Commission rules</TabsTrigger>
           <TabsTrigger value="payouts">Rider payouts</TabsTrigger>
+          <TabsTrigger value="cash">Rider cash</TabsTrigger>
         </TabsList>
         <TabsContent value="settlements">
           <Settlements />
@@ -94,6 +95,9 @@ export function FinanceAdmin() {
         </TabsContent>
         <TabsContent value="payouts">
           <Payouts />
+        </TabsContent>
+        <TabsContent value="cash">
+          <RiderCash />
         </TabsContent>
       </Tabs>
     </>
@@ -661,5 +665,131 @@ function PayoutDialog({
         <Input value={text} onChange={(e) => setText(e.target.value)} required />
       </Field>
     </ConfirmDialog>
+  );
+}
+
+interface CashDue {
+  walletId: string;
+  ownerId: string;
+  riderName: string | null;
+  phone: string | null;
+  cashDue: number;
+  lastCollectedAt: string | null;
+}
+
+/** COD cash riders hold beyond their earnings, and recording what they hand in. */
+function RiderCash() {
+  const list = useApi<CashDue[]>('admin/rider-cash');
+  const [depositing, setDepositing] = React.useState<CashDue | null>(null);
+  const total = (list.data ?? []).reduce((a, r) => a + r.cashDue, 0);
+  const columns: Column<CashDue>[] = [
+    {
+      key: 'rider',
+      header: 'Rider',
+      cell: (r) => (
+        <div>
+          <p className="font-medium">{r.riderName ?? r.ownerId}</p>
+          <p className="text-xs text-muted-foreground">{r.phone ?? ''}</p>
+        </div>
+      ),
+    },
+    {
+      key: 'due',
+      header: 'Cash due',
+      align: 'right',
+      sortValue: (r) => r.cashDue,
+      cell: (r) => <span className="font-medium tabular">{formatMoney(r.cashDue)}</span>,
+    },
+    {
+      key: 'last',
+      header: 'Last COD collected',
+      cell: (r) => (r.lastCollectedAt ? formatDateTime(r.lastCollectedAt) : '—'),
+    },
+    {
+      key: 'act',
+      header: <span className="sr-only">Actions</span>,
+      align: 'right',
+      cell: (r) => (
+        <Button size="sm" variant="outline" onClick={() => setDepositing(r)}>
+          <Banknote /> Record deposit
+        </Button>
+      ),
+    },
+  ];
+  return (
+    <>
+      <p className="mb-3 text-sm text-muted-foreground">
+        COD cash is netted against rider pay. Riders listed here hold more cash than they have
+        earned
+        {list.data?.length
+          ? ` — ${formatMoney(total)} across ${list.data.length} rider${list.data.length === 1 ? '' : 's'}`
+          : ''}
+        .
+      </p>
+      <DataTable
+        columns={columns}
+        rows={list.data}
+        getRowId={(r) => r.walletId}
+        loading={list.isLoading}
+        fetching={list.isFetching}
+        empty={{
+          title: 'No cash outstanding',
+          description: 'Every rider has handed in their COD cash.',
+        }}
+      />
+      {depositing ? <DepositDialog due={depositing} onClose={() => setDepositing(null)} /> : null}
+    </>
+  );
+}
+
+function DepositDialog({ due, onClose }: { due: CashDue; onClose: () => void }) {
+  const [amount, setAmount] = React.useState(due.cashDue.toFixed(2));
+  const [reference, setReference] = React.useState('');
+  const value = Number(amount);
+  const valid = value >= 1 && value <= due.cashDue;
+  const record = useApiMutation(
+    () =>
+      api.post(`admin/rider-cash/${due.ownerId}/deposits`, {
+        amount: value,
+        reference: reference.trim() || undefined,
+      }),
+    { invalidate: ['admin/rider-cash'], success: 'Deposit recorded', onSuccess: onClose },
+  );
+  return (
+    <Dialog open onOpenChange={(o) => (!o ? onClose() : undefined)}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Cash from {due.riderName ?? 'rider'}</DialogTitle>
+          <DialogDescription>
+            {formatMoney(due.cashDue)} is due. The deposit is credited to the rider wallet.
+          </DialogDescription>
+        </DialogHeader>
+        <form
+          className="grid gap-4"
+          onSubmit={(e) => (e.preventDefault(), valid && record.mutate())}
+        >
+          <Field label="Amount received">
+            <Input
+              inputMode="decimal"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              required
+            />
+          </Field>
+          <Field label="Hub receipt or deposit slip (optional)">
+            <Input
+              value={reference}
+              maxLength={40}
+              onChange={(e) => setReference(e.target.value)}
+            />
+          </Field>
+          <DialogFooter>
+            <Button type="submit" loading={record.isPending} disabled={!valid}>
+              Record {valid ? formatMoney(value) : ''}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }

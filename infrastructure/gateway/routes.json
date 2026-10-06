@@ -79,6 +79,10 @@
       "service": "delivery-service"
     },
     {
+      "prefix": "/api/v1/admin/rider-cash",
+      "service": "payment-service"
+    },
+    {
       "prefix": "/api/v1/admin/approvals",
       "service": "user-service"
     },

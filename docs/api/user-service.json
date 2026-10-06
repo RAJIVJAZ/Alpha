@@ -1320,7 +1320,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/BatchUsersDto"
+                "$ref": "#/components/schemas/IdsDto"
               }
             }
           }
@@ -1397,6 +1397,36 @@
             "description": ""
           }
         },
+        "tags": [
+          "internal"
+        ],
+        "security": [
+          {
+            "service-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/internal/tenants/batch": {
+      "post": {
+        "operationId": "Internal_tenantsBatch",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IdsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Tenant names for read models (analytics)",
         "tags": [
           "internal"
         ],
@@ -2196,7 +2226,7 @@
           "fileName"
         ]
       },
-      "BatchUsersDto": {
+      "IdsDto": {
         "type": "object",
         "properties": {
           "ids": {
@@ -2205,10 +2235,7 @@
               "type": "string"
             }
           }
-        },
-        "required": [
-          "ids"
-        ]
+        }
       },
       "AddRolesDto": {
         "type": "object",

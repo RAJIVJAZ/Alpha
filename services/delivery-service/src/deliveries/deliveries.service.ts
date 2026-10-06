@@ -6,6 +6,7 @@ import { AppError, conflict, dateOnly, haversineKm, istDate, money, notFound, St
 import { businessCounter, InternalHttpService, OutboxService } from '@foodgrid/utils/server';
 import { GeoStore } from '../common/geo-store';
 import { toDeliveryEvent } from '../common/delivery-event';
+import { DEFAULT_TARIFF, splitEarning } from '../domain/fees';
 import { deliveryContribution } from '../domain/incentives';
 import { TrackingGateway } from '../tracking/tracking.gateway';
 import { CompleteDeliveryDto, FailDeliveryDto } from './dto/delivery.dto';
@@ -143,15 +144,18 @@ export class DeliveriesService {
     return updated;
   }
 
+  /** Earnings statement lines: the quoted pay split into base, distance and surge, plus the tip. */
   private async recordEarnings(tx: Tx, d: Delivery, riderId: string, at: Date) {
-    const lines: { type: 'BASE_PAY' | 'DISTANCE_PAY' | 'SURGE' | 'TIP'; amount: number; description: string }[] = [];
-    const total = Number(d.riderEarning);
-    const surgeShare = d.surgeMultiplier > 1 ? total - total / d.surgeMultiplier : 0;
-    lines.push({ type: 'BASE_PAY', amount: total - surgeShare, description: `Delivery ${d.orderNumber} (${d.distanceKm.toFixed(1)} km)` });
-    if (surgeShare > 0) lines.push({ type: 'SURGE', amount: surgeShare, description: `Surge ×${d.surgeMultiplier}` });
-    if (Number(d.tipAmount) > 0) lines.push({ type: 'TIP', amount: Number(d.tipAmount), description: 'Customer tip' });
-    for (const l of lines) {
-      await tx.riderEarning.create({ data: { riderId, deliveryId: d.id, type: l.type, amount: Math.round(l.amount * 100) / 100, description: l.description, earnedAt: at } });
+    const zone = d.zoneId ? await tx.deliveryZone.findUnique({ where: { id: d.zoneId }, select: { riderBasePay: true } }) : null;
+    const pay = splitEarning(Number(d.riderEarning), d.surgeMultiplier, zone ? Number(zone.riderBasePay) : DEFAULT_TARIFF.riderBasePay);
+    const lines = [
+      { type: 'BASE_PAY' as const, amount: pay.basePay, description: `Delivery ${d.orderNumber}` },
+      { type: 'DISTANCE_PAY' as const, amount: pay.distancePay, description: `${d.distanceKm.toFixed(1)} km` },
+      { type: 'SURGE' as const, amount: pay.surgePay, description: `Surge ×${d.surgeMultiplier}` },
+      { type: 'TIP' as const, amount: Number(d.tipAmount), description: 'Customer tip' },
+    ];
+    for (const l of lines.filter((x) => x.amount > 0)) {
+      await tx.riderEarning.create({ data: { riderId, deliveryId: d.id, type: l.type, amount: l.amount, description: l.description, earnedAt: at } });
     }
   }
 

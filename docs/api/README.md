@@ -9,16 +9,16 @@ All routes are prefixed with `/api/v1`. Routes under `/api/v1/internal/*` are se
 | --- | ---: | ---: | --- |
 | ads-service | 9 | 2 | [ads-service.json](./ads-service.json) |
 | ai-service | 13 | 12 | [ai-service.json](./ai-service.json) |
-| analytics-service | 11 | 0 | [analytics-service.json](./analytics-service.json) |
+| analytics-service | 12 | 0 | [analytics-service.json](./analytics-service.json) |
 | auth-service | 11 | 1 | [auth-service.json](./auth-service.json) |
-| delivery-service | 33 | 3 | [delivery-service.json](./delivery-service.json) |
+| delivery-service | 33 | 4 | [delivery-service.json](./delivery-service.json) |
 | inventory-service | 24 | 5 | [inventory-service.json](./inventory-service.json) |
 | notification-service | 13 | 2 | [notification-service.json](./notification-service.json) |
-| order-service | 83 | 8 | [order-service.json](./order-service.json) |
-| payment-service | 29 | 2 | [payment-service.json](./payment-service.json) |
+| order-service | 83 | 9 | [order-service.json](./order-service.json) |
+| payment-service | 31 | 2 | [payment-service.json](./payment-service.json) |
 | procurement-service | 18 | 0 | [procurement-service.json](./procurement-service.json) |
 | supplier-service | 38 | 4 | [supplier-service.json](./supplier-service.json) |
-| user-service | 38 | 6 | [user-service.json](./user-service.json) |
+| user-service | 38 | 7 | [user-service.json](./user-service.json) |
 
 ## FoodGrid Ads Service
 
@@ -79,6 +79,7 @@ Event-sourced analytics: GMV, revenue, orders, retention cohorts, restaurant pro
 | GET | `/api/v1/analytics/outlet/profitability` | bearer | Restaurant profitability: net sales − commission − food cost |
 | GET | `/api/v1/analytics/outlet/sales` | bearer | Daily sales report (channels, payment methods, hour × weekday heat map) |
 | GET | `/api/v1/analytics/platform/cities` | bearer |  |
+| POST | `/api/v1/analytics/platform/outlet-scores/run` | bearer | Score every outlet for the last complete week now (normally Monday 04:00 IST) |
 | GET | `/api/v1/analytics/platform/overview` | bearer | GMV, revenue, orders, AOV, customers (with period-over-period change) |
 | GET | `/api/v1/analytics/platform/restaurant-profitability` | bearer |  |
 | GET | `/api/v1/analytics/platform/retention` | bearer | Customer retention cohorts (monthly) |
@@ -135,6 +136,7 @@ Riders, dispatch & offers, live tracking, navigation routes, proof of delivery, 
 | POST | `/api/v1/deliveries/offers/{offerId}/reject` | bearer |  |
 | GET | `/api/v1/internal/deliveries/by-order/{orderId}` | service token | Tracking snapshot for order-service |
 | GET | `/api/v1/internal/delivery/quote` | service token | Serviceability, distance, fee (with surge) and ETA for checkout |
+| POST | `/api/v1/internal/riders/batch` | service token | Rider names for read models (analytics) |
 | GET | `/api/v1/internal/riders/by-user/{userId}` | service token |  |
 | GET | `/api/v1/riders/heatmap` | bearer | Demand heat map: where orders are and riders are not |
 | GET | `/api/v1/riders/me` | bearer |  |
@@ -157,7 +159,7 @@ Ingredients, FEFO stock batches, stock ledger, consumption tracking, recipes, co
 | Method | Path | Auth | Summary |
 | --- | --- | --- | --- |
 | GET | `/api/v1/internal/inventory/ingredients/{id}` | service token |  |
-| GET | `/api/v1/internal/inventory/ingredients/{id}/consumption` | service token | Zero-filled daily consumption series (forecasting input) |
+| GET | `/api/v1/internal/inventory/ingredients/{id}/consumption` | service token | Zero-filled daily consumption series up to yesterday (forecasting input) |
 | GET | `/api/v1/internal/inventory/outlets/{outletId}/plate-costs` | service token | Current plate cost per menu item (dynamic pricing input) |
 | GET | `/api/v1/internal/inventory/stock-status` | service token | Active ingredients with stock levels and 28-day usage statistics |
 | GET | `/api/v1/internal/inventory/tenants` | service token | Tenant/outlet pairs with active ingredients (procurement batch jobs) |
@@ -226,7 +228,7 @@ Outlets, menus, search, cart, checkout, order lifecycle, KDS, POS, QR ordering, 
 | DELETE | `/api/v1/cart/items/{lineId}` | bearer |  |
 | PATCH | `/api/v1/cart/items/{lineId}` | bearer |  |
 | POST | `/api/v1/cart/quote` | bearer | Full bill: delivery fee, coupon, membership, GST, round-off |
-| GET | `/api/v1/coupons` | bearer | Coupons available at an outlet with eligibility |
+| GET | `/api/v1/coupons` | bearer | Coupons with eligibility — for an outlet, or platform-wide offers when outletId is omitted |
 | GET | `/api/v1/internal/meal-subscriptions/{id}/payable` | service token |  |
 | GET | `/api/v1/internal/memberships/{id}/payable` | service token |  |
 | GET | `/api/v1/internal/orders/{id}` | service token |  |
@@ -235,6 +237,7 @@ Outlets, menus, search, cart, checkout, order lifecycle, KDS, POS, QR ordering, 
 | GET | `/api/v1/internal/outlets/{id}` | service token |  |
 | GET | `/api/v1/internal/outlets/{id}/item-sales` | service token | Daily item quantities for production planning |
 | GET | `/api/v1/internal/outlets/{id}/menu-prices` | service token | Selling prices for costing (inventory-service) |
+| POST | `/api/v1/internal/outlets/batch` | service token | Outlet names for read models (analytics) |
 | GET | `/api/v1/kds/tickets` | bearer | Kitchen display board (oldest first, priority tickets on top) |
 | POST | `/api/v1/kds/tickets/{id}/bump` | bearer | Clear the ticket from the screen (served / handed over) |
 | POST | `/api/v1/kds/tickets/{id}/ready` | bearer | Station finished; order turns READY when all stations are done |
@@ -323,6 +326,8 @@ Razorpay/UPI/card payments, wallets & ledger, refunds, commissions, settlements,
 | GET | `/api/v1/admin/payouts` | bearer |  |
 | POST | `/api/v1/admin/payouts/{id}/mark-failed` | bearer |  |
 | POST | `/api/v1/admin/payouts/{id}/mark-paid` | bearer |  |
+| GET | `/api/v1/admin/rider-cash` | bearer | Riders holding more COD cash than they have earned |
+| POST | `/api/v1/admin/rider-cash/{userId}/deposits` | bearer | Record COD cash a rider handed in |
 | GET | `/api/v1/admin/settlements` | bearer |  |
 | GET | `/api/v1/admin/settlements/{id}` | bearer |  |
 | POST | `/api/v1/admin/settlements/{id}/mark-paid` | bearer |  |
@@ -450,6 +455,7 @@ Profiles, addresses, business tenants & staff, admin user management, approvals,
 | POST | `/api/v1/internal/approvals` | service token | Submit an entity to the admin approval queue |
 | GET | `/api/v1/internal/tenants/{id}` | service token |  |
 | GET | `/api/v1/internal/tenants/{id}/members` | service token | Active members (optionally filtered by role) — used for notifications |
+| POST | `/api/v1/internal/tenants/batch` | service token | Tenant names for read models (analytics) |
 | GET | `/api/v1/internal/users/{id}` | service token |  |
 | POST | `/api/v1/internal/users/{id}/roles` | service token | Grant platform roles (idempotent) |
 | POST | `/api/v1/internal/users/batch` | service token |  |

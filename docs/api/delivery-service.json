@@ -1064,6 +1064,36 @@
         ]
       }
     },
+    "/api/v1/internal/riders/batch": {
+      "post": {
+        "operationId": "Internal_ridersBatch",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IdsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Rider names for read models (analytics)",
+        "tags": [
+          "internal"
+        ],
+        "security": [
+          {
+            "service-token": []
+          }
+        ]
+      }
+    },
     "/api/v1/internal/riders/by-user/{userId}": {
       "get": {
         "operationId": "Internal_riderByUser",
@@ -1563,6 +1593,17 @@
           },
           "isActive": {
             "type": "boolean"
+          }
+        }
+      },
+      "IdsDto": {
+        "type": "object",
+        "properties": {
+          "ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         }
       }

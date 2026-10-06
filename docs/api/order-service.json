@@ -1220,7 +1220,7 @@
         "parameters": [
           {
             "name": "outletId",
-            "required": true,
+            "required": false,
             "in": "query",
             "schema": {
               "type": "string"
@@ -1237,7 +1237,7 @@
             "bearer": []
           }
         ],
-        "summary": "Coupons available at an outlet with eligibility",
+        "summary": "Coupons with eligibility — for an outlet, or platform-wide offers when outletId is omitted",
         "tags": [
           "coupons"
         ]
@@ -2080,6 +2080,36 @@
             "description": ""
           }
         },
+        "tags": [
+          "internal"
+        ],
+        "security": [
+          {
+            "service-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/internal/outlets/batch": {
+      "post": {
+        "operationId": "Internal_outletsBatch",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IdsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Outlet names for read models (analytics)",
         "tags": [
           "internal"
         ],
@@ -3855,6 +3885,17 @@
         "required": [
           "planId"
         ]
+      },
+      "IdsDto": {
+        "type": "object",
+        "properties": {
+          "ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
       },
       "OpeningWindowDto": {
         "type": "object",

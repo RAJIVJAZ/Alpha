@@ -7,7 +7,7 @@ import { businessCounter, InternalHttpService, OutboxService } from '@foodgrid/u
 import { GeoStore } from '../common/geo-store';
 import { toDeliveryEvent } from '../common/delivery-event';
 import { rankCandidates, searchRadiusKm, updateAcceptanceRate } from '../domain/dispatch';
-import { riderEarning } from '../domain/fees';
+import { DEFAULT_TARIFF, riderEarning } from '../domain/fees';
 import { TrackingGateway } from '../tracking/tracking.gateway';
 import { ZonesService } from '../zones/zones.service';
 
@@ -44,7 +44,7 @@ export class DispatchService {
     const surge = zone ? await this.zones.surge(zone) : 1;
     const earning = zone
       ? riderEarning({ baseFee: Number(zone.baseFee), perKmFee: Number(zone.perKmFee), freeKm: zone.freeKm, riderBasePay: Number(zone.riderBasePay), riderPerKm: Number(zone.riderPerKm) }, distanceKm, surge)
-      : riderEarning({ baseFee: 25, perKmFee: 8, freeKm: 2, riderBasePay: 30, riderPerKm: 6 }, distanceKm, surge);
+      : riderEarning(DEFAULT_TARIFF, distanceKm, surge);
     const a = o.deliveryAddress;
     const delivery = await this.prisma.delivery.create({
       data: {

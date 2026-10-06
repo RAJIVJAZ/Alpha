@@ -544,6 +544,65 @@
         ]
       }
     },
+    "/api/v1/admin/rider-cash": {
+      "get": {
+        "operationId": "AdminWallets_riderCash",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Riders holding more COD cash than they have earned",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/rider-cash/{userId}/deposits": {
+      "post": {
+        "operationId": "AdminWallets_deposit",
+        "parameters": [
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CashDepositDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Record COD cash a rider handed in",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
     "/api/v1/admin/wallets/{id}/reconcile": {
       "get": {
         "operationId": "AdminWallets_reconcile",
@@ -1299,6 +1358,22 @@
             "type": "string"
           }
         }
+      },
+      "CashDepositDto": {
+        "type": "object",
+        "properties": {
+          "amount": {
+            "type": "number",
+            "description": "Cash the rider handed in (₹)"
+          },
+          "reference": {
+            "type": "string",
+            "description": "Hub receipt or bank deposit slip number"
+          }
+        },
+        "required": [
+          "amount"
+        ]
       },
       "CommissionRuleDto": {
         "type": "object",

@@ -1,6 +1,26 @@
 {
   "openapi": "3.0.0",
   "paths": {
+    "/api/v1/analytics/platform/outlet-scores/run": {
+      "post": {
+        "operationId": "Reports_runScores",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Score every outlet for the last complete week now (normally Monday 04:00 IST)",
+        "tags": [
+          "analytics"
+        ]
+      }
+    },
     "/api/v1/analytics/platform/overview": {
       "get": {
         "operationId": "Reports_overview",

@@ -933,7 +933,7 @@
             "description": ""
           }
         },
-        "summary": "Zero-filled daily consumption series (forecasting input)",
+        "summary": "Zero-filled daily consumption series up to yesterday (forecasting input)",
         "tags": [
           "internal"
         ],

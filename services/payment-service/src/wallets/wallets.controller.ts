@@ -5,7 +5,7 @@ import { CurrentUser, RequirePermissions, Roles } from '@foodgrid/auth/nest';
 import type { PayoutStatus } from '@foodgrid/database';
 import type { AccessTokenClaims } from '@foodgrid/types';
 import { DirectoryService } from '@foodgrid/utils/server';
-import { MarkPayoutDto, PayoutRequestDto, WalletQueryDto } from './dto/wallet.dto';
+import { CashDepositDto, MarkPayoutDto, PayoutRequestDto, WalletQueryDto } from './dto/wallet.dto';
 import { WalletLedgerService } from './wallet-ledger.service';
 import { WalletsService } from './wallets.service';
 
@@ -63,6 +63,20 @@ export class AdminWalletsController {
   @Post('payouts/:id/mark-failed')
   markFailed(@Param('id') id: string, @Body() dto: MarkPayoutDto) {
     return this.wallets.markFailed(id, dto);
+  }
+
+  @Get('rider-cash')
+  @ApiOperation({ summary: 'Riders holding more COD cash than they have earned' })
+  async riderCash() {
+    const rows = await this.wallets.riderCashDue();
+    const names = await this.directory.lookup('users', rows.map((r) => r.ownerId));
+    return rows.map((r) => ({ ...r, riderName: names.get(r.ownerId)?.name ?? null, phone: (names.get(r.ownerId)?.phone as string | undefined) ?? null }));
+  }
+
+  @Post('rider-cash/:userId/deposits')
+  @ApiOperation({ summary: 'Record COD cash a rider handed in' })
+  deposit(@Param('userId') userId: string, @Body() dto: CashDepositDto) {
+    return this.wallets.recordCashDeposit(userId, dto);
   }
 
   @Get('wallets/:id/reconcile')

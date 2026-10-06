@@ -1,6 +1,6 @@
 import { buildHeatmap } from './heatmap';
 import { rankCandidates, scoreRider, searchRadiusKm, updateAcceptanceRate } from './dispatch';
-import { deliveryEtaMins, deliveryFee, riderEarning } from './fees';
+import { deliveryEtaMins, deliveryFee, riderEarning, splitEarning } from './fees';
 import { deliveryContribution } from './incentives';
 
 const tariff = { baseFee: 25, perKmFee: 8, freeKm: 2, riderBasePay: 30, riderPerKm: 6 };
@@ -14,6 +14,17 @@ describe('fees & earnings', () => {
   it('pays riders base + distance + surge + waiting', () => {
     expect(riderEarning(tariff, 5)).toEqual({ basePay: 30, distancePay: 30, surgePay: 0, waitingPay: 0, total: 60 });
     expect(riderEarning(tariff, 5, 1.2, 15).total).toBe(77);
+  });
+  it('splits a quoted earning back into statement lines that sum to the quote', () => {
+    for (const [km, surge] of [[5, 1], [4.3, 1.5], [0.4, 1.2], [7.7, 1.35]] as const) {
+      const q = riderEarning(tariff, km, surge);
+      const s = splitEarning(q.total, surge, tariff.riderBasePay);
+      expect(Math.round((s.basePay + s.distancePay + s.surgePay) * 100)).toBe(Math.round(q.total * 100));
+      expect(Math.abs(s.surgePay - q.surgePay)).toBeLessThanOrEqual(0.01);
+      expect(s.basePay).toBe(30);
+    }
+    // a flat quote below the zone base pay is all base pay
+    expect(splitEarning(20, 1, 30)).toEqual({ basePay: 20, distancePay: 0, surgePay: 0 });
   });
   it('estimates ETA', () => {
     expect(deliveryEtaMins(12, 8, 15)).toBe(30);

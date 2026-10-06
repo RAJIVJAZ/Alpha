@@ -32,6 +32,8 @@ interface Ctx2 {
   paymentRows: Prisma.PaymentCreateManyInput[];
   refundRows: Prisma.RefundCreateManyInput[];
   deliveryRows: Prisma.DeliveryCreateManyInput[];
+  /** order id → seeded delivery (id, number, quoted pay without tip) */
+  deliveries: Map<string, { id: string; orderNumber: string; earning: number }>;
   earningRows: (Prisma.RiderEarningCreateManyInput & { _day: string })[];
   reviewRows: Prisma.ReviewCreateManyInput[];
   redemptionRows: Prisma.CouponRedemptionCreateManyInput[];
@@ -45,7 +47,7 @@ interface Ctx2 {
 export async function seedOrders(ctx: SeedContext, sim: Simulation, inv: InventoryResult) {
   const rng = new Rng(777);
   const c: Ctx2 = {
-    orderRows: [], itemRows: [], eventRows: [], paymentRows: [], refundRows: [], deliveryRows: [], earningRows: [], reviewRows: [],
+    orderRows: [], itemRows: [], eventRows: [], paymentRows: [], refundRows: [], deliveryRows: [], deliveries: new Map(), earningRows: [], reviewRows: [],
     redemptionRows: [], lineRows: [], invoiceRows: [], factRows: [], fraudRows: [], ticketRows: [],
   };
   const demo = ctx.customers.find((x) => x.phone === DEMO_CUSTOMER_PHONE)!;
@@ -210,23 +212,25 @@ function addOrderRows(ctx: SeedContext, c: Ctx2, o: SimOrder, orderNumber: strin
     const surgePay = r2((zone.riderBasePay + distancePay) * Math.max(0, o.surge - 1));
     const earning = r2(zone.riderBasePay + distancePay + surgePay);
     const status = ok ? 'DELIVERED' : o.status === 'OUT_FOR_DELIVERY' ? 'PICKED_UP' : o.status === 'READY' ? 'AT_PICKUP' : 'ASSIGNED';
+    const deliveryId = id();
+    c.deliveries.set(o.id, { id: deliveryId, orderNumber, earning });
     c.deliveryRows.push({
-      orderId: o.id, orderNumber, tenantId: outlet.tenantId, outletId: outlet.id, customerId: o.customer?.userId, riderId: o.rider.profileId, zoneId: zone.id,
+      id: deliveryId, orderId: o.id, orderNumber, tenantId: outlet.tenantId, outletId: outlet.id, customerId: o.customer?.userId, riderId: o.rider.profileId, zoneId: zone.id,
       status, pickupName: outlet.def.name, pickupAddress: `${outlet.def.addressLine1}, ${outlet.locality.name}`, pickupLat: outlet.lat, pickupLng: outlet.lng,
       pickupPhone: outlet.merchant.owner.phone, dropName: o.customer?.name, dropAddress: `${o.customer!.address.line1}, ${o.customer!.address.city} ${o.customer!.address.pincode}`,
       dropLat: o.customer!.address.lat, dropLng: o.customer!.address.lng, dropPhone: o.customer?.phone, distanceKm: o.distanceKm ?? 3,
       estimatedMins: Math.round(((o.distanceKm ?? 3) / 20) * 60) + 5, orderValue: o.total, isCod: o.paymentMethod === 'COD', codAmount: o.paymentMethod === 'COD' ? o.total : 0,
-      tipAmount: o.tip, riderEarning: r2(earning + o.tip), surgeMultiplier: o.surge, deliveryOtp: otp, readyAt: o.readyAt, assignedAt: o.assignedAt,
+      tipAmount: o.tip, riderEarning: earning, surgeMultiplier: o.surge, deliveryOtp: otp, readyAt: o.readyAt, assignedAt: o.assignedAt,
       arrivedPickupAt: o.pickedUpAt ? addMinutes(o.pickedUpAt, -rng.int(1, 4)) : o.status === 'READY' ? addMinutes(ctx.now, -2) : null, pickedUpAt: o.pickedUpAt,
       arrivedDropAt: o.deliveredAt ? addMinutes(o.deliveredAt, -rng.int(1, 3)) : null, deliveredAt: o.deliveredAt, searchAttempts: 1,
       proofNote: ok ? rng.pick(['Handed to customer', 'Left with security', 'Handed to customer']) : null, createdAt: o.readyAt ? addMinutes(o.readyAt, -8) : o.placedAt,
     });
     if (ok) {
       const day = istDay(o.deliveredAt!).toISOString();
-      const base = { riderId: o.rider.profileId, deliveryId: null, earnedAt: o.deliveredAt!, _day: day };
-      c.earningRows.push({ ...base, type: 'BASE_PAY', amount: zone.riderBasePay, description: `Order ${orderNumber}` });
-      c.earningRows.push({ ...base, type: 'DISTANCE_PAY', amount: distancePay, description: `${o.distanceKm} km` });
-      if (surgePay > 0) c.earningRows.push({ ...base, type: 'SURGE', amount: surgePay, description: `Surge x${o.surge}` });
+      const base = { riderId: o.rider.profileId, deliveryId, earnedAt: o.deliveredAt!, _day: day };
+      c.earningRows.push({ ...base, type: 'BASE_PAY', amount: zone.riderBasePay, description: `Delivery ${orderNumber}` });
+      c.earningRows.push({ ...base, type: 'DISTANCE_PAY', amount: distancePay, description: `${(o.distanceKm ?? 3).toFixed(1)} km` });
+      if (surgePay > 0) c.earningRows.push({ ...base, type: 'SURGE', amount: surgePay, description: `Surge ×${o.surge}` });
       if (o.tip > 0) c.earningRows.push({ ...base, type: 'TIP', amount: o.tip, description: 'Customer tip' });
     }
   }
@@ -406,7 +410,8 @@ async function seedRiderLedger(ctx: SeedContext, orders: SimOrder[], c: Ctx2, rn
   const stats: Prisma.DailyRiderStatsCreateManyInput[] = [];
   const txns: Prisma.WalletTransactionCreateManyInput[] = [];
   const payouts: Prisma.PayoutCreateManyInput[] = [];
-  const earningsWithTxn: Prisma.RiderEarningCreateManyInput[] = [];
+  const earnings: Prisma.RiderEarningCreateManyInput[] = [];
+  const nowMs = ctx.now.getTime();
 
   for (const rider of ctx.riders) {
     const list = (deliveriesByRider.get(rider.profileId) ?? []).sort((a, b) => a.deliveredAt!.getTime() - b.deliveredAt!.getTime());
@@ -418,39 +423,68 @@ async function seedRiderLedger(ctx: SeedContext, orders: SimOrder[], c: Ctx2, rn
       const k = istDay(o.deliveredAt!).toISOString();
       days.set(k, [...(days.get(k) ?? []), o]);
     }
-    const sortedDays = [...days.keys()].sort();
-    let lastPayoutWeek = '';
-    for (const k of sortedDays) {
-      const ds = days.get(k)!;
-      const dayStart = istMidnight(0, new Date(new Date(k).getTime() + 12 * 3600_000));
-      // weekly payout every Monday morning for the balance earned so far
-      const wk = istWeekStart(dayStart).toISOString();
-      if (lastPayoutWeek && wk !== lastPayoutWeek && balance > 0) {
-        const at = atIst(istWeekStart(dayStart), 10, 30);
-        const pid = id();
-        const amount = balance;
-        balance = 0;
-        version++;
-        txns.push({ walletId, type: 'DEBIT', reason: 'PAYOUT', amount, balanceAfter: 0, referenceType: 'PAYOUT', referenceId: pid, description: 'Weekly payout', idempotencyKey: `payout:${pid}`, createdAt: at });
-        payouts.push({ id: pid, walletId, ownerType: 'RIDER', ownerId: rider.userId, amount, status: 'PAID', method: 'UPI', destination: { upiId: `${rider.name.split(' ')[0]!.toLowerCase()}@okaxis` }, utr: `UTR${rng.digits(12)}`, requestedAt: at, processedAt: addMinutes(at, 45) });
-      }
-      lastPayoutWeek = wk;
 
+    // The wallet replays what payment-service does on delivery.delivered: pay and
+    // tip are credited per delivery and COD cash is debited (netted against pay).
+    // Cash held beyond earnings is handed in at the hub when the shift ends, and
+    // the balance is paid out every Monday morning.
+    const entry = (type: 'CREDIT' | 'DEBIT', reason: Prisma.WalletTransactionCreateManyInput['reason'], amount: number, at: Date, key: string, ref: { type: string; id: string }, description: string) => {
+      balance = r2(type === 'CREDIT' ? balance + amount : balance - amount);
+      version++;
+      txns.push({ walletId, type, reason, amount, balanceAfter: balance, referenceType: ref.type, referenceId: ref.id, description, idempotencyKey: key, createdAt: at });
+    };
+    const events: { at: Date; run: () => void }[] = [];
+    for (const o of list) {
+      const d = c.deliveries.get(o.id)!;
+      const ref = { type: 'DELIVERY', id: d.id };
+      events.push({
+        at: o.deliveredAt!,
+        run: () => {
+          entry('CREDIT', 'DELIVERY_EARNING', d.earning, o.deliveredAt!, `earning:${d.id}`, ref, `Delivery ${d.orderNumber}`);
+          if (o.tip > 0) entry('CREDIT', 'TIP', o.tip, new Date(o.deliveredAt!.getTime() + 1000), `tip:${d.id}`, ref, `Tip for ${d.orderNumber}`);
+          if (o.paymentMethod === 'COD') entry('DEBIT', 'COD_COLLECTION', o.total, new Date(o.deliveredAt!.getTime() + 2000), `cod:${d.id}`, ref, `Cash collected for ${d.orderNumber}`);
+        },
+      });
+    }
+
+    const shifts = new Map<string, { checkIn: Date; checkOut: Date }>();
+    for (const [k, ds] of days) {
+      const checkIn = addMinutes(ds[0]!.assignedAt!, -rng.int(10, 40));
+      const checkOut = addMinutes(ds[ds.length - 1]!.deliveredAt!, rng.int(10, 30));
+      shifts.set(k, { checkIn, checkOut });
+      const handIn = addMinutes(checkOut, 15);
+      if (k === todayKey || handIn.getTime() >= nowMs) continue; // today's cash is still with the rider
+      const receipt = `HUB-${rng.digits(6)}`;
+      events.push({
+        at: handIn,
+        run: () => {
+          if (balance < 0) entry('CREDIT', 'COD_COLLECTION', -balance, handIn, `cod-deposit:${receipt}`, { type: 'CASH_DEPOSIT', id: receipt }, `Cash deposited · ${receipt}`);
+        },
+      });
+    }
+
+    if (list.length) {
+      for (let monday = new Date(istWeekStart(list[0]!.deliveredAt!).getTime() + 7 * 86_400_000); atIst(monday, 10, 30).getTime() < nowMs; monday = new Date(monday.getTime() + 7 * 86_400_000)) {
+        const at = atIst(monday, 10, 30);
+        events.push({
+          at,
+          run: () => {
+            if (balance <= 0) return;
+            const pid = id();
+            const amount = balance;
+            entry('DEBIT', 'PAYOUT', amount, at, `payout:${pid}`, { type: 'PAYOUT', id: pid }, 'Weekly payout');
+            payouts.push({ id: pid, walletId, ownerType: 'RIDER', ownerId: rider.userId, amount, status: 'PAID', method: 'UPI', destination: { upiId: `${rider.name.split(' ')[0]!.toLowerCase()}@okaxis` }, utr: `UTR${rng.digits(12)}`, requestedAt: at, processedAt: addMinutes(at, 45) });
+          },
+        });
+      }
+    }
+    for (const e of events.sort((a, b) => a.at.getTime() - b.at.getTime())) e.run();
+
+    for (const [k, ds] of [...days].sort(([a], [b]) => a.localeCompare(b))) {
       const dayEarnings = c.earningRows.filter((e) => e.riderId === rider.profileId && e._day === k);
+      for (const { _day, ...e } of dayEarnings) earnings.push(e);
       const total = r2(dayEarnings.reduce((s, e) => s + Number(e.amount), 0));
-      const txnId = id();
-      const settledAt = atIst(dayStart, 23, 55);
-      if (k !== todayKey && total > 0) {
-        balance = r2(balance + total);
-        version++;
-        txns.push({ id: txnId, walletId, type: 'CREDIT', reason: 'DELIVERY_EARNING', amount: total, balanceAfter: balance, referenceType: 'RIDER_DAY', referenceId: k.slice(0, 10), description: `Earnings for ${k.slice(0, 10)} (${ds.length} deliveries)`, idempotencyKey: `rider:${rider.profileId}:${k.slice(0, 10)}`, createdAt: settledAt });
-      }
-      for (const { _day, ...e } of dayEarnings) earningsWithTxn.push({ ...e, settledAt: k !== todayKey ? settledAt : null, walletTxnId: k !== todayKey ? txnId : null });
-
-      const first = ds[0]!;
-      const last = ds[ds.length - 1]!;
-      const checkIn = addMinutes(first.assignedAt!, -rng.int(10, 40));
-      const checkOut = addMinutes(last.deliveredAt!, rng.int(10, 30));
+      const { checkIn, checkOut } = shifts.get(k)!;
       const online = minutes(checkIn, checkOut);
       const distance = Math.round(ds.reduce((s, o) => s + (o.distanceKm ?? 3) + 1.2, 0) * 10) / 10;
       const rejected = rng.int(0, 2);
@@ -474,7 +508,7 @@ async function seedRiderLedger(ctx: SeedContext, orders: SimOrder[], c: Ctx2, rn
     });
   }
 
-  await inChunks(earningsWithTxn, 3000, (x) => prisma.riderEarning.createMany({ data: x }));
+  await inChunks(earnings, 3000, (x) => prisma.riderEarning.createMany({ data: x }));
   await inChunks(txns, 3000, (x) => prisma.walletTransaction.createMany({ data: x }));
   if (payouts.length) await prisma.payout.createMany({ data: payouts });
   await inChunks(attendance, 3000, (x) => prisma.riderAttendance.createMany({ data: x }));
@@ -518,5 +552,5 @@ async function seedRiderLedger(ctx: SeedContext, orders: SimOrder[], c: Ctx2, rn
       update: { checkOutAt: null },
     });
   }
-  log('rider ledger', `${earningsWithTxn.length} earnings, ${payouts.length} payouts, ${attendance.length} attendance days, ${progressRows.length} incentive trackers`);
+  log('rider ledger', `${earnings.length} earnings, ${txns.length} wallet entries, ${payouts.length} payouts, ${attendance.length} attendance days, ${progressRows.length} incentive trackers`);
 }

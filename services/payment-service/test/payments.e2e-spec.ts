@@ -5,6 +5,7 @@ import { PrismaService } from '@foodgrid/database/nest';
 import { InternalHttpService } from '@foodgrid/utils/server';
 import { createTestApp, FakeInternalHttp, issueServiceToken, issueTestToken, truncateSchemas } from '@foodgrid/utils/testing';
 import { AppModule } from '../src/app.module';
+import { PaymentEventHandlers } from '../src/events/payment-event.handlers';
 import { SANDBOX_SECRET } from '../src/gateways/sandbox.gateway';
 import { SERVICE } from '../src/service.config';
 
@@ -109,5 +110,33 @@ describe('payment-service (e2e)', () => {
     http.on('GET', 'order', 'internal/orders/:id/payable', ({ params }) => ({ referenceId: params.id, amount: '99.00', userId: 'someone_else', tenantId: 't', payable: true, description: 'x' }));
     const res = await api().post('/api/v1/payments/intents').set('Authorization', `Bearer ${token}`).send({ purpose: 'ORDER', referenceId: 'ord_x', method: 'UPI' }).expect(403);
     expect(res.body.code).toBe('NOT_YOUR_PAYMENT');
+  });
+  it('nets COD cash against rider pay and lets finance record the cash handed in', async () => {
+    const RIDER = 'usr_rider_cod';
+    const handlers = app.get(PaymentEventHandlers);
+    const delivered = (id: string, earning: string, cod: string) =>
+      handlers.riderEarnings({
+        id: `evt_${id}`,
+        type: 'delivery.delivered',
+        data: { deliveryId: id, orderNumber: `ORD-${id}`, riderUserId: RIDER, riderEarning: earning, tipAmount: '0.00', isCod: Number(cod) > 0, codAmount: cod },
+      } as never);
+    await delivered('d1', '60.00', '0.00');
+    await delivered('d2', '50.00', '410.00');
+    await delivered('d2', '50.00', '410.00'); // redelivered event is a no-op
+
+    const admin = `Bearer ${issueTestToken({ sub: 'admin', roles: ['ADMIN'] })}`;
+    const due = await api().get('/api/v1/admin/rider-cash').set('Authorization', admin).expect(200);
+    expect(due.body).toEqual([expect.objectContaining({ ownerId: RIDER, cashDue: 300 })]);
+
+    const deposit = (amount: number) => api().post(`/api/v1/admin/rider-cash/${RIDER}/deposits`).set('Authorization', admin).send({ amount, reference: 'HUB-42' });
+    expect((await deposit(350).expect(409)).body.code).toBe('DEPOSIT_EXCEEDS_DUE');
+    await deposit(300).expect(201);
+    expect((await deposit(10).expect(409)).body.code).toBe('NO_CASH_DUE');
+
+    const wallet = await prisma.wallet.findFirstOrThrow({ where: { ownerType: 'RIDER', ownerId: RIDER } });
+    expect(Number(wallet.balance)).toBe(0);
+    expect((await api().get('/api/v1/admin/rider-cash').set('Authorization', admin).expect(200)).body).toEqual([]);
+    // finance staff only
+    await api().post(`/api/v1/admin/rider-cash/${RIDER}/deposits`).set('Authorization', `Bearer ${token}`).send({ amount: 1 }).expect(403);
   });
 });

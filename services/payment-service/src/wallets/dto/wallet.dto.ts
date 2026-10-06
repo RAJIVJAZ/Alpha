@@ -16,3 +16,8 @@ export class MarkPayoutDto {
   @ApiPropertyOptional({ description: 'Bank UTR reference' }) @IsOptional() @IsString() @MaxLength(40) utr?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(300) reason?: string;
 }
+
+export class CashDepositDto {
+  @ApiProperty({ description: 'Cash the rider handed in (₹)' }) @IsNumber({ maxDecimalPlaces: 2 }) @Min(1) @Max(200000) amount!: number;
+  @ApiPropertyOptional({ description: 'Hub receipt or bank deposit slip number' }) @IsOptional() @IsString() @MaxLength(40) reference?: string;
+}
