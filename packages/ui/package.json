@@ -14,6 +14,7 @@
     "./seller": "./src/seller/index.ts",
     "./admin": "./src/admin/index.ts",
     "./rider": "./src/rider/index.ts",
+    "./customer": "./src/customer/index.ts",
     "./styles.css": "./src/styles.css"
   },
   "scripts": {

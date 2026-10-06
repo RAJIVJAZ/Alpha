@@ -85,6 +85,52 @@ importers:
         specifier: ~5.9.3
         version: 5.9.3
 
+  apps/customer-web:
+    dependencies:
+      '@foodgrid/auth':
+        specifier: workspace:*
+        version: link:../../packages/auth
+      '@foodgrid/types':
+        specifier: workspace:*
+        version: link:../../packages/types
+      '@foodgrid/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
+      '@tanstack/react-query':
+        specifier: ^5.104.1
+        version: 5.104.1(react@19.3.0)
+      lucide-react:
+        specifier: ^1.52.0
+        version: 1.52.0(@types/react@19.3.0)(react@19.3.0)
+      next:
+        specifier: ~15.5.27
+        version: 15.5.27(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@types/node@22.20.5)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      react:
+        specifier: ^19.1.0
+        version: 19.3.0
+      react-dom:
+        specifier: ^19.1.0
+        version: 19.3.0(react@19.3.0)
+    devDependencies:
+      '@tailwindcss/postcss':
+        specifier: ^4.1.16
+        version: 4.3.3
+      '@types/node':
+        specifier: ^22.19.0
+        version: 22.20.5
+      '@types/react':
+        specifier: ^19.1.0
+        version: 19.3.0
+      '@types/react-dom':
+        specifier: ^19.1.0
+        version: 19.3.0(@types/react@19.3.0)
+      tailwindcss:
+        specifier: ^4.1.16
+        version: 4.3.3
+      typescript:
+        specifier: ~5.9.3
+        version: 5.9.3
+
   apps/restaurant-web:
     dependencies:
       '@foodgrid/auth':

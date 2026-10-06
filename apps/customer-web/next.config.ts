@@ -7,15 +7,7 @@ const config: NextConfig = {
   outputFileTracingRoot: path.join(__dirname, '../..'),
   transpilePackages: ['@foodgrid/ui', '@foodgrid/auth'],
   // per-page imports from the @foodgrid/ui barrels instead of one bundle for every route
-  experimental: {
-    optimizePackageImports: [
-      '@foodgrid/ui',
-      '@foodgrid/ui/merchant',
-      '@foodgrid/ui/seller',
-      '@foodgrid/ui/charts',
-      '@foodgrid/ui/rider',
-    ],
-  },
+  experimental: { optimizePackageImports: ['@foodgrid/ui', '@foodgrid/ui/customer'] },
   poweredByHeader: false,
   reactStrictMode: true,
   // linted by the workspace ESLint config in CI (pnpm lint)

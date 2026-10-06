@@ -15,6 +15,7 @@ import {
   ACCESS_COOKIE,
   apiBase,
   clearSessionCookies,
+  isExpired,
   REFRESH_COOKIE,
   refreshTokens,
   writeSessionCookies,
@@ -146,6 +147,8 @@ export function createAuthRoutes(opts: AuthRoutesOptions = {}) {
         return finishLogin(
           await forward('auth/password', { email: input.email, password: input.password }),
         );
+      case 'google':
+        return finishLogin(await forward('auth/google', { idToken: input.idToken }));
       case 'logout': {
         const refreshToken = jar.get(REFRESH_COOKIE)?.value;
         if (refreshToken) await forward('auth/logout', { refreshToken }).catch(() => null);
@@ -168,9 +171,20 @@ export function createAuthRoutes(opts: AuthRoutesOptions = {}) {
 
   async function GET(_req: NextRequest, ctx: { params: Promise<{ action: string }> }) {
     const { action } = await ctx.params;
-    const token = (await cookies()).get(ACCESS_COOKIE)?.value;
-    if (!token)
+    const jar = await cookies();
+    let token = jar.get(ACCESS_COOKIE)?.value;
+    // public pages skip the middleware, so renew an expired access token here
+    const refreshToken = jar.get(REFRESH_COOKIE)?.value;
+    if ((!token || isExpired(token)) && refreshToken) {
+      const renewed = await refreshTokens(refreshToken, await clientMeta());
+      if (renewed) writeSessionCookies(jar, renewed);
+      token = renewed?.accessToken;
+    }
+    if (!token) {
+      // signed out is a normal answer for the session probe, not an error
+      if (action === 'session') return json(200, null);
       return json(401, { statusCode: 401, code: 'UNAUTHENTICATED', message: 'Not signed in' });
+    }
     if (action === 'session') {
       const res = await fetch(`${apiBase()}/auth/me`, {
         headers: { authorization: `Bearer ${token}` },

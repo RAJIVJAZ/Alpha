@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { Button } from './button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './card';
 import { Field, Input } from './form';
@@ -29,20 +29,72 @@ async function post<T>(path: string, body: unknown): Promise<T> {
   return json;
 }
 
+interface GoogleIdentity {
+  accounts: {
+    id: {
+      initialize(opts: { client_id: string; callback: (r: { credential: string }) => void }): void;
+      renderButton(el: HTMLElement, opts: Record<string, unknown>): void;
+    };
+  };
+}
+
+/** Google Identity Services button; hands the ID token to `onCredential`. */
+function GoogleButton({
+  clientId,
+  onCredential,
+}: {
+  clientId: string;
+  onCredential: (idToken: string) => void;
+}) {
+  const ref = React.useRef<HTMLDivElement>(null);
+  const callback = React.useRef(onCredential);
+  callback.current = onCredential;
+  React.useEffect(() => {
+    const render = () => {
+      const google = (window as unknown as { google?: GoogleIdentity }).google;
+      if (!google || !ref.current) return;
+      google.accounts.id.initialize({
+        client_id: clientId,
+        callback: (r) => callback.current(r.credential),
+      });
+      google.accounts.id.renderButton(ref.current, {
+        theme: 'outline',
+        size: 'large',
+        text: 'continue_with',
+        width: ref.current.offsetWidth,
+      });
+    };
+    const src = 'https://accounts.google.com/gsi/client';
+    let script = document.querySelector<HTMLScriptElement>(`script[src="${src}"]`);
+    if (!script) {
+      script = document.createElement('script');
+      script.src = src;
+      script.async = true;
+      document.head.appendChild(script);
+    }
+    script.addEventListener('load', render);
+    render();
+    return () => script?.removeEventListener('load', render);
+  }, [clientId]);
+  return <div ref={ref} className="min-h-10 w-full" />;
+}
+
 /**
- * Sign-in card used by every app: phone OTP and/or email + password. Talks to
- * the app's /api/auth/* routes, which set httpOnly session cookies.
+ * Sign-in card used by every app: phone OTP and/or email + password, plus
+ * "Continue with Google" when a Google client id is configured. Talks to the
+ * app's /api/auth/* routes, which set httpOnly session cookies.
  */
 export function LoginPanel({
   title,
   description,
   modes = ['otp', 'password'],
+  googleClientId,
 }: {
   title: string;
   description?: string;
   modes?: Mode[];
+  googleClientId?: string;
 }) {
-  const router = useRouter();
   const params = useSearchParams();
   // same-origin paths only ("//host" and "/\host" would leave the app)
   const raw = params.get('next');
@@ -67,10 +119,8 @@ export function LoginPanel({
       setBusy(false);
     }
   };
-  const done = () => {
-    router.replace(next);
-    router.refresh();
-  };
+  // a full navigation, so every cached signed-out query (session, cart…) starts fresh
+  const done = () => window.location.assign(next);
 
   const otp = (
     <div className="grid gap-4">
@@ -187,6 +237,21 @@ export function LoginPanel({
         ) : (
           pwd
         )}
+        {googleClientId ? (
+          <>
+            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+              <span className="h-px flex-1 bg-border" />
+              or
+              <span className="h-px flex-1 bg-border" />
+            </div>
+            <GoogleButton
+              clientId={googleClientId}
+              onCredential={(idToken) =>
+                void run(async () => (await post('google', { idToken }), done()))
+              }
+            />
+          </>
+        ) : null}
         {error ? (
           <p
             role="alert"
