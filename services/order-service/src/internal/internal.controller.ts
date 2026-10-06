@@ -91,16 +91,18 @@ export class InternalController {
   async itemSales(@Param('id') id: string, @Query('days') days = '28') {
     const span = Math.min(180, Math.max(7, Number(days) || 28));
     if (!(await this.prisma.outlet.count({ where: { id } }))) throw notFound('Outlet', id);
+    const since = new Date(Date.now() - span * 86_400_000);
+    // timestamps are stored as UTC "timestamp without time zone": convert UTC -> IST before taking the date
     const rows = await this.prisma.$queryRaw<{ menuItemId: string; name: string; date: Date; quantity: bigint; avgPrice: unknown }[]>`
       SELECT oi."menuItemId", MAX(oi.name) AS name,
-             (o."createdAt" AT TIME ZONE 'Asia/Kolkata')::date AS date,
+             (COALESCE(o."placedAt", o."createdAt") AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata')::date AS date,
              SUM(oi.quantity) AS quantity,
              ROUND(AVG(oi."unitPrice"), 2) AS "avgPrice"
       FROM "commerce"."OrderItem" oi
       JOIN "commerce"."Order" o ON o.id = oi."orderId"
       WHERE o."outletId" = ${id}
         AND o.status NOT IN ('CANCELLED', 'REJECTED', 'PENDING_PAYMENT')
-        AND o."createdAt" >= now() - make_interval(days => ${span})
+        AND COALESCE(o."placedAt", o."createdAt") >= ${since}
       GROUP BY 1, 3
       ORDER BY 3`;
     return rows.map((r) => ({

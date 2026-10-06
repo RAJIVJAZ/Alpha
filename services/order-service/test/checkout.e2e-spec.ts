@@ -3,7 +3,7 @@ import type Redis from 'ioredis';
 import request from 'supertest';
 import { PrismaService } from '@foodgrid/database/nest';
 import { InternalHttpService, REDIS } from '@foodgrid/utils/server';
-import { createTestApp, FakeInternalHttp, issueTestToken, truncateSchemas } from '@foodgrid/utils/testing';
+import { createTestApp, FakeInternalHttp, issueServiceToken, issueTestToken, truncateSchemas } from '@foodgrid/utils/testing';
 import { AppModule } from '../src/app.module';
 import { SERVICE } from '../src/service.config';
 
@@ -171,6 +171,21 @@ describe('order-service checkout & lifecycle (e2e)', () => {
     await api().get(`/api/v1/orders/${id}`).set('Authorization', `Bearer ${token}`).expect(200);
     // a customer token cannot reach merchant routes at all
     await api().get('/api/v1/merchant/orders').set('Authorization', `Bearer ${token}`).expect(403);
+  });
+
+  it('reports daily item sales on IST calendar days for production planning', async () => {
+    // 00:30 IST on day D is 19:00 UTC on day D-1: it must count towards day D
+    const placedAt = new Date(Date.now() - 2 * 86_400_000);
+    placedAt.setUTCHours(19, 0, 0, 0);
+    const istDay = new Date(placedAt.getTime() + 330 * 60_000).toISOString().slice(0, 10);
+    await prisma.order.create({
+      data: {
+        orderNumber: 'ORD-T-1', tenantId: TENANT, outletId: 'outlet_1', status: 'COMPLETED', channel: 'POS', type: 'TAKEAWAY', subtotal: 600, total: 630, placedAt, createdAt: placedAt,
+        items: { create: { menuItemId: menu.paneer, name: 'Paneer Tikka', quantity: 2, unitPrice: 300, totalPrice: 600, gstRate: 5, taxAmount: 30 } },
+      },
+    });
+    const res = await api().get('/api/v1/internal/outlets/outlet_1/item-sales').query({ days: 7 }).set('x-service-token', issueServiceToken('inventory-service')).expect(200);
+    expect(res.body).toEqual([{ menuItemId: menu.paneer, name: 'Paneer Tikka', date: istDay, quantity: 2, avgPrice: 300 }]);
   });
 
   it('blocks checkout when the fraud engine says BLOCK and persists nothing', async () => {
