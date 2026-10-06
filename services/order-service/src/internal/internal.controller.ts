@@ -91,10 +91,11 @@ export class InternalController {
   async itemSales(@Param('id') id: string, @Query('days') days = '28') {
     const span = Math.min(180, Math.max(7, Number(days) || 28));
     if (!(await this.prisma.outlet.count({ where: { id } }))) throw notFound('Outlet', id);
-    const rows = await this.prisma.$queryRaw<{ menuItemId: string; name: string; date: Date; quantity: bigint }[]>`
+    const rows = await this.prisma.$queryRaw<{ menuItemId: string; name: string; date: Date; quantity: bigint; avgPrice: unknown }[]>`
       SELECT oi."menuItemId", MAX(oi.name) AS name,
              (o."createdAt" AT TIME ZONE 'Asia/Kolkata')::date AS date,
-             SUM(oi.quantity) AS quantity
+             SUM(oi.quantity) AS quantity,
+             ROUND(AVG(oi."unitPrice"), 2) AS "avgPrice"
       FROM "commerce"."OrderItem" oi
       JOIN "commerce"."Order" o ON o.id = oi."orderId"
       WHERE o."outletId" = ${id}
@@ -102,7 +103,12 @@ export class InternalController {
         AND o."createdAt" >= now() - make_interval(days => ${span})
       GROUP BY 1, 3
       ORDER BY 3`;
-    return rows.map((r) => ({ ...r, date: r.date.toISOString().slice(0, 10), quantity: Number(r.quantity) }));
+    return rows.map((r) => ({
+      ...r,
+      date: r.date.toISOString().slice(0, 10),
+      quantity: Number(r.quantity),
+      avgPrice: Number(r.avgPrice),
+    }));
   }
 
   @Get('orders/:id/assert-active')

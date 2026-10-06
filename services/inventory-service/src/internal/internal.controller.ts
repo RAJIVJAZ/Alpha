@@ -2,7 +2,8 @@ import { Controller, Get, Param, Query } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Internal } from '@foodgrid/auth/nest';
 import { PrismaService } from '@foodgrid/database/nest';
-import { addDays, dateOnly, istDate, mean, notFound, round2, stdDev } from '@foodgrid/utils';
+import { addDays, dateOnly, istDate, mean, notFound, round2, stdDev, Unit } from '@foodgrid/utils';
+import { recipeCost } from '../domain/costing';
 
 /** Data feeds for the procurement engine (blocked at the gateway). */
 @ApiTags('internal')
@@ -71,5 +72,26 @@ export class InternalController {
       const d = addDays(start, i).toISOString().slice(0, 10);
       return { date: d, value: byDate.get(d) ?? 0 };
     });
+  }
+
+  @Get('outlets/:outletId/plate-costs')
+  @ApiOperation({ summary: 'Current plate cost per menu item (dynamic pricing input)' })
+  async plateCosts(@Param('outletId') outletId: string) {
+    const recipes = await this.prisma.recipe.findMany({ where: { outletId, isActive: true }, include: { lines: { include: { ingredient: true } } } });
+    return recipes.map((r) => ({
+      menuItemId: r.menuItemId,
+      foodCost: recipeCost(
+        r.lines.map((l) => ({
+          ingredientId: l.ingredientId,
+          name: l.ingredient.name,
+          quantity: Number(l.quantity),
+          unit: l.unit as Unit,
+          wastagePct: Number(l.wastagePct),
+          ingredientUnit: l.ingredient.unit as Unit,
+          avgUnitCost: Number(l.ingredient.avgUnitCost),
+        })),
+        Number(r.yieldQty),
+      ).perPortion,
+    }));
   }
 }
