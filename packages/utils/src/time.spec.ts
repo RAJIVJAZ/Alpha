@@ -1,4 +1,4 @@
-import { istDate, istDayStart, istMonthStart, isWithinOpeningHours, isWithinWindow } from './time';
+import { istDate, istDayStart, istMonthRange, istMonthStart, isWithinOpeningHours, isWithinWindow } from './time';
 
 describe('time (IST)', () => {
   it('derives IST business dates', () => {
@@ -23,6 +23,14 @@ describe('time (IST)', () => {
   it('starts the day at IST midnight', () => {
     expect(istDayStart(new Date('2026-10-06T12:00:00Z')).toISOString()).toBe('2026-10-05T18:30:00.000Z');
     expect(istDayStart(new Date('2026-10-06T19:00:00Z')).toISOString()).toBe('2026-10-06T18:30:00.000Z');
+  });
+
+  it('covers whole IST months, including the 31st and year ends', () => {
+    const oct = istMonthRange('2026-10');
+    expect(oct.from.toISOString()).toBe('2026-09-30T18:30:00.000Z');
+    expect(oct.to.toISOString()).toBe('2026-10-31T18:30:00.000Z');
+    expect(istMonthRange('2026-11').from.getTime()).toBe(oct.to.getTime());
+    expect(istMonthRange('2026-12').to.toISOString()).toBe('2026-12-31T18:30:00.000Z');
   });
 
   it('starts the month at IST midnight, not UTC midnight', () => {

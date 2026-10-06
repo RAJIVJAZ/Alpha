@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '@foodgrid/database/nest';
 import { generateDocumentNumber, Prisma } from '@foodgrid/database';
 import type { InvoiceType } from '@foodgrid/database';
-import { computeGst, extractGst, isInterState, normalizePage, paginate, round2, STATUTORY_RATES, sumMoney } from '@foodgrid/utils';
+import { computeGst, extractGst, isInterState, istMonthRange, normalizePage, paginate, round2, STATUTORY_RATES, sumMoney } from '@foodgrid/utils';
 import { InternalHttpService, resolveIstRange } from '@foodgrid/utils/server';
 
 type Tx = Prisma.TransactionClient;
@@ -168,9 +168,7 @@ export class GstService {
    * SGST intra-state, 1% IGST inter-state).
    */
   async gstr8(month: string) {
-    const from = new Date(`${month}-01T00:00:00+05:30`);
-    const to = new Date(from);
-    to.setMonth(to.getMonth() + 1);
+    const { from, to } = istMonthRange(month);
     const rows = await this.prisma.gstInvoice.groupBy({
       by: ['supplierGstin', 'supplierName', 'isInterState'],
       where: { type: 'B2B_SALE', issuedAt: { gte: from, lt: to } },

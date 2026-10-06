@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@foodgrid/database/nest';
-import { round2 } from '@foodgrid/utils';
+import { istDate, round2 } from '@foodgrid/utils';
 import { resolveRange } from '@foodgrid/utils/server';
 
 type Range = { from?: string; to?: string };
@@ -56,9 +56,9 @@ export class ReportsService {
 
   /** Monthly acquisition cohorts and the share still ordering N months later. */
   async retention(months = 6) {
-    const since = new Date();
-    since.setUTCMonth(since.getUTCMonth() - months + 1, 1);
-    since.setUTCHours(0, 0, 0, 0);
+    // first day of the IST month `months - 1` months back (cohorts are IST calendar months)
+    const [y, m] = istDate().split('-').map(Number) as [number, number];
+    const since = new Date(Date.UTC(y, m - months, 1));
     const rows = await this.prisma.$queryRaw<{ cohort: string; offset: number; users: bigint }[]>`
       WITH firsts AS (
         SELECT "customerId", date_trunc('month', MIN(date)) AS cohort

@@ -32,6 +32,14 @@ export function istMonthStart(date: Date = new Date()): Date {
   return new Date(Date.UTC(p.year, p.month - 1, 1) - IST_OFFSET_MS);
 }
 
+/** [start, end) instants of an IST calendar month given as "YYYY-MM". */
+export function istMonthRange(month: string): { from: Date; to: Date } {
+  const [y, m] = month.split('-').map(Number) as [number, number];
+  const from = new Date(Date.UTC(y, m - 1, 1) - IST_OFFSET_MS);
+  const to = new Date(Date.UTC(y, m, 1) - IST_OFFSET_MS);
+  return { from, to };
+}
+
 /** UTC midnight Date for a YYYY-MM-DD string — the representation Prisma uses for @db.Date. */
 export function dateOnly(ymd: string): Date {
   return new Date(`${ymd}T00:00:00.000Z`);
