@@ -29,7 +29,7 @@ export async function seedDelivery(ctx: SeedContext) {
     const tariff = { baseFee: 25, perKmFee: 8, freeKm: 2, riderBasePay: 25, riderPerKm: 7 };
     const zone = await prisma.deliveryZone.create({
       data: {
-        name: `Bengaluru - ${loc.name}`, city: loc.city, polygon: [ring], centerLat: loc.lat, centerLng: loc.lng,
+        name: `Bengaluru - ${loc.name}`, city: loc.city, polygon: ring, centerLat: loc.lat, centerLng: loc.lng,
         ...tariff, surgeMultiplier: key === 'whitefield' ? 1.1 : 1,
       },
     });
@@ -93,4 +93,28 @@ export async function seedDelivery(ctx: SeedContext) {
       { name: 'Monsoon streak (ended)', description: '7-day streak bonus.', type: 'STREAK', city: 'Bengaluru', target: 7, rewardAmount: 350, startsAt: new Date(weekStart.getTime() - 21 * 86_400_000), endsAt: new Date(weekStart.getTime() - 14 * 86_400_000), isActive: false },
     ],
   });
+}
+
+/**
+ * Guards the zone format contract: delivery-service reads `polygon` as a single
+ * ring of [lng, lat] pairs, so every outlet must fall inside its zone when read
+ * that way, or live quotes and dispatch would treat it as unserviceable.
+ */
+export async function assertOutletsInZones(ctx: SeedContext) {
+  const zones = await ctx.prisma.deliveryZone.findMany();
+  const inRing = (lat: number, lng: number, ring: [number, number][]) => {
+    let inside = false;
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+      const [xi, yi] = ring[i]!;
+      const [xj, yj] = ring[j]!;
+      if (yi > lat !== yj > lat && lng < ((xj - xi) * (lat - yi)) / (yj - yi) + xi) inside = !inside;
+    }
+    return inside;
+  };
+  for (const o of ctx.outlets) {
+    const zone = zones.find((z) => z.id === ctx.zones.get(o.zoneKey)?.id);
+    if (!zone || !inRing(o.lat, o.lng, zone.polygon as [number, number][])) {
+      throw new Error(`Outlet at ${o.lat},${o.lng} is outside its delivery zone ${zone?.name ?? o.zoneKey}`);
+    }
+  }
 }

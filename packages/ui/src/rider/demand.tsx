@@ -46,9 +46,7 @@ export function DemandMap() {
   const view = React.useMemo(() => {
     if (!h) return null;
     const pts: [number, number][] = [
-      ...h.zones
-        .flatMap((z) => z.polygon[0] ?? [])
-        .map(([lng, lat]) => [lat!, lng!] as [number, number]),
+      ...h.zones.flatMap((z) => z.polygon).map(([lng, lat]) => [lat!, lng!] as [number, number]),
       ...h.cells.map((c) => [c.lat, c.lng] as [number, number]),
     ];
     if (!pts.length) return null;
@@ -72,7 +70,7 @@ export function DemandMap() {
     const maxPressure = Math.max(1, ...h.cells.map((c) => c.pressure));
     // zones overlap at the edges: of the zones containing a cell, take the one whose centre is nearest
     const centres = h.zones.map((z) => {
-      const ring = z.polygon[0] ?? [];
+      const ring = z.polygon;
       return {
         z,
         lng: ring.reduce((a, p) => a + p[0]!, 0) / Math.max(1, ring.length),
@@ -80,7 +78,7 @@ export function DemandMap() {
       };
     });
     const areaOf = (c: { lat: number; lng: number }) => {
-      const hits = centres.filter(({ z }) => inRing(c.lat, c.lng, z.polygon[0] ?? []));
+      const hits = centres.filter(({ z }) => inRing(c.lat, c.lng, z.polygon));
       const best = hits.sort(
         (a, b) =>
           (a.lat - c.lat) ** 2 +
@@ -178,7 +176,7 @@ export function DemandMap() {
               {h.zones.map((z) => (
                 <polygon
                   key={z.id}
-                  points={(z.polygon[0] ?? [])
+                  points={z.polygon
                     .map(([lng, lat]) => view.project(lat!, lng!).join(','))
                     .join(' ')}
                   fill="var(--chart-1)"
@@ -209,7 +207,7 @@ export function DemandMap() {
               })}
               {/* labels last, with a surface halo, so overlapping zones and circles never hide them */}
               {h.zones.map((z) => {
-                const ring = (z.polygon[0] ?? []).map(([lng, lat]) => view.project(lat!, lng!));
+                const ring = z.polygon.map(([lng, lat]) => view.project(lat!, lng!));
                 const cx = ring.reduce((s, p) => s + p[0], 0) / Math.max(1, ring.length);
                 const cy = ring.reduce((s, p) => s + p[1], 0) / Math.max(1, ring.length);
                 return (

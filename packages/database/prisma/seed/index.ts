@@ -17,7 +17,7 @@ import { config } from 'dotenv';
 import { createPrismaClient } from '../../src/client';
 import { seedCommerce } from './commerce';
 import { createContext } from './context';
-import { seedDelivery } from './delivery';
+import { assertOutletsInZones, seedDelivery } from './delivery';
 import { seedAnalyticsAggregates, seedCommissionRules, seedSettlements } from './finance';
 import { BACK_OFFICE, DEMO_CUSTOMER_PHONE, seedIdentity } from './identity';
 import { seedInventory } from './inventory';
@@ -59,6 +59,7 @@ async function main() {
     await seedIdentity(ctx);
     await seedDelivery(ctx);
     await seedCommerce(ctx);
+    await assertOutletsInZones(ctx);
     await seedMarketplace(ctx);
     await seedCommissionRules(ctx);
     const sim = simulate(ctx);

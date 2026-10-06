@@ -140,5 +140,6 @@ export interface Heatmap {
     riders: number;
     pressure: number;
   }[];
-  zones: { id: string; name: string; surge: number; polygon: number[][][] }[];
+  /** ring of [lng, lat] pairs */
+  zones: { id: string; name: string; surge: number; polygon: number[][] }[];
 }
