@@ -83,4 +83,22 @@ describe('computePricing', () => {
     expect(fallbackDeliveryFee(1.5)).toBe(25);
     expect(fallbackDeliveryFee(5)).toBe(49);
   });
+
+  it('splits CGST and SGST evenly on the bill, not line by line', () => {
+    // 2.95 + 0.25 of tax: per-line halves would be 1.47/1.48 and 0.12/0.13
+    const p = computePricing({
+      ...base,
+      lines: [
+        { menuItemId: 'pani-puri', quantity: 2, unitPrice: 49, gstRate: 5 },
+        { menuItemId: 'sev-puri', quantity: 1, unitPrice: 59, gstRate: 5 },
+      ],
+      packagingCharge: 5,
+      deliveryFee: 0,
+      platformFee: 0,
+    });
+    expect(p.taxTotal).toBe(8.1);
+    expect(p.cgst).toBe(4.05);
+    expect(p.sgst).toBe(4.05);
+    expect(p.total).toBe(170);
+  });
 });

@@ -58,6 +58,7 @@ export class PosService {
       items: order.items.map((i) => ({ name: i.variant ? `${i.name} (${i.variant})` : i.name, qty: i.quantity, rate: i.unitPrice, amount: i.totalPrice })),
       subtotal: order.subtotal,
       discount: order.couponDiscount,
+      packaging: order.packagingCharge,
       cgst: order.cgst,
       sgst: order.sgst,
       roundOff: order.roundOff,

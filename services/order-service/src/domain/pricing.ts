@@ -108,33 +108,26 @@ export function computePricing(input: PricingInput): PricingResult {
   const discountShares = subtotal > 0 ? allocate(itemDiscount, lineTotals) : lineTotals.map(() => 0);
 
   // ── GST on food ──────────────────────────────────────────────────────────
-  let cgst = 0;
-  let sgst = 0;
-  let igst = 0;
+  // Tax is computed per line (and kept per line for the invoice), then split
+  // into CGST/SGST once on the total: splitting each line rounds the odd paisa
+  // the same way every time and the halves drift apart.
+  let taxPaise = 0;
   const lineTax = input.lines.map((line, i) => {
     const taxable = round2(lineTotals[i]! - discountShares[i]!);
     const g = computeGst(taxable, line.gstRate, input.interState);
-    cgst += g.cgst;
-    sgst += g.sgst;
-    igst += g.igst;
+    taxPaise += Math.round(g.totalTax * 100);
     return { menuItemId: line.menuItemId, taxableValue: taxable, tax: g.totalTax };
   });
   const packagingRate = input.lines.reduce((max, l) => Math.max(max, l.gstRate), 0);
-  const pkg = computeGst(input.packagingCharge, packagingRate, input.interState);
-  cgst += pkg.cgst;
-  sgst += pkg.sgst;
-  igst += pkg.igst;
+  taxPaise += Math.round(computeGst(input.packagingCharge, packagingRate, input.interState).totalTax * 100);
 
   // ── GST on platform services ─────────────────────────────────────────────
   const deliveryFee = round2(input.deliveryFee - deliveryFeeWaived);
-  const svc = computeGst(deliveryFee + input.platformFee, serviceGstRate, input.interState);
-  cgst += svc.cgst;
-  sgst += svc.sgst;
-  igst += svc.igst;
+  taxPaise += Math.round(computeGst(deliveryFee + input.platformFee, serviceGstRate, input.interState).totalTax * 100);
 
-  cgst = round2(cgst);
-  sgst = round2(sgst);
-  igst = round2(igst);
+  const cgst = input.interState ? 0 : Math.floor(taxPaise / 2) / 100;
+  const sgst = input.interState ? 0 : (taxPaise - Math.floor(taxPaise / 2)) / 100;
+  const igst = input.interState ? taxPaise / 100 : 0;
   const taxTotal = round2(cgst + sgst + igst);
   const foodTaxableValue = round2(subtotal - itemDiscount + input.packagingCharge);
 
