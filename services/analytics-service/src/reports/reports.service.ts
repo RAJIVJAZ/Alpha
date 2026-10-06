@@ -131,6 +131,22 @@ export class ReportsService {
       }),
       { orders: 0, gmv: 0, netSales: 0, discounts: 0, commission: 0, foodCost: 0, grossProfit: 0 },
     );
+    // one row per day across the outlets in scope, and one row per outlet
+    const sumBy = (key: (d: (typeof days)[number]) => string) => {
+      const map = new Map<string, { orders: number; netSales: number; commission: number; foodCost: number; grossProfit: number }>();
+      for (const d of days) {
+        const k = key(d);
+        const acc = map.get(k) ?? { orders: 0, netSales: 0, commission: 0, foodCost: 0, grossProfit: 0 };
+        acc.orders += d.orders;
+        acc.netSales += num(d.netSales);
+        acc.commission += num(d.commission);
+        acc.foodCost += num(d.foodCost);
+        acc.grossProfit += num(d.grossProfit);
+        map.set(k, acc);
+      }
+      return [...map.entries()].map(([k, v]) => ({ k, orders: v.orders, netSales: round2(v.netSales), commission: round2(v.commission), foodCost: round2(v.foodCost), grossProfit: round2(v.grossProfit) }));
+    };
+    const tenantOf = new Map(days.map((d) => [d.outletId, d.tenantId]));
     return {
       from,
       to,
@@ -138,14 +154,10 @@ export class ReportsService {
       marginPct: pct(totals.grossProfit, totals.netSales),
       foodCostPct: pct(totals.foodCost, totals.netSales),
       commissionPct: pct(totals.commission, totals.netSales),
-      daily: days.map((d) => ({
-        date: d.date.toISOString().slice(0, 10),
-        orders: d.orders,
-        netSales: num(d.netSales),
-        commission: num(d.commission),
-        foodCost: num(d.foodCost),
-        grossProfit: num(d.grossProfit),
-      })),
+      daily: sumBy((d) => d.date.toISOString().slice(0, 10)).map(({ k, ...v }) => ({ date: k, ...v })),
+      byOutlet: sumBy((d) => d.outletId)
+        .map(({ k, ...v }) => ({ outletId: k, tenantId: tenantOf.get(k)!, ...v, marginPct: pct(v.grossProfit, v.netSales), foodCostPct: pct(v.foodCost, v.netSales) }))
+        .sort((a, b) => b.netSales - a.netSales),
     };
   }
 

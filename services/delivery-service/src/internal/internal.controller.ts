@@ -1,8 +1,9 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Internal } from '@foodgrid/auth/nest';
 import { PrismaService } from '@foodgrid/database/nest';
 import { estimateRoadKm, notFound, travelMinutes } from '@foodgrid/utils';
+import { IdsDto } from '@foodgrid/utils/server';
 import { GeoStore } from '../common/geo-store';
 import { ZonesService } from '../zones/zones.service';
 
@@ -26,6 +27,12 @@ export class InternalController {
     @Query('prepMins') prepMins?: string,
   ) {
     return this.zones.quote({ lat: Number(pickupLat), lng: Number(pickupLng) }, { lat: Number(dropLat), lng: Number(dropLng) }, Number(prepMins) || 20);
+  }
+
+  @Post('riders/batch')
+  @ApiOperation({ summary: 'Rider names for read models (analytics)' })
+  ridersBatch(@Body() dto: IdsDto) {
+    return this.prisma.riderProfile.findMany({ where: { id: { in: dto.ids } }, select: { id: true, name: true, city: true, vehicleType: true, rating: true } });
   }
 
   @Get('riders/by-user/:userId')

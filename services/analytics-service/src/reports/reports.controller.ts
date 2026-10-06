@@ -1,8 +1,10 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get, HttpCode, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Permissions } from '@foodgrid/auth';
 import { CurrentUser, RequirePermissions, RequireTenant, Roles, TenantId } from '@foodgrid/auth/nest';
 import { DateRangeQueryDto, InternalHttpService } from '@foodgrid/utils/server';
+import { AnalyticsJobsService } from '../jobs/analytics-jobs.service';
+import { DirectoryService } from './directory.service';
 import { ReportsService } from './reports.service';
 
 @ApiTags('analytics')
@@ -12,7 +14,17 @@ export class ReportsController {
   constructor(
     private readonly reports: ReportsService,
     private readonly internal: InternalHttpService,
+    private readonly directory: DirectoryService,
+    private readonly jobs: AnalyticsJobsService,
   ) {}
+
+  @RequirePermissions(Permissions.PlatformAnalytics)
+  @Post('platform/outlet-scores/run')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Score every outlet for the last complete week now (normally Monday 04:00 IST)' })
+  runScores() {
+    return this.jobs.scoreOutlets();
+  }
 
   // ─── platform (admin) ─────────────────────────────────────────────────────
   @RequirePermissions(Permissions.PlatformAnalytics)
@@ -31,8 +43,10 @@ export class ReportsController {
 
   @RequirePermissions(Permissions.PlatformAnalytics)
   @Get('platform/top-outlets')
-  topOutlets(@Query() q: DateRangeQueryDto & { limit?: number; city?: string }) {
-    return this.reports.topOutlets(q);
+  async topOutlets(@Query() q: DateRangeQueryDto & { limit?: number; city?: string }) {
+    const rows = await this.reports.topOutlets(q);
+    const [outlets, tenants] = await Promise.all([this.directory.lookup('outlets', rows.map((r) => r.outletId)), this.directory.lookup('tenants', rows.map((r) => r.tenantId))]);
+    return rows.map((r) => ({ ...r, outletName: outlets.get(r.outletId)?.name ?? null, tenantName: tenants.get(r.tenantId)?.name ?? null }));
   }
 
   @RequirePermissions(Permissions.PlatformAnalytics)
@@ -43,22 +57,30 @@ export class ReportsController {
 
   @RequirePermissions(Permissions.PlatformAnalytics)
   @Get('platform/restaurant-profitability')
-  platformProfitability(@Query() q: DateRangeQueryDto & { outletId?: string; tenantId?: string }) {
-    return this.reports.profitability(q);
+  async platformProfitability(@Query() q: DateRangeQueryDto & { outletId?: string; tenantId?: string }) {
+    const report = await this.reports.profitability(q);
+    const outlets = await this.directory.lookup('outlets', report.byOutlet.map((r) => r.outletId));
+    return { ...report, byOutlet: report.byOutlet.map((r) => ({ ...r, outletName: outlets.get(r.outletId)?.name ?? null })) };
   }
 
   @RequirePermissions(Permissions.PlatformAnalytics)
   @Get('platform/riders')
   @ApiOperation({ summary: 'Rider performance leaderboard' })
-  riders(@Query() q: DateRangeQueryDto & { limit?: number }) {
-    return this.reports.riderPerformance(q);
+  async riders(@Query() q: DateRangeQueryDto & { limit?: number }) {
+    const rows = await this.reports.riderPerformance(q);
+    const riders = await this.directory.lookup('riders', rows.map((r) => r.riderId));
+    return rows.map((r) => ({ ...r, name: riders.get(r.riderId)?.name ?? null }));
   }
 
   @RequirePermissions(Permissions.PlatformAnalytics)
   @Get('platform/suppliers')
   @ApiOperation({ summary: 'Supplier sales leaderboard' })
-  suppliers(@Query() q: DateRangeQueryDto & { limit?: number }) {
-    return this.reports.supplierSales(q);
+  async suppliers(@Query() q: DateRangeQueryDto & { limit?: number }) {
+    const result = await this.reports.supplierSales(q);
+    if (!Array.isArray(result)) return result;
+    const rows = result;
+    const tenants = await this.directory.lookup('tenants', rows.map((r) => r.tenantId));
+    return rows.map((r) => ({ ...r, name: tenants.get(r.tenantId)?.name ?? null, type: tenants.get(r.tenantId)?.type ?? null }));
   }
 
   // ─── merchant ──────────────────────────────────────────────────────────────

@@ -1,8 +1,9 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Internal } from '@foodgrid/auth/nest';
 import { PrismaService } from '@foodgrid/database/nest';
 import { conflict, istDayStart, notFound } from '@foodgrid/utils';
+import { IdsDto } from '@foodgrid/utils/server';
 
 export interface Payable {
   referenceId: string;
@@ -68,6 +69,12 @@ export class InternalController {
       payable: s.status === 'PENDING_PAYMENT',
       description: `${s.plan.name} (${s.mealsTotal} meals)`,
     };
+  }
+
+  @Post('outlets/batch')
+  @ApiOperation({ summary: 'Outlet names for read models (analytics)' })
+  outletsBatch(@Body() dto: IdsDto) {
+    return this.prisma.outlet.findMany({ where: { id: { in: dto.ids } }, select: { id: true, name: true, tenantId: true, type: true, city: true } });
   }
 
   @Get('outlets/:id')

@@ -1,7 +1,16 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
-import { IsDateString, IsInt, IsOptional, Max, Min } from 'class-validator';
+import { ArrayMaxSize, IsArray, IsDateString, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
 import { istDate } from '../time';
+
+/** Body of internal batch lookups: `{ ids: [...] }` (at most 500). */
+export class IdsDto {
+  @ApiPropertyOptional({ type: [String] })
+  @IsArray()
+  @ArrayMaxSize(500)
+  @IsString({ each: true })
+  ids!: string[];
+}
 
 /** Parses "true"/"false"/"1"/"0" query strings correctly (implicit conversion would not). */
 export const ToBoolean = () =>

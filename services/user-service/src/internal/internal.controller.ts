@@ -1,17 +1,15 @@
 import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
-import { ArrayMaxSize, IsArray, IsIn, IsString } from 'class-validator';
+import { IsArray, IsIn } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { Internal } from '@foodgrid/auth/nest';
 import { PrismaService } from '@foodgrid/database/nest';
 import { PLATFORM_ROLES, PlatformRole } from '@foodgrid/types';
 import { notFound } from '@foodgrid/utils';
+import { IdsDto } from '@foodgrid/utils/server';
 import { ApprovalsService } from '../approvals/approvals.service';
 import { CreateApprovalDto } from '../approvals/dto/approval.dto';
 
-class BatchUsersDto {
-  @ApiProperty({ type: [String] }) @IsArray() @ArrayMaxSize(500) @IsString({ each: true }) ids!: string[];
-}
 class AddRolesDto {
   @ApiProperty({ enum: PLATFORM_ROLES, isArray: true }) @IsArray() @IsIn(PLATFORM_ROLES, { each: true }) roles!: PlatformRole[];
 }
@@ -36,7 +34,7 @@ export class InternalController {
   }
 
   @Post('users/batch')
-  usersBatch(@Body() dto: BatchUsersDto) {
+  usersBatch(@Body() dto: IdsDto) {
     return this.prisma.user.findMany({ where: { id: { in: dto.ids } }, select: BASIC });
   }
 
@@ -53,6 +51,12 @@ export class InternalController {
     const tenant = await this.prisma.tenant.findUnique({ where: { id } });
     if (!tenant) throw notFound('Tenant', id);
     return tenant;
+  }
+
+  @Post('tenants/batch')
+  @ApiOperation({ summary: 'Tenant names for read models (analytics)' })
+  tenantsBatch(@Body() dto: IdsDto) {
+    return this.prisma.tenant.findMany({ where: { id: { in: dto.ids } }, select: { id: true, name: true, type: true, city: true, status: true } });
   }
 
   @Get('tenants/:id/members')
