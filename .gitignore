@@ -46,3 +46,6 @@ crash.log
 .idea/
 .vscode/*
 !.vscode/extensions.json
+
+# Redis snapshots from local dev
+*.rdb
