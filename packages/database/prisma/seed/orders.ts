@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import { computeGst, istParts } from '@foodgrid/utils';
+import { computeGst, istParts } from './helpers';
 import type { Prisma } from '../../generated/client';
 import { istDateStamp } from '../../src/sequence';
 import type { CustomerRef, OutletRef, RiderRef, SeedContext } from './context';

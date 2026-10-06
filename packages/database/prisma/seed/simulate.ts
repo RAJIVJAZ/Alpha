@@ -1,4 +1,4 @@
-import { haversineKm } from '@foodgrid/utils';
+import { haversineKm } from './helpers';
 import { FESTIVALS } from './catalog';
 import type { CustomerRef, MenuItemRef, OutletRef, RiderRef, SeedContext } from './context';
 import { addMinutes, atIst, id, istIsoWeekday, istMidnight, r2, Rng } from './lib';

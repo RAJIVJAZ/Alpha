@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { dateOnly, istDate, round2 } from '@foodgrid/utils';
+import { dateOnly, istDate, round2 } from './helpers';
 
 /**
  * Deterministic PRNG (mulberry32) so every `db:seed` run produces the same

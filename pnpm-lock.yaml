@@ -97,9 +97,6 @@ importers:
       '@foodgrid/types':
         specifier: workspace:*
         version: link:../types
-      '@foodgrid/utils':
-        specifier: workspace:*
-        version: link:../utils
       '@nestjs/common':
         specifier: ^11.1.0
         version: 11.2.7(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2)

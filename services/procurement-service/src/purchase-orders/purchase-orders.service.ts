@@ -13,6 +13,7 @@ import { badRequest, canConvert, computeGst, conflict, convertUnit, money, norma
 import { InternalHttpService, OutboxService } from '@foodgrid/utils/server';
 import { ClientsService } from '../clients/clients.service';
 import { requiresApproval } from '../domain/assessment';
+import { poAmountsFromSupplier, SupplierBilledAmounts } from '../domain/billing';
 import { poStateMachine } from '../domain/po-state';
 import { RecommendationsService } from '../recommendations/recommendations.service';
 import { SettingsService } from '../settings/settings.service';
@@ -388,7 +389,16 @@ export class PurchaseOrdersService {
   // ─── supplier-side updates (from marketplace events) ──────────────────────
   async applySupplierUpdate(
     poId: string,
-    update: { status: PurchaseOrderStatus; note?: string | null; supplierOrderId?: string; confirmedLines?: { productId: string; confirmedQty: string }[]; tracking?: Record<string, unknown> | null; expectedDeliveryAt?: string | null },
+    update: {
+      status: PurchaseOrderStatus;
+      note?: string | null;
+      supplierOrderId?: string;
+      confirmedLines?: { productId: string; confirmedQty: string }[];
+      tracking?: Record<string, unknown> | null;
+      expectedDeliveryAt?: string | null;
+      /** Amounts as billed by the supplier (dealer discount, freight GST); they supersede the PO estimate. */
+      billed?: SupplierBilledAmounts | null;
+    },
   ) {
     return this.prisma.$transaction(async (tx) => {
       const po = await tx.purchaseOrder.findUnique({ where: { id: poId }, include: { items: true } });
@@ -408,6 +418,7 @@ export class PurchaseOrdersService {
         ...(update.status === 'DELIVERED' ? { deliveredAt: now } : {}),
         ...(update.tracking ? { trackingInfo: update.tracking as Prisma.InputJsonValue } : {}),
         ...(update.expectedDeliveryAt ? { expectedDeliveryAt: new Date(update.expectedDeliveryAt) } : {}),
+        ...(update.billed ? poAmountsFromSupplier(update.billed) : {}),
       };
       if (!poStateMachine.can(po.status, update.status)) {
         if (Object.keys(data).length) await tx.purchaseOrder.update({ where: { id: poId }, data });

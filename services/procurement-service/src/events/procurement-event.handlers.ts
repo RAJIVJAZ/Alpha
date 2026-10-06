@@ -62,6 +62,17 @@ export class ProcurementEventHandlers {
       confirmedLines: e.confirmedLines,
       tracking: e.trackingInfo ?? null,
       expectedDeliveryAt: e.expectedDeliveryAt ?? null,
+      billed:
+        (env.type === EventTypes.B2bOrderPlaced || env.type === EventTypes.B2bOrderConfirmed) && e.subtotal !== undefined
+          ? {
+              subtotal: Number(e.subtotal),
+              discount: Number(e.discount ?? 0),
+              taxTotal: Number(e.taxTotal ?? 0),
+              deliveryCharge: Number(e.deliveryCharge ?? 0),
+              total: Number(e.total),
+              paymentTerms: e.paymentTerms,
+            }
+          : null,
     });
   }
 }

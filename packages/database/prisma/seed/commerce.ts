@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import { encodeGeohash, haversineKm } from '@foodgrid/utils';
+import { encodeGeohash, haversineKm } from './helpers';
 import { CUSTOMER_AREAS, LOCALITIES, MERCHANTS } from './catalog';
 import type { MenuItemRef, OutletRef, SeedContext } from './context';
 import { addMinutes, istDay, istIsoWeekday, istMidnight, log, r2, slugify } from './lib';

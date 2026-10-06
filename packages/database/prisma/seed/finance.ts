@@ -1,4 +1,4 @@
-import { computeGst, sumMoney } from '@foodgrid/utils';
+import { computeGst, sumMoney } from './helpers';
 import type { SeedContext } from './context';
 import { istWeekStart } from './delivery';
 import { addMinutes, atIst, log, Rng } from './lib';

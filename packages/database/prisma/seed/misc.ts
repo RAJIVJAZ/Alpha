@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import { dateOnly } from '@foodgrid/utils';
+import { dateOnly } from './helpers';
 import type { Prisma } from '../../generated/client';
 import { FESTIVALS } from './catalog';
 import type { SeedContext } from './context';

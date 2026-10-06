@@ -83,5 +83,14 @@ export async function seedMarketplace(ctx: SeedContext) {
       { tenantId: bharat.id, name: 'Old Airport Road Traders', contactName: 'Farhan Ali', phone: '+919880011205', city: 'Bengaluru', territoryId: east.id, tier: 'SILVER', status: 'INACTIVE', creditLimit: 60_000, paymentTerms: 'NET_7', onboardedAt: onboarded },
     ],
   });
-  log('seller zones, slots, territories & dealers', `${SELLERS.length} sellers, 2 territories, 6 dealers`);
+  // Spice Garden buys from Annapurna on 7-day credit, which supplier-service
+  // only allows for registered dealers; outstanding is set from unpaid orders later.
+  const sg = ctx.merchants.get('spicegarden')!;
+  await prisma.dealer.create({
+    data: {
+      tenantId: ctx.sellers.get('annapurna')!.id, dealerTenantId: sg.id, name: sg.name, contactName: 'Rohit Malhotra', phone: '+919900010001', gstin: sg.gstin,
+      city: 'Bengaluru', address: '80 Feet Road, Koramangala', tier: 'GOLD', status: 'ACTIVE', creditLimit: 300_000, paymentTerms: 'NET_7', onboardedAt: onboarded,
+    },
+  });
+  log('seller zones, slots, territories & dealers', `${SELLERS.length} sellers, 2 territories, 7 dealers`);
 }

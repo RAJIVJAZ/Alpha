@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import { computeGst, haversineKm, isInterState } from '@foodgrid/utils';
+import { computeGst, haversineKm, isInterState } from './helpers';
 import type { Prisma } from '../../generated/client';
 import { INGREDIENTS, LOCALITIES, SELLERS, type SellerKey } from './catalog';
 import type { OutletRef, SeedContext } from './context';
@@ -304,13 +304,15 @@ async function buildPurchaseOrders(ctx: SeedContext, list: Purchase[], rng: Rng)
     numbers.set(poId, poNumber);
     for (const p of group) p.poId = poId;
 
+    // billed exactly like supplier-service computeB2bTotals: line GST + 18% GST on freight
+    const inter = isInterState(seller.stateCode, buyer.stateCode);
     const lines = group.map((p) => {
       const lineTotal = r2(p.packs * p.packPrice);
-      return { p, lineTotal, tax: r2((lineTotal * p.product!.gstRate) / 100) };
+      return { p, lineTotal, tax: computeGst(lineTotal, p.product!.gstRate, inter).totalTax };
     });
     const subtotal = r2(lines.reduce((s, l) => s + l.lineTotal, 0));
-    const taxTotal = r2(lines.reduce((s, l) => s + l.tax, 0));
     const deliveryCharge = sdef.zone.freeDeliveryAbove !== null && subtotal >= sdef.zone.freeDeliveryAbove ? 0 : sdef.zone.deliveryCharge;
+    const taxTotal = r2(lines.reduce((s, l) => s + l.tax, 0) + computeGst(deliveryCharge, 18, inter).totalTax);
     const total = r2(subtotal + taxTotal + deliveryCharge);
     const threshold = autoApproveLimit(outlet.merchant.key);
     const needsApproval = total > threshold;
@@ -407,7 +409,6 @@ async function buildPurchaseOrders(ctx: SeedContext, list: Purchase[], rng: Rng)
     if (deliveredAt) {
       // seller GST invoice + marketplace settlement line (prepaid: 1% TCS)
       const taxable = r2(subtotal + deliveryCharge);
-      const inter = isInterState(seller.stateCode, buyer.stateCode);
       const g = computeGst(taxable, taxable > 0 ? r2((taxTotal / taxable) * 100) : 0, inter);
       const invoiceNumber = ctx.docNumber('B2B', deliveredAt);
       ops.push(() =>
@@ -485,6 +486,11 @@ async function buildPurchaseOrders(ctx: SeedContext, list: Purchase[], rng: Rng)
           },
         });
       }
+      // credit exposure of dealers buying on terms = their unpaid B2B orders
+      const unpaid = await ctx.prisma.b2bOrder.groupBy({ by: ['sellerTenantId', 'buyerTenantId'], where: { paymentStatus: 'PENDING', paymentTerms: { not: 'PREPAID' } }, _sum: { total: true } });
+      for (const u of unpaid) {
+        await ctx.prisma.dealer.updateMany({ where: { tenantId: u.sellerTenantId, dealerTenantId: u.buyerTenantId }, data: { outstanding: u._sum.total ?? 0 } });
+      }
       log('purchase orders → B2B orders', `${groups.size} POs in the last ${ORDER_DAYS} days`);
     },
   };
@@ -553,7 +559,6 @@ async function seedProcurementState(
   let poStatus: string | null = null;
   if (sellerKey && group) {
     const seller = ctx.sellers.get(sellerKey)!;
-    const sdef = sellerDef(sellerKey);
     const tenant = ctx.merchants.get('spicegarden')!;
     const createdAt = addMinutes(istMidnight(0, ctx.now), 6 * 60 + 10);
     const lines = group.map((a) => {
@@ -561,12 +566,13 @@ async function seedProcurementState(
       const packs = Math.max(p.moq, Math.ceil((a.row.maxStock - a.row.balance + a.row.avgDaily * a.row.leadDays) / p.packSize));
       const price = packPrice(p, packs, 0);
       const lineTotal = r2(packs * price);
-      return { a, p, packs, price, lineTotal, tax: r2((lineTotal * p.gstRate) / 100) };
+      return { a, p, packs, price, lineTotal, tax: computeGst(lineTotal, p.gstRate, false).totalTax };
     });
+    // procurement's estimate (as createPo): goods + GST; the supplier adds freight when it bills the order
     const subtotal = r2(lines.reduce((s, l) => s + l.lineTotal, 0));
     const taxTotal = r2(lines.reduce((s, l) => s + l.tax, 0));
-    const deliveryCharge = sdef.zone.freeDeliveryAbove !== null && subtotal >= sdef.zone.freeDeliveryAbove ? 0 : sdef.zone.deliveryCharge;
-    const total = r2(subtotal + taxTotal + deliveryCharge);
+    const deliveryCharge = 0;
+    const total = r2(subtotal + taxTotal);
     const limit = autoApproveLimit('spicegarden');
     const status = total > limit ? 'PENDING_APPROVAL' : 'APPROVED';
     const po = await ctx.prisma.purchaseOrder.create({

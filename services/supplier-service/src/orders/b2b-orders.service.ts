@@ -240,6 +240,20 @@ export class B2bOrdersService {
     const partial = order.items.some((i) => confirmed.get(i.productId)! < Number(i.quantity));
     if ([...confirmed.values()].every((q) => q === 0)) throw unprocessable('Nothing confirmed — reject the order instead', 'NOTHING_CONFIRMED');
 
+    // A partial confirmation re-bills the order for the confirmed quantities with
+    // the same dealer discount, freight and GST rules used when it was placed.
+    let rebilled: ReturnType<typeof computeB2bTotals> | null = null;
+    let interState: boolean | undefined;
+    if (partial) {
+      const [seller, buyer] = await Promise.all([this.tenants.get(order.sellerTenantId), this.tenants.get(order.buyerTenantId)]);
+      interState = isInterState(seller.stateCode, buyer.stateCode);
+      const discountPct = Number(order.subtotal) > 0 ? (Number(order.discount) / Number(order.subtotal)) * 100 : 0;
+      rebilled = computeB2bTotals(
+        order.items.map((i) => ({ productId: i.productId, quantity: confirmed.get(i.productId)!, unitPrice: Number(i.unitPrice), gstRate: Number(i.gstRate) })),
+        { discountPct, deliveryCharge: Number(order.deliveryCharge), interState },
+      );
+    }
+
     return this.prisma.$transaction(async (tx) => {
       // reserve stock atomically; fail if it moved since the order was placed
       for (const [productId, qty] of confirmed) {
@@ -250,28 +264,26 @@ export class B2bOrdersService {
         await tx.product.update({ where: { id: productId }, data: { stockStatus: stockStatusFor(Number(p.stockQty), Number(p.lowStockThreshold)) } });
       }
       for (const item of order.items) {
-        const qty = confirmed.get(item.productId)!;
+        const line = rebilled?.lines.find((l) => l.productId === item.productId);
         await tx.b2bOrderItem.update({
           where: { id: item.id },
-          data: { confirmedQty: qty, lineTotal: Number(item.quantity) ? round2((Number(item.lineTotal) * qty) / Number(item.quantity)) : 0 },
+          data: { confirmedQty: confirmed.get(item.productId)!, ...(line ? { taxAmount: line.tax, lineTotal: line.lineTotal } : {}) },
         });
       }
-      const items = await tx.b2bOrderItem.findMany({ where: { orderId: id } });
-      const total = round2(items.reduce((s, i) => s + Number(i.lineTotal), 0) + Number(order.deliveryCharge) * 1.18);
       const status: B2bOrderStatus = partial ? 'PARTIALLY_CONFIRMED' : 'CONFIRMED';
       b2bStateMachine.assert(order.status, status);
       const updated = await tx.b2bOrder.update({
         where: { id },
         data: {
           status,
-          total: partial ? total : order.total,
+          ...(rebilled ? { subtotal: rebilled.subtotal, discount: rebilled.discount, taxTotal: rebilled.taxTotal, total: rebilled.total } : {}),
           confirmedAt: new Date(),
           expectedDeliveryAt: dto.expectedDeliveryAt ? new Date(dto.expectedDeliveryAt) : order.expectedDeliveryAt,
           events: { create: { status, note: dto.note } },
         },
         include: { items: true },
       });
-      await this.emit(tx, updated, undefined, {
+      await this.emit(tx, updated, interState, {
         note: dto.note,
         confirmedLines: [...confirmed.entries()].map(([productId, q]) => ({ productId, confirmedQty: String(q) })),
       });

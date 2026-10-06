@@ -1,4 +1,4 @@
-import { DynamicModule, Global, Module } from '@nestjs/common';
+import { DynamicModule, Global, Module, RequestMethod } from '@nestjs/common';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { LoggerModule } from 'nestjs-pino';
 import { randomUUID } from 'node:crypto';
@@ -42,6 +42,8 @@ export class CoreModule {
       module: CoreModule,
       imports: [
         LoggerModule.forRoot({
+          // Express 5 / path-to-regexp v8 needs a named wildcard (the library default '*' is deprecated)
+          forRoutes: [{ path: '{*path}', method: RequestMethod.ALL }],
           pinoHttp: {
             level: env.NODE_ENV === 'test' ? 'silent' : env.LOG_LEVEL,
             transport:
@@ -60,6 +62,7 @@ export class CoreModule {
             },
             serializers: {
               req: (req: { id: string; method: string; url: string }) => ({ id: req.id, method: req.method, url: req.url }),
+              res: (res: { statusCode: number }) => ({ statusCode: res.statusCode }),
             },
           },
         }),
