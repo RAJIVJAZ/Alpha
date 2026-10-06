@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { InternalHttpService } from '@foodgrid/utils/server';
+import { InternalHttpService } from './internal-http.service';
 
-type Kind = 'outlets' | 'tenants' | 'riders';
+type Kind = 'outlets' | 'tenants' | 'riders' | 'users';
 export interface Named {
   id: string;
   name: string;
@@ -12,6 +12,7 @@ const SOURCE: Record<Kind, { service: 'order' | 'user' | 'delivery'; path: strin
   outlets: { service: 'order', path: 'internal/outlets/batch' },
   tenants: { service: 'user', path: 'internal/tenants/batch' },
   riders: { service: 'delivery', path: 'internal/riders/batch' },
+  users: { service: 'user', path: 'internal/users/batch' },
 };
 const TTL_MS = 10 * 60_000;
 

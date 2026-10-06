@@ -6,6 +6,7 @@ export * from './health.controller';
 export * from './events';
 export * from './idempotency.interceptor';
 export * from './internal-http.service';
+export * from './directory.service';
 export * from './core.options';
 export * from './core.module';
 export * from './swagger';

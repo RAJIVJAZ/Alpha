@@ -12,6 +12,7 @@ import { CORE_MODULE_OPTIONS } from './core.options';
 import { EventsModule } from './events';
 import { HealthController } from './health.controller';
 import { IdempotencyInterceptor } from './idempotency.interceptor';
+import { DirectoryService } from './directory.service';
 import { InternalHttpService } from './internal-http.service';
 import { initMetrics, MetricsInterceptor } from './metrics';
 import { REDIS, RedisModule, revokedSessionKey } from './redis.module';
@@ -93,9 +94,10 @@ export class CoreModule {
         },
         { provide: APP_INTERCEPTOR, useClass: MetricsInterceptor },
         InternalHttpService,
+        DirectoryService,
         IdempotencyInterceptor,
       ],
-      exports: [CORE_MODULE_OPTIONS, InternalHttpService, IdempotencyInterceptor],
+      exports: [CORE_MODULE_OPTIONS, InternalHttpService, DirectoryService, IdempotencyInterceptor],
     };
   }
 }

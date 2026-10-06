@@ -2,9 +2,8 @@ import { Controller, Get, HttpCode, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Permissions } from '@foodgrid/auth';
 import { CurrentUser, RequirePermissions, RequireTenant, Roles, TenantId } from '@foodgrid/auth/nest';
-import { DateRangeQueryDto, InternalHttpService } from '@foodgrid/utils/server';
+import { DateRangeQueryDto, DirectoryService, InternalHttpService } from '@foodgrid/utils/server';
 import { AnalyticsJobsService } from '../jobs/analytics-jobs.service';
-import { DirectoryService } from './directory.service';
 import { ReportsService } from './reports.service';
 
 @ApiTags('analytics')

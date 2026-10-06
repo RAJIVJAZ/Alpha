@@ -429,7 +429,7 @@ async function seedRiderLedger(ctx: SeedContext, orders: SimOrder[], c: Ctx2, rn
         balance = 0;
         version++;
         txns.push({ walletId, type: 'DEBIT', reason: 'PAYOUT', amount, balanceAfter: 0, referenceType: 'PAYOUT', referenceId: pid, description: 'Weekly payout', idempotencyKey: `payout:${pid}`, createdAt: at });
-        payouts.push({ id: pid, walletId, ownerType: 'RIDER', ownerId: rider.profileId, amount, status: 'PAID', method: 'UPI', destination: { upiId: `${rider.name.split(' ')[0]!.toLowerCase()}@okaxis` }, utr: `UTR${rng.digits(12)}`, requestedAt: at, processedAt: addMinutes(at, 45) });
+        payouts.push({ id: pid, walletId, ownerType: 'RIDER', ownerId: rider.userId, amount, status: 'PAID', method: 'UPI', destination: { upiId: `${rider.name.split(' ')[0]!.toLowerCase()}@okaxis` }, utr: `UTR${rng.digits(12)}`, requestedAt: at, processedAt: addMinutes(at, 45) });
       }
       lastPayoutWeek = wk;
 
@@ -457,7 +457,7 @@ async function seedRiderLedger(ctx: SeedContext, orders: SimOrder[], c: Ctx2, rn
         avgDeliveryMins: Math.round((ds.reduce((s, o) => s + minutes(o.pickedUpAt!, o.deliveredAt!), 0) / ds.length) * 10) / 10, offers: ds.length + rejected, accepted: ds.length, rejected,
       });
     }
-    await prisma.wallet.create({ data: { id: walletId, ownerType: 'RIDER', ownerId: rider.profileId, balance, version } });
+    await prisma.wallet.create({ data: { id: walletId, ownerType: 'RIDER', ownerId: rider.userId, balance, version } });
 
     const rated = list.map((o) => (o as SimOrder & { deliveryRating?: number | null }).deliveryRating).filter((r): r is number => typeof r === 'number');
     const offers = stats.filter((s) => s.riderId === rider.profileId).reduce((s, x) => s + (x.offers ?? 0), 0);

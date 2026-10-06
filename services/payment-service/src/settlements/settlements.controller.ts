@@ -3,7 +3,7 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Permissions } from '@foodgrid/auth';
 import { RequirePermissions, RequireTenant, TenantId } from '@foodgrid/auth/nest';
 import type { InvoiceType } from '@foodgrid/database';
-import { DateRangeQueryDto } from '@foodgrid/utils/server';
+import { DateRangeQueryDto, DirectoryService } from '@foodgrid/utils/server';
 import { GstService } from '../gst/gst.service';
 import { CommissionRuleDto, ListSettlementsDto, MarkSettlementPaidDto, RunSettlementDto, UpdateCommissionRuleDto } from './dto/settlement.dto';
 import { SettlementsService } from './settlements.service';
@@ -55,11 +55,14 @@ export class AdminFinanceController {
   constructor(
     private readonly settlements: SettlementsService,
     private readonly gst: GstService,
+    private readonly directory: DirectoryService,
   ) {}
 
   @Get('commission-rules')
-  rules() {
-    return this.settlements.rules();
+  async rules() {
+    const rules = await this.settlements.rules();
+    const names = await this.directory.lookup('tenants', rules.flatMap((r) => (r.tenantId ? [r.tenantId] : [])));
+    return rules.map((r) => ({ ...r, tenantName: r.tenantId ? (names.get(r.tenantId)?.name ?? null) : null }));
   }
 
   @Post('commission-rules')
@@ -74,8 +77,10 @@ export class AdminFinanceController {
   }
 
   @Get('settlements')
-  list(@Query() q: ListSettlementsDto) {
-    return this.settlements.list(q);
+  async list(@Query() q: ListSettlementsDto) {
+    const page = await this.settlements.list(q);
+    const names = await this.directory.lookup('tenants', page.data.map((s) => s.tenantId));
+    return { ...page, data: page.data.map((s) => ({ ...s, tenantName: names.get(s.tenantId)?.name ?? null })) };
   }
 
   @Get('settlements/:id')

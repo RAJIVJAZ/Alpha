@@ -1,4 +1,4 @@
-import type { InternalHttpService } from '@foodgrid/utils/server';
+import type { InternalHttpService } from './internal-http.service';
 import { DirectoryService } from './directory.service';
 
 const fakeHttp = (impl: (service: string, path: string, body: { ids: string[] }) => Promise<unknown>) => {

@@ -4,6 +4,7 @@ import { Permissions } from '@foodgrid/auth';
 import { CurrentUser, RequirePermissions, Roles } from '@foodgrid/auth/nest';
 import type { PayoutStatus } from '@foodgrid/database';
 import type { AccessTokenClaims } from '@foodgrid/types';
+import { DirectoryService } from '@foodgrid/utils/server';
 import { MarkPayoutDto, PayoutRequestDto, WalletQueryDto } from './dto/wallet.dto';
 import { WalletLedgerService } from './wallet-ledger.service';
 import { WalletsService } from './wallets.service';
@@ -44,11 +45,14 @@ export class AdminWalletsController {
   constructor(
     private readonly wallets: WalletsService,
     private readonly ledger: WalletLedgerService,
+    private readonly directory: DirectoryService,
   ) {}
 
   @Get('payouts')
-  payouts(@Query('status') status?: PayoutStatus, @Query('page') page?: number) {
-    return this.wallets.adminPayouts(status, Number(page) || 1);
+  async payouts(@Query('status') status?: PayoutStatus, @Query('page') page?: number) {
+    const result = await this.wallets.adminPayouts(status, Number(page) || 1);
+    const names = await this.directory.lookup('users', result.data.map((p) => p.ownerId));
+    return { ...result, data: result.data.map((p) => ({ ...p, ownerName: names.get(p.ownerId)?.name ?? null })) };
   }
 
   @Post('payouts/:id/mark-paid')
