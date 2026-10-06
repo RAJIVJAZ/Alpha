@@ -76,7 +76,7 @@ export async function seedDelivery(ctx: SeedContext) {
   });
   await prisma.approvalRequest.create({
     data: {
-      entityType: 'RIDER', entityId: pending.id, title: 'Rider onboarding: Ravi Kumar (Bengaluru, EV_SCOOTER)', submittedBy: applicant.id,
+      entityType: 'RIDER', entityId: pending.id, title: 'Rider onboarding: Ravi Kumar (Bengaluru, EV scooter)', submittedBy: applicant.id,
       documents: pending.documents as object, metadata: { userId: applicant.id, city: 'Bengaluru', vehicleNumber: 'KA-51-EV-2231' },
     },
   });

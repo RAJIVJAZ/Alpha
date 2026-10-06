@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@foodgrid/database/nest';
 import type { CampaignStatus, Prisma } from '@foodgrid/database';
 import type { AccessTokenClaims } from '@foodgrid/types';
-import { badRequest, conflict, dateOnly, istDate, notFound, round2 } from '@foodgrid/utils';
+import { badRequest, conflict, dateOnly, enumLabel, istDate, notFound, round2 } from '@foodgrid/utils';
 import { InternalHttpService } from '@foodgrid/utils/server';
 import { CampaignDto, UpdateCampaignDto } from './dto/campaign.dto';
 
@@ -58,7 +58,7 @@ export class CampaignsService {
       entityType: 'AD_CAMPAIGN',
       entityId: c.id,
       tenantId: c.tenantId,
-      title: `Ad campaign: ${c.name} (${c.placement}, ₹${Number(c.totalBudget)})`,
+      title: `Ad campaign: ${c.name} (${enumLabel(c.placement)}, ₹${Number(c.totalBudget)})`,
       submittedBy: user.sub,
       metadata: { placement: c.placement, targetType: c.targetType, targetId: c.targetId, creative: c.creative },
     });

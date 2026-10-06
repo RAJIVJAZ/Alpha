@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '@foodgrid/database/nest';
 import type { Prisma, RiderStatus } from '@foodgrid/database';
-import { conflict, dateOnly, forbidden, istDate, normalizePage, notFound, paginate } from '@foodgrid/utils';
+import { conflict, dateOnly, enumLabel, forbidden, istDate, normalizePage, notFound, paginate } from '@foodgrid/utils';
 import { InternalHttpService } from '@foodgrid/utils/server';
 import { GeoStore } from '../common/geo-store';
 import { TrackingGateway } from '../tracking/tracking.gateway';
@@ -54,7 +54,7 @@ export class RidersService {
     await this.internal.post('user', 'internal/approvals', {
       entityType: 'RIDER',
       entityId: rider.id,
-      title: `Rider onboarding: ${rider.name} (${rider.city}, ${rider.vehicleType})`,
+      title: `Rider onboarding: ${rider.name} (${rider.city}, ${enumLabel(rider.vehicleType)})`,
       submittedBy: user.sub,
       documents: dto.documents ?? [],
       metadata: { userId: user.sub, city: rider.city, vehicleNumber: rider.vehicleNumber },

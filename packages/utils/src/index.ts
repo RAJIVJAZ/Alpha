@@ -8,3 +8,4 @@ export * from './pagination';
 export * from './errors';
 export * from './state-machine';
 export * from './api-client';
+export * from './text';

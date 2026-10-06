@@ -157,7 +157,7 @@ async function seedPlans(ctx: SeedContext) {
         durationDays: p.durationDays, daysOfWeek: p.daysOfWeek, pricePerMeal: p.pricePerMeal, totalPrice: r2(p.pricePerMeal * meals * 0.95), isVeg: true, menuRotation: p.rotation,
       },
     });
-    const subscribers = ctx.customers.filter((c) => haversineKm(c.address, p.outlet) < 6).slice(0, 3);
+    const subscribers = ctx.customers.filter((c) => haversineKm(c.address, p.outlet) < 6 && c.joinedAt < istMidnight(20, ctx.now)).slice(0, 3);
     for (const c of subscribers) {
       const start = istMidnight(rng.int(6, 14), ctx.now);
       let delivered = 0;

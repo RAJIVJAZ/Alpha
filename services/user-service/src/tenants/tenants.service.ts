@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { randomBytes } from 'node:crypto';
 import { PrismaService } from '@foodgrid/database/nest';
 import type { Prisma } from '@foodgrid/database';
-import { badRequest, conflict, forbidden, gstinStateCode, isValidGstin, notFound } from '@foodgrid/utils';
+import { badRequest, conflict, enumLabel, forbidden, gstinStateCode, isValidGstin, notFound } from '@foodgrid/utils';
 import { ApprovalsService } from '../approvals/approvals.service';
 import { AuditService } from '../common/audit.service';
 import { normalizePhone, slugify } from '../common/phone';
@@ -39,7 +39,7 @@ export class TenantsService {
       entityType: 'TENANT',
       entityId: tenant.id,
       tenantId: tenant.id,
-      title: `${tenant.type.replace('_', ' ')} onboarding: ${tenant.name}`,
+      title: `${enumLabel(tenant.type)} onboarding: ${tenant.name}`,
       submittedBy: userId,
       documents: dto.kycDocuments as unknown as Record<string, unknown>[] | undefined,
       metadata: { type: tenant.type, city: tenant.city, gstin: tenant.gstin },

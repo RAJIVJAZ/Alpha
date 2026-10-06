@@ -138,6 +138,9 @@ export function simulate(ctx: SeedContext): Simulation {
     const dayOrders: SimOrder[] = [];
     for (const outlet of ctx.outlets) {
       const def = outlet.def;
+      // only customers who had signed up by this day
+      const joined = reach.get(outlet.id)!.filter((c) => c.joinedAt.getTime() <= dayStart.getTime());
+      const eligible = joined.length ? joined : reach.get(outlet.id)!;
       const weather = rainy ? (def.type === 'FOOD_CART' ? 0.75 : 1.12) : 1;
       const mean = def.baseDailyOrders * WEEKDAY_FACTOR[def.profile]![weekday]! * trend * (festival?.impact ?? 1) * weather * Math.max(0.6, rng.normal(1, 0.08));
       const n = rng.poisson(mean);
@@ -145,7 +148,7 @@ export function simulate(ctx: SeedContext): Simulation {
       for (let k = 0; k < n; k++) {
         const hour = rng.weighted(hours.map((h) => h[0]), hours.map((h) => h[1]));
         const placedAt = atIst(dayStart, hour, rng.int(0, 59));
-        const o = buildOrder(ctx, rng, outlet, daysAgo, placedAt, reach.get(outlet.id)!, ordersByCustomer);
+        const o = buildOrder(ctx, rng, outlet, daysAgo, placedAt, eligible, ordersByCustomer);
         const finishedAt = o.completedAt ?? o.deliveredAt ?? o.cancelledAt;
         if (daysAgo === 0 && (!finishedAt || finishedAt.getTime() > ctx.now.getTime() - 2 * 60_000)) continue;
         dayOrders.push(o);

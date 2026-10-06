@@ -144,7 +144,10 @@ export async function seedIdentity(ctx: SeedContext) {
     const area = CUSTOMER_AREAS[i % CUSTOMER_AREAS.length]!;
     const loc = LOCALITIES[area]!;
     const phone = i === 0 ? DEMO_CUSTOMER_PHONE : `+9198450${(10000 + i).toString()}`;
-    const joined = istMidnight(rng.int(35, 400), ctx.now);
+    // about a third sign up during the order history (acquisition); the demo
+    // customer and FoodGrid One members are long-standing
+    const recent = i !== 0 && i % 7 !== 0 && rng.chance(0.3);
+    const joined = istMidnight(recent ? rng.int(0, 58) : rng.int(61, 400), ctx.now);
     const lat = round5(loc.lat + rng.float(-0.018, 0.018));
     const lng = round5(loc.lng + rng.float(-0.018, 0.018));
     const addressId = id();
@@ -165,7 +168,7 @@ export async function seedIdentity(ctx: SeedContext) {
       },
     }).then((u) => {
       const ref: CustomerRef = {
-        userId: u.id, name, phone, area, weight: i === 0 ? 1.5 : 1 / (1 + (i % 9)) + rng.float(0.1, 1.2), hasMembership: i % 7 === 0,
+        userId: u.id, name, phone, area, joinedAt: joined, weight: i === 0 ? 1.5 : 1 / (1 + (i % 9)) + rng.float(0.1, 1.2), hasMembership: i % 7 === 0,
         address: { id: addressId, label: 'Home', line1, city: loc.city, state: loc.state, pincode: loc.pincode, lat, lng },
       };
       ctx.customers.push(ref);

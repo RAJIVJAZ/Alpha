@@ -21,6 +21,8 @@ export interface CustomerRef {
   /** Relative ordering frequency (a few heavy users, a long tail). */
   weight: number;
   hasMembership: boolean;
+  /** IST midnight of the sign-up day; the customer orders only after it. */
+  joinedAt: Date;
   /** Set when the customer holds an active FoodGrid One membership. */
   membershipSince?: Date;
 }

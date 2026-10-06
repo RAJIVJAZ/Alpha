@@ -80,7 +80,7 @@ export async function seedAds(ctx: SeedContext) {
   });
   await prisma.approvalRequest.create({
     data: {
-      entityType: 'AD_CAMPAIGN', entityId: pending.id, tenantId: momo.tenantId, title: 'Ad campaign: Momo Monday (CATEGORY_TOP)', submittedBy: ctx.merchants.get('momowagon')!.ownerUserId,
+      entityType: 'AD_CAMPAIGN', entityId: pending.id, tenantId: momo.tenantId, title: 'Ad campaign: Momo Monday (Category top, ₹3000)', submittedBy: ctx.merchants.get('momowagon')!.ownerUserId,
       metadata: { placement: 'CATEGORY_TOP', targetType: 'OUTLET', targetId: momo.id, creative: pending.creative as object },
     },
   });
