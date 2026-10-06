@@ -109,6 +109,9 @@ importers:
       '@types/jest':
         specifier: ^29.5.14
         version: 29.5.14
+      bcryptjs:
+        specifier: ^3.0.3
+        version: 3.0.3
       dotenv:
         specifier: ^17.2.3
         version: 17.4.2

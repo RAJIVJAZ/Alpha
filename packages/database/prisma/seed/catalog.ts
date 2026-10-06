@@ -1,0 +1,648 @@
+/**
+ * Static demo catalog: Bengaluru localities, merchants, B2B sellers and their
+ * products, the ingredient master, menus and recipes.
+ *
+ * Brand and business names are fictional. GST rates are indicative values
+ * for demo data only — confirm HSN-wise rates before relying on them.
+ */
+
+export type Unit = 'KG' | 'G' | 'L' | 'ML' | 'PCS' | 'PACK' | 'DOZEN' | 'BOX';
+export type IngredientCategory =
+  | 'FLOUR' | 'OIL' | 'SUGAR' | 'DAIRY' | 'VEGETABLES' | 'FRUITS' | 'PACKAGING' | 'SPICES'
+  | 'GRAINS' | 'PULSES' | 'MEAT_SEAFOOD' | 'BEVERAGES' | 'FROZEN' | 'BAKERY' | 'CONDIMENTS' | 'OTHER';
+
+// ─── Localities ──────────────────────────────────────────────────────────────
+
+export interface Locality {
+  key: string;
+  name: string;
+  city: string;
+  state: string;
+  stateCode: string;
+  pincode: string;
+  lat: number;
+  lng: number;
+}
+
+export const LOCALITIES: Record<string, Locality> = {
+  koramangala: { key: 'koramangala', name: 'Koramangala', city: 'Bengaluru', state: 'Karnataka', stateCode: '29', pincode: '560034', lat: 12.9352, lng: 77.6245 },
+  indiranagar: { key: 'indiranagar', name: 'Indiranagar', city: 'Bengaluru', state: 'Karnataka', stateCode: '29', pincode: '560038', lat: 12.9784, lng: 77.6408 },
+  hsr: { key: 'hsr', name: 'HSR Layout', city: 'Bengaluru', state: 'Karnataka', stateCode: '29', pincode: '560102', lat: 12.9116, lng: 77.6474 },
+  whitefield: { key: 'whitefield', name: 'Whitefield', city: 'Bengaluru', state: 'Karnataka', stateCode: '29', pincode: '560066', lat: 12.9698, lng: 77.75 },
+  jayanagar: { key: 'jayanagar', name: 'Jayanagar', city: 'Bengaluru', state: 'Karnataka', stateCode: '29', pincode: '560041', lat: 12.925, lng: 77.5938 },
+  mgroad: { key: 'mgroad', name: 'MG Road', city: 'Bengaluru', state: 'Karnataka', stateCode: '29', pincode: '560001', lat: 12.9756, lng: 77.605 },
+  btm: { key: 'btm', name: 'BTM Layout', city: 'Bengaluru', state: 'Karnataka', stateCode: '29', pincode: '560076', lat: 12.9166, lng: 77.6101 },
+  peenya: { key: 'peenya', name: 'Peenya Industrial Area', city: 'Bengaluru', state: 'Karnataka', stateCode: '29', pincode: '560058', lat: 13.0285, lng: 77.5197 },
+  yeshwanthpur: { key: 'yeshwanthpur', name: 'Yeshwanthpur APMC Yard', city: 'Bengaluru', state: 'Karnataka', stateCode: '29', pincode: '560022', lat: 13.028, lng: 77.5409 },
+  hebbal: { key: 'hebbal', name: 'Hebbal', city: 'Bengaluru', state: 'Karnataka', stateCode: '29', pincode: '560024', lat: 13.0358, lng: 77.597 },
+  bommasandra: { key: 'bommasandra', name: 'Bommasandra Industrial Area', city: 'Bengaluru', state: 'Karnataka', stateCode: '29', pincode: '560099', lat: 12.8166, lng: 77.6943 },
+  chickpet: { key: 'chickpet', name: 'Chickpet', city: 'Bengaluru', state: 'Karnataka', stateCode: '29', pincode: '560053', lat: 12.9667, lng: 77.5776 },
+  krmarket: { key: 'krmarket', name: 'KR Market', city: 'Bengaluru', state: 'Karnataka', stateCode: '29', pincode: '560002', lat: 12.9634, lng: 77.5775 },
+  vashi: { key: 'vashi', name: 'Vashi APMC', city: 'Navi Mumbai', state: 'Maharashtra', stateCode: '27', pincode: '400703', lat: 19.0771, lng: 72.9986 },
+};
+
+/** Areas customers live in and riders work in (each becomes a delivery zone). */
+export const CUSTOMER_AREAS = ['koramangala', 'indiranagar', 'hsr', 'whitefield', 'jayanagar', 'mgroad', 'btm'] as const;
+
+export const BENGALURU_PINCODES = ['560001', '560002', '560022', '560024', '560034', '560038', '560041', '560047', '560058', '560066', '560068', '560076', '560095', '560102', '560103'];
+
+// ─── B2B sellers & products ─────────────────────────────────────────────────
+
+export type SellerKey = 'annapurna' | 'freshfarm' | 'cowberry' | 'packright' | 'spiceroute' | 'bharat' | 'konkan' | 'lakshmi';
+
+export interface SellerDef {
+  key: SellerKey;
+  type: 'SUPPLIER' | 'WHOLESALER' | 'RETAILER';
+  name: string;
+  legalName: string;
+  pan: string;
+  locality: string;
+  ownerName: string;
+  rating: number;
+  onTimeRate: number;
+  fillRate: number;
+  avgLeadTimeHours: number;
+  /** Delivery zone terms. */
+  zone: { deliveryCharge: number; freeDeliveryAbove: number | null; minOrderValue: number; leadTimeHours: number };
+}
+
+export const SELLERS: SellerDef[] = [
+  { key: 'annapurna', type: 'SUPPLIER', name: 'Annapurna Mills & Traders', legalName: 'Annapurna Mills and Traders Pvt Ltd', pan: 'AAHCA4821K', locality: 'peenya', ownerName: 'Ramesh Agarwal', rating: 4.5, onTimeRate: 0.94, fillRate: 0.97, avgLeadTimeHours: 22, zone: { deliveryCharge: 150, freeDeliveryAbove: 5000, minOrderValue: 1500, leadTimeHours: 24 } },
+  { key: 'freshfarm', type: 'SUPPLIER', name: 'FreshFarm Agro', legalName: 'FreshFarm Agro Produce LLP', pan: 'AAKFF7310Q', locality: 'yeshwanthpur', ownerName: 'Manjunath Gowda', rating: 4.3, onTimeRate: 0.91, fillRate: 0.93, avgLeadTimeHours: 12, zone: { deliveryCharge: 80, freeDeliveryAbove: 1500, minOrderValue: 500, leadTimeHours: 12 } },
+  { key: 'cowberry', type: 'SUPPLIER', name: 'Cowberry Dairy Distributors', legalName: 'Cowberry Dairy Distributors Pvt Ltd', pan: 'AAGCC2209M', locality: 'hebbal', ownerName: 'Lakshmi Narayan', rating: 4.6, onTimeRate: 0.96, fillRate: 0.98, avgLeadTimeHours: 10, zone: { deliveryCharge: 60, freeDeliveryAbove: 2000, minOrderValue: 600, leadTimeHours: 12 } },
+  { key: 'packright', type: 'SUPPLIER', name: 'PackRight Packaging', legalName: 'PackRight Packaging Solutions Pvt Ltd', pan: 'AAFCP5528D', locality: 'bommasandra', ownerName: 'Sanjay Mehta', rating: 4.2, onTimeRate: 0.89, fillRate: 0.95, avgLeadTimeHours: 36, zone: { deliveryCharge: 200, freeDeliveryAbove: 4000, minOrderValue: 1000, leadTimeHours: 36 } },
+  { key: 'spiceroute', type: 'SUPPLIER', name: 'SpiceRoute Traders', legalName: 'SpiceRoute Traders', pan: 'ABEFS6643H', locality: 'chickpet', ownerName: 'Imran Khan', rating: 4.4, onTimeRate: 0.92, fillRate: 0.96, avgLeadTimeHours: 24, zone: { deliveryCharge: 100, freeDeliveryAbove: 2500, minOrderValue: 800, leadTimeHours: 24 } },
+  { key: 'bharat', type: 'WHOLESALER', name: 'Bharat Wholesale Bazaar', legalName: 'Bharat Wholesale Bazaar Pvt Ltd', pan: 'AADCB9054R', locality: 'krmarket', ownerName: 'Vikram Jain', rating: 4.0, onTimeRate: 0.85, fillRate: 0.9, avgLeadTimeHours: 46, zone: { deliveryCharge: 250, freeDeliveryAbove: 10000, minOrderValue: 3000, leadTimeHours: 48 } },
+  { key: 'konkan', type: 'SUPPLIER', name: 'Konkan Agro Foods', legalName: 'Konkan Agro Foods Pvt Ltd', pan: 'AAICK3378B', locality: 'vashi', ownerName: 'Prakash Patil', rating: 4.1, onTimeRate: 0.83, fillRate: 0.92, avgLeadTimeHours: 70, zone: { deliveryCharge: 450, freeDeliveryAbove: 15000, minOrderValue: 2500, leadTimeHours: 72 } },
+  { key: 'lakshmi', type: 'RETAILER', name: 'Sri Lakshmi Kirana Stores', legalName: 'Sri Lakshmi Kirana Stores', pan: 'BQKPS8812L', locality: 'jayanagar', ownerName: 'Srinivas Rao', rating: 4.4, onTimeRate: 0.97, fillRate: 0.88, avgLeadTimeHours: 4, zone: { deliveryCharge: 40, freeDeliveryAbove: 1000, minOrderValue: 200, leadTimeHours: 4 } },
+];
+
+export const MARKETPLACE_CATEGORIES = [
+  { code: 'DAIRY', name: 'Dairy' },
+  { code: 'FLOUR', name: 'Flour & Atta' },
+  { code: 'SUGAR', name: 'Sugar & Sweeteners' },
+  { code: 'RICE', name: 'Rice & Grains' },
+  { code: 'PULSES', name: 'Pulses & Dals' },
+  { code: 'OIL', name: 'Edible Oils' },
+  { code: 'VEGETABLES', name: 'Vegetables' },
+  { code: 'FRUITS', name: 'Fruits' },
+  { code: 'PACKAGING', name: 'Packaging' },
+  { code: 'SPICES', name: 'Spices & Masalas' },
+  { code: 'BEVERAGES', name: 'Beverages' },
+  { code: 'FROZEN', name: 'Frozen Foods' },
+] as const;
+
+export interface ProductDef {
+  seller: SellerKey;
+  /** Ingredient master key this product supplies (drives demo purchasing). */
+  ingredient: string;
+  category: (typeof MARKETPLACE_CATEGORIES)[number]['code'];
+  name: string;
+  brand: string;
+  unit: Unit;
+  packSize: number;
+  /** Pre-tax price per pack. */
+  price: number;
+  mrp?: number;
+  moq?: number;
+  gstRate: number;
+  hsn: string;
+  deliveryTimeHours: number;
+  tiers?: { minQty: number; unitPrice: number; segment?: 'ALL' | 'RESTAURANT' | 'RETAILER' | 'DEALER' }[];
+  tags?: string[];
+}
+
+export const PRODUCTS: ProductDef[] = [
+  // flour
+  { seller: 'annapurna', ingredient: 'atta', category: 'FLOUR', name: 'Whole Wheat Atta 25 kg', brand: 'Annapurna Gold', unit: 'KG', packSize: 25, price: 900, mrp: 1100, gstRate: 5, hsn: '1101', deliveryTimeHours: 24, tiers: [{ minQty: 10, unitPrice: 870 }], tags: ['atta', 'wheat'] },
+  { seller: 'bharat', ingredient: 'atta', category: 'FLOUR', name: 'Chakki Fresh Whole Wheat Atta 50 kg', brand: 'Bharat Select', unit: 'KG', packSize: 50, price: 1700, moq: 2, gstRate: 5, hsn: '1101', deliveryTimeHours: 48, tiers: [{ minQty: 10, unitPrice: 1650 }, { minQty: 5, unitPrice: 1660, segment: 'DEALER' }], tags: ['atta', 'wheat'] },
+  { seller: 'lakshmi', ingredient: 'atta', category: 'FLOUR', name: 'Whole Wheat Atta 10 kg', brand: 'Grihini', unit: 'KG', packSize: 10, price: 420, mrp: 480, gstRate: 5, hsn: '1101', deliveryTimeHours: 4, tags: ['atta'] },
+  { seller: 'annapurna', ingredient: 'maida', category: 'FLOUR', name: 'Maida Refined Flour 25 kg', brand: 'Annapurna Gold', unit: 'KG', packSize: 25, price: 850, gstRate: 5, hsn: '1101', deliveryTimeHours: 24, tiers: [{ minQty: 10, unitPrice: 825 }], tags: ['maida', 'flour'] },
+  { seller: 'bharat', ingredient: 'maida', category: 'FLOUR', name: 'Maida 50 kg', brand: 'Bharat Select', unit: 'KG', packSize: 50, price: 1625, moq: 2, gstRate: 5, hsn: '1101', deliveryTimeHours: 48, tags: ['maida'] },
+  { seller: 'annapurna', ingredient: 'pizza_flour', category: 'FLOUR', name: 'Pizza Flour Type 00 10 kg', brand: 'Molino Rosa', unit: 'KG', packSize: 10, price: 680, gstRate: 5, hsn: '1101', deliveryTimeHours: 24, tags: ['pizza', 'flour'] },
+  { seller: 'annapurna', ingredient: 'besan', category: 'FLOUR', name: 'Besan Gram Flour 10 kg', brand: 'Annapurna Gold', unit: 'KG', packSize: 10, price: 880, gstRate: 5, hsn: '1106', deliveryTimeHours: 24, tags: ['besan', 'gram'] },
+  { seller: 'bharat', ingredient: 'besan', category: 'FLOUR', name: 'Besan 25 kg', brand: 'Bharat Select', unit: 'KG', packSize: 25, price: 2125, gstRate: 5, hsn: '1106', deliveryTimeHours: 48, tags: ['besan'] },
+  { seller: 'annapurna', ingredient: 'sooji', category: 'FLOUR', name: 'Bombay Rava Sooji 25 kg', brand: 'Annapurna Gold', unit: 'KG', packSize: 25, price: 1150, gstRate: 5, hsn: '1103', deliveryTimeHours: 24, tags: ['rava', 'sooji', 'semolina'] },
+  // rice & grains
+  { seller: 'annapurna', ingredient: 'rice_basmati', category: 'RICE', name: 'Basmati Rice 1121 Sella 25 kg', brand: 'Royal Harvest', unit: 'KG', packSize: 25, price: 2650, mrp: 3200, gstRate: 5, hsn: '1006', deliveryTimeHours: 24, tiers: [{ minQty: 5, unitPrice: 2550 }], tags: ['basmati', 'rice'] },
+  { seller: 'bharat', ingredient: 'rice_basmati', category: 'RICE', name: 'Basmati Rice Premium 25 kg', brand: 'Bharat Select', unit: 'KG', packSize: 25, price: 2550, moq: 4, gstRate: 5, hsn: '1006', deliveryTimeHours: 48, tiers: [{ minQty: 10, unitPrice: 2450 }], tags: ['basmati', 'rice'] },
+  { seller: 'annapurna', ingredient: 'rice_idli', category: 'RICE', name: 'Idli Rice 25 kg', brand: 'Annapurna Gold', unit: 'KG', packSize: 25, price: 1150, gstRate: 5, hsn: '1006', deliveryTimeHours: 24, tags: ['idli', 'rice'] },
+  { seller: 'bharat', ingredient: 'rice_idli', category: 'RICE', name: 'Idli Rice 50 kg', brand: 'Bharat Select', unit: 'KG', packSize: 50, price: 2200, moq: 2, gstRate: 5, hsn: '1006', deliveryTimeHours: 48, tags: ['idli', 'rice'] },
+  { seller: 'bharat', ingredient: 'murmura', category: 'RICE', name: 'Puffed Rice Murmura 5 kg', brand: 'Bharat Select', unit: 'KG', packSize: 5, price: 300, gstRate: 5, hsn: '1904', deliveryTimeHours: 48, tags: ['murmura', 'puffed'] },
+  // pulses
+  { seller: 'annapurna', ingredient: 'urad_dal', category: 'PULSES', name: 'Urad Dal Split 25 kg', brand: 'Annapurna Gold', unit: 'KG', packSize: 25, price: 3050, gstRate: 5, hsn: '0713', deliveryTimeHours: 24, tags: ['urad', 'dal'] },
+  { seller: 'bharat', ingredient: 'urad_dal', category: 'PULSES', name: 'Urad Dal 30 kg', brand: 'Bharat Select', unit: 'KG', packSize: 30, price: 3540, gstRate: 5, hsn: '0713', deliveryTimeHours: 48, tags: ['urad', 'dal'] },
+  { seller: 'annapurna', ingredient: 'toor_dal', category: 'PULSES', name: 'Toor Dal 25 kg', brand: 'Annapurna Gold', unit: 'KG', packSize: 25, price: 3625, gstRate: 5, hsn: '0713', deliveryTimeHours: 24, tags: ['toor', 'dal'] },
+  { seller: 'bharat', ingredient: 'toor_dal', category: 'PULSES', name: 'Toor Dal 30 kg', brand: 'Bharat Select', unit: 'KG', packSize: 30, price: 4260, gstRate: 5, hsn: '0713', deliveryTimeHours: 48, tags: ['toor', 'dal'] },
+  { seller: 'annapurna', ingredient: 'chana', category: 'PULSES', name: 'Kabuli Chana 25 kg', brand: 'Annapurna Gold', unit: 'KG', packSize: 25, price: 3375, gstRate: 5, hsn: '0713', deliveryTimeHours: 24, tags: ['chana', 'chickpea'] },
+  { seller: 'bharat', ingredient: 'chana', category: 'PULSES', name: 'Kabuli Chana 30 kg', brand: 'Bharat Select', unit: 'KG', packSize: 30, price: 3960, gstRate: 5, hsn: '0713', deliveryTimeHours: 48, tags: ['chana'] },
+  { seller: 'annapurna', ingredient: 'rajma', category: 'PULSES', name: 'Rajma Red Kidney Beans 25 kg', brand: 'Annapurna Gold', unit: 'KG', packSize: 25, price: 3500, gstRate: 5, hsn: '0713', deliveryTimeHours: 24, tags: ['rajma'] },
+  // sugar
+  { seller: 'annapurna', ingredient: 'sugar', category: 'SUGAR', name: 'Sugar S-30 50 kg', brand: 'Deccan Sugars', unit: 'KG', packSize: 50, price: 2150, gstRate: 5, hsn: '1701', deliveryTimeHours: 24, tags: ['sugar'] },
+  { seller: 'bharat', ingredient: 'sugar', category: 'SUGAR', name: 'Sugar 50 kg', brand: 'Bharat Select', unit: 'KG', packSize: 50, price: 2100, moq: 2, gstRate: 5, hsn: '1701', deliveryTimeHours: 48, tiers: [{ minQty: 10, unitPrice: 2060 }], tags: ['sugar'] },
+  { seller: 'lakshmi', ingredient: 'sugar', category: 'SUGAR', name: 'Sugar 5 kg', brand: 'Deccan Sugars', unit: 'KG', packSize: 5, price: 240, mrp: 260, gstRate: 5, hsn: '1701', deliveryTimeHours: 4, tags: ['sugar'] },
+  // oil
+  { seller: 'annapurna', ingredient: 'oil_sunflower', category: 'OIL', name: 'Refined Sunflower Oil 15 L Tin', brand: 'Suryakanti', unit: 'L', packSize: 15, price: 1950, mrp: 2300, gstRate: 5, hsn: '1512', deliveryTimeHours: 24, tiers: [{ minQty: 10, unitPrice: 1900 }], tags: ['sunflower', 'oil'] },
+  { seller: 'bharat', ingredient: 'oil_sunflower', category: 'OIL', name: 'Sunflower Oil 15 L', brand: 'Bharat Select', unit: 'L', packSize: 15, price: 1890, moq: 2, gstRate: 5, hsn: '1512', deliveryTimeHours: 48, tags: ['sunflower', 'oil'] },
+  { seller: 'lakshmi', ingredient: 'oil_sunflower', category: 'OIL', name: 'Sunflower Oil 5 L Can', brand: 'Suryakanti', unit: 'L', packSize: 5, price: 700, mrp: 760, gstRate: 5, hsn: '1512', deliveryTimeHours: 4, tags: ['sunflower', 'oil'] },
+  { seller: 'bharat', ingredient: 'oil_olive', category: 'OIL', name: 'Pomace Olive Oil 5 L', brand: 'Oliva Verde', unit: 'L', packSize: 5, price: 3100, gstRate: 5, hsn: '1510', deliveryTimeHours: 48, tags: ['olive', 'oil'] },
+  // dairy
+  { seller: 'cowberry', ingredient: 'milk', category: 'DAIRY', name: 'Toned Milk 1 L Crate of 12', brand: 'Cowberry', unit: 'L', packSize: 12, price: 612, gstRate: 0, hsn: '0401', deliveryTimeHours: 12, tags: ['milk'] },
+  { seller: 'lakshmi', ingredient: 'milk', category: 'DAIRY', name: 'Toned Milk 1 L', brand: 'Cowberry', unit: 'L', packSize: 1, price: 56, gstRate: 0, hsn: '0401', deliveryTimeHours: 4, tags: ['milk'] },
+  { seller: 'cowberry', ingredient: 'paneer', category: 'DAIRY', name: 'Fresh Paneer 1 kg', brand: 'Cowberry', unit: 'KG', packSize: 1, price: 330, moq: 2, gstRate: 0, hsn: '0406', deliveryTimeHours: 12, tiers: [{ minQty: 10, unitPrice: 318 }], tags: ['paneer'] },
+  { seller: 'cowberry', ingredient: 'curd', category: 'DAIRY', name: 'Set Curd 5 kg Bucket', brand: 'Cowberry', unit: 'KG', packSize: 5, price: 325, gstRate: 5, hsn: '0403', deliveryTimeHours: 12, tags: ['curd', 'dahi'] },
+  { seller: 'lakshmi', ingredient: 'curd', category: 'DAIRY', name: 'Curd 1 kg', brand: 'Cowberry', unit: 'KG', packSize: 1, price: 78, gstRate: 5, hsn: '0403', deliveryTimeHours: 4, tags: ['curd'] },
+  { seller: 'cowberry', ingredient: 'butter', category: 'DAIRY', name: 'Unsalted Butter 500 g', brand: 'Cowberry', unit: 'KG', packSize: 0.5, price: 235, gstRate: 5, hsn: '0405', deliveryTimeHours: 12, tiers: [{ minQty: 10, unitPrice: 228 }], tags: ['butter'] },
+  { seller: 'cowberry', ingredient: 'cream', category: 'DAIRY', name: 'Fresh Cream 1 L', brand: 'Cowberry', unit: 'L', packSize: 1, price: 215, gstRate: 5, hsn: '0401', deliveryTimeHours: 12, tags: ['cream'] },
+  { seller: 'cowberry', ingredient: 'mozzarella', category: 'DAIRY', name: 'Mozzarella Cheese Block 2 kg', brand: 'Cowberry', unit: 'KG', packSize: 2, price: 820, gstRate: 5, hsn: '0406', deliveryTimeHours: 12, tiers: [{ minQty: 5, unitPrice: 790 }], tags: ['mozzarella', 'cheese'] },
+  { seller: 'cowberry', ingredient: 'ghee', category: 'DAIRY', name: 'Pure Cow Ghee 15 kg Tin', brand: 'Cowberry', unit: 'KG', packSize: 15, price: 8700, gstRate: 5, hsn: '0405', deliveryTimeHours: 12, tags: ['ghee'] },
+  { seller: 'cowberry', ingredient: 'frozen_peas', category: 'FROZEN', name: 'Frozen Green Peas 1 kg', brand: 'Cowberry', unit: 'KG', packSize: 1, price: 125, gstRate: 5, hsn: '0710', deliveryTimeHours: 12, tags: ['peas', 'frozen'] },
+  // vegetables & fruits
+  ...([
+    ['onion', 'Onion', 30, 28],
+    ['tomato', 'Tomato', 26, 24],
+    ['potato', 'Potato', 24, 22],
+    ['capsicum', 'Capsicum Green', 58, 55],
+    ['ginger', 'Ginger', 110, 104],
+    ['garlic', 'Garlic', 160, 150],
+    ['coriander', 'Coriander Leaves', 75, 70],
+    ['cabbage', 'Cabbage', 20, 18],
+    ['carrot', 'Carrot', 38, 35],
+  ] as const).map(([ingredient, name, price, bulk]): ProductDef => ({
+    seller: 'freshfarm', ingredient, category: 'VEGETABLES', name: `${name} Fresh (per kg)`, brand: 'FreshFarm', unit: 'KG', packSize: 1, price, moq: 5, gstRate: 0, hsn: '0709', deliveryTimeHours: 12, tiers: [{ minQty: 50, unitPrice: bulk }], tags: [ingredient],
+  })),
+  ...([
+    ['onion', 'Onion', 36],
+    ['tomato', 'Tomato', 34],
+    ['potato', 'Potato', 30],
+  ] as const).map(([ingredient, name, price]): ProductDef => ({
+    seller: 'lakshmi', ingredient, category: 'VEGETABLES', name: `${name} (per kg)`, brand: 'Local', unit: 'KG', packSize: 1, price, gstRate: 0, hsn: '0709', deliveryTimeHours: 4, tags: [ingredient],
+  })),
+  { seller: 'freshfarm', ingredient: 'lemon', category: 'FRUITS', name: 'Lemon Fresh (per kg)', brand: 'FreshFarm', unit: 'KG', packSize: 1, price: 90, moq: 2, gstRate: 0, hsn: '0805', deliveryTimeHours: 12, tags: ['lemon'] },
+  { seller: 'freshfarm', ingredient: 'watermelon', category: 'FRUITS', name: 'Watermelon (per kg)', brand: 'FreshFarm', unit: 'KG', packSize: 1, price: 22, moq: 10, gstRate: 0, hsn: '0807', deliveryTimeHours: 12, tags: ['watermelon'] },
+  // spices
+  { seller: 'spiceroute', ingredient: 'garam_masala', category: 'SPICES', name: 'Garam Masala Powder 1 kg', brand: 'SpiceRoute', unit: 'KG', packSize: 1, price: 580, gstRate: 5, hsn: '0910', deliveryTimeHours: 24, tags: ['garam', 'masala'] },
+  { seller: 'spiceroute', ingredient: 'chilli_powder', category: 'SPICES', name: 'Red Chilli Powder 1 kg', brand: 'SpiceRoute', unit: 'KG', packSize: 1, price: 300, gstRate: 5, hsn: '0904', deliveryTimeHours: 24, tags: ['chilli'] },
+  { seller: 'bharat', ingredient: 'chilli_powder', category: 'SPICES', name: 'Red Chilli Powder 5 kg', brand: 'Bharat Select', unit: 'KG', packSize: 5, price: 1450, gstRate: 5, hsn: '0904', deliveryTimeHours: 48, tags: ['chilli'] },
+  { seller: 'spiceroute', ingredient: 'turmeric', category: 'SPICES', name: 'Turmeric Powder 1 kg', brand: 'SpiceRoute', unit: 'KG', packSize: 1, price: 225, gstRate: 5, hsn: '0910', deliveryTimeHours: 24, tags: ['turmeric', 'haldi'] },
+  { seller: 'bharat', ingredient: 'turmeric', category: 'SPICES', name: 'Turmeric Powder 5 kg', brand: 'Bharat Select', unit: 'KG', packSize: 5, price: 1080, gstRate: 5, hsn: '0910', deliveryTimeHours: 48, tags: ['turmeric'] },
+  { seller: 'spiceroute', ingredient: 'oregano', category: 'SPICES', name: 'Oregano Seasoning 500 g', brand: 'SpiceRoute', unit: 'KG', packSize: 0.5, price: 430, gstRate: 5, hsn: '0910', deliveryTimeHours: 24, tags: ['oregano'] },
+  // packaging
+  { seller: 'packright', ingredient: 'meal_box', category: 'PACKAGING', name: 'Meal Box 3 Compartment (100 pcs)', brand: 'PackRight', unit: 'PCS', packSize: 100, price: 850, gstRate: 18, hsn: '3923', deliveryTimeHours: 36, tiers: [{ minQty: 10, unitPrice: 800 }], tags: ['meal', 'box'] },
+  { seller: 'packright', ingredient: 'pizza_box', category: 'PACKAGING', name: 'Pizza Box 10 inch (100 pcs)', brand: 'PackRight', unit: 'PCS', packSize: 100, price: 1300, gstRate: 5, hsn: '4819', deliveryTimeHours: 36, tiers: [{ minQty: 10, unitPrice: 1220 }], tags: ['pizza', 'box'] },
+  { seller: 'packright', ingredient: 'container_500', category: 'PACKAGING', name: 'Round Container 500 ml (100 pcs)', brand: 'PackRight', unit: 'PCS', packSize: 100, price: 550, gstRate: 18, hsn: '3923', deliveryTimeHours: 36, tags: ['container', 'round'] },
+  { seller: 'bharat', ingredient: 'container_500', category: 'PACKAGING', name: 'Round Container 500 ml (500 pcs)', brand: 'Bharat Select', unit: 'PCS', packSize: 500, price: 2600, gstRate: 18, hsn: '3923', deliveryTimeHours: 48, tags: ['container'] },
+  { seller: 'packright', ingredient: 'leaf_plate', category: 'PACKAGING', name: 'Areca Leaf Plate 8 inch (100 pcs)', brand: 'PackRight', unit: 'PCS', packSize: 100, price: 280, gstRate: 5, hsn: '4823', deliveryTimeHours: 36, tags: ['plate', 'areca', 'leaf'] },
+  { seller: 'packright', ingredient: 'carry_bag', category: 'PACKAGING', name: 'Paper Carry Bag Medium (100 pcs)', brand: 'PackRight', unit: 'PCS', packSize: 100, price: 380, gstRate: 5, hsn: '4819', deliveryTimeHours: 36, tags: ['bag', 'paper', 'carry'] },
+  // beverages
+  { seller: 'konkan', ingredient: 'tea', category: 'BEVERAGES', name: 'CTC Tea Leaves 5 kg', brand: 'Sahyadri Estates', unit: 'KG', packSize: 5, price: 2000, gstRate: 5, hsn: '0902', deliveryTimeHours: 72, tags: ['tea', 'ctc'] },
+  { seller: 'bharat', ingredient: 'tea', category: 'BEVERAGES', name: 'CTC Tea 1 kg', brand: 'Bharat Select', unit: 'KG', packSize: 1, price: 430, gstRate: 5, hsn: '0902', deliveryTimeHours: 48, tags: ['tea'] },
+  { seller: 'konkan', ingredient: 'coffee', category: 'BEVERAGES', name: 'Filter Coffee Powder 1 kg', brand: 'Sahyadri Estates', unit: 'KG', packSize: 1, price: 540, gstRate: 5, hsn: '0901', deliveryTimeHours: 72, tags: ['coffee', 'filter'] },
+  { seller: 'lakshmi', ingredient: 'coffee', category: 'BEVERAGES', name: 'Filter Coffee Powder 500 g', brand: 'Malnad Brew', unit: 'KG', packSize: 0.5, price: 300, gstRate: 5, hsn: '0901', deliveryTimeHours: 4, tags: ['coffee'] },
+  // frozen
+  { seller: 'konkan', ingredient: 'frozen_peas', category: 'FROZEN', name: 'Frozen Green Peas 5 kg', brand: 'Sahyadri Frozen', unit: 'KG', packSize: 5, price: 560, gstRate: 5, hsn: '0710', deliveryTimeHours: 72, tags: ['peas', 'frozen'] },
+  { seller: 'konkan', ingredient: 'sweet_corn', category: 'FROZEN', name: 'Frozen Sweet Corn 5 kg', brand: 'Sahyadri Frozen', unit: 'KG', packSize: 5, price: 660, gstRate: 5, hsn: '0710', deliveryTimeHours: 72, tags: ['corn', 'frozen'] },
+  { seller: 'konkan', ingredient: 'fries', category: 'FROZEN', name: 'Frozen French Fries 2.5 kg', brand: 'Sahyadri Frozen', unit: 'KG', packSize: 2.5, price: 360, gstRate: 5, hsn: '2004', deliveryTimeHours: 72, tags: ['fries', 'frozen'] },
+];
+
+// ─── Ingredient master ───────────────────────────────────────────────────────
+
+export interface IngredientDef {
+  name: string;
+  category: IngredientCategory;
+  unit: Unit;
+  /** Fallback cost per unit for ingredients bought off-platform. */
+  cost: number;
+  shelfLifeDays: number;
+  storage: 'DRY' | 'CHILLED' | 'FROZEN';
+  leadTimeDays: number;
+}
+
+export const INGREDIENTS: Record<string, IngredientDef> = {
+  atta: { name: 'Whole Wheat Atta', category: 'FLOUR', unit: 'KG', cost: 38, shelfLifeDays: 90, storage: 'DRY', leadTimeDays: 2 },
+  maida: { name: 'Maida Refined Flour', category: 'FLOUR', unit: 'KG', cost: 36, shelfLifeDays: 120, storage: 'DRY', leadTimeDays: 2 },
+  pizza_flour: { name: 'Pizza Flour Type 00', category: 'FLOUR', unit: 'KG', cost: 70, shelfLifeDays: 120, storage: 'DRY', leadTimeDays: 2 },
+  besan: { name: 'Besan Gram Flour', category: 'FLOUR', unit: 'KG', cost: 90, shelfLifeDays: 120, storage: 'DRY', leadTimeDays: 2 },
+  sooji: { name: 'Rava Sooji', category: 'FLOUR', unit: 'KG', cost: 48, shelfLifeDays: 120, storage: 'DRY', leadTimeDays: 2 },
+  rice_basmati: { name: 'Basmati Rice', category: 'GRAINS', unit: 'KG', cost: 110, shelfLifeDays: 365, storage: 'DRY', leadTimeDays: 2 },
+  rice_idli: { name: 'Idli Rice', category: 'GRAINS', unit: 'KG', cost: 48, shelfLifeDays: 365, storage: 'DRY', leadTimeDays: 2 },
+  murmura: { name: 'Puffed Rice Murmura', category: 'GRAINS', unit: 'KG', cost: 62, shelfLifeDays: 60, storage: 'DRY', leadTimeDays: 2 },
+  urad_dal: { name: 'Urad Dal', category: 'PULSES', unit: 'KG', cost: 125, shelfLifeDays: 270, storage: 'DRY', leadTimeDays: 2 },
+  toor_dal: { name: 'Toor Dal', category: 'PULSES', unit: 'KG', cost: 150, shelfLifeDays: 270, storage: 'DRY', leadTimeDays: 2 },
+  chana: { name: 'Kabuli Chana', category: 'PULSES', unit: 'KG', cost: 140, shelfLifeDays: 270, storage: 'DRY', leadTimeDays: 2 },
+  rajma: { name: 'Rajma Kidney Beans', category: 'PULSES', unit: 'KG', cost: 145, shelfLifeDays: 270, storage: 'DRY', leadTimeDays: 2 },
+  sugar: { name: 'Sugar', category: 'SUGAR', unit: 'KG', cost: 44, shelfLifeDays: 365, storage: 'DRY', leadTimeDays: 2 },
+  oil_sunflower: { name: 'Sunflower Oil', category: 'OIL', unit: 'L', cost: 135, shelfLifeDays: 270, storage: 'DRY', leadTimeDays: 2 },
+  oil_olive: { name: 'Pomace Olive Oil', category: 'OIL', unit: 'L', cost: 640, shelfLifeDays: 365, storage: 'DRY', leadTimeDays: 2 },
+  milk: { name: 'Toned Milk', category: 'DAIRY', unit: 'L', cost: 54, shelfLifeDays: 3, storage: 'CHILLED', leadTimeDays: 1 },
+  paneer: { name: 'Fresh Paneer', category: 'DAIRY', unit: 'KG', cost: 340, shelfLifeDays: 5, storage: 'CHILLED', leadTimeDays: 1 },
+  curd: { name: 'Curd', category: 'DAIRY', unit: 'KG', cost: 70, shelfLifeDays: 5, storage: 'CHILLED', leadTimeDays: 1 },
+  butter: { name: 'Unsalted Butter', category: 'DAIRY', unit: 'KG', cost: 480, shelfLifeDays: 60, storage: 'CHILLED', leadTimeDays: 1 },
+  cream: { name: 'Fresh Cream', category: 'DAIRY', unit: 'L', cost: 220, shelfLifeDays: 7, storage: 'CHILLED', leadTimeDays: 1 },
+  mozzarella: { name: 'Mozzarella Cheese', category: 'DAIRY', unit: 'KG', cost: 420, shelfLifeDays: 30, storage: 'CHILLED', leadTimeDays: 1 },
+  ghee: { name: 'Cow Ghee', category: 'DAIRY', unit: 'KG', cost: 600, shelfLifeDays: 180, storage: 'DRY', leadTimeDays: 1 },
+  onion: { name: 'Onion', category: 'VEGETABLES', unit: 'KG', cost: 32, shelfLifeDays: 14, storage: 'DRY', leadTimeDays: 1 },
+  tomato: { name: 'Tomato', category: 'VEGETABLES', unit: 'KG', cost: 28, shelfLifeDays: 5, storage: 'CHILLED', leadTimeDays: 1 },
+  potato: { name: 'Potato', category: 'VEGETABLES', unit: 'KG', cost: 26, shelfLifeDays: 20, storage: 'DRY', leadTimeDays: 1 },
+  capsicum: { name: 'Capsicum Green', category: 'VEGETABLES', unit: 'KG', cost: 60, shelfLifeDays: 6, storage: 'CHILLED', leadTimeDays: 1 },
+  ginger: { name: 'Ginger', category: 'VEGETABLES', unit: 'KG', cost: 115, shelfLifeDays: 14, storage: 'DRY', leadTimeDays: 1 },
+  garlic: { name: 'Garlic', category: 'VEGETABLES', unit: 'KG', cost: 165, shelfLifeDays: 30, storage: 'DRY', leadTimeDays: 1 },
+  coriander: { name: 'Coriander Leaves', category: 'VEGETABLES', unit: 'KG', cost: 80, shelfLifeDays: 3, storage: 'CHILLED', leadTimeDays: 1 },
+  cabbage: { name: 'Cabbage', category: 'VEGETABLES', unit: 'KG', cost: 22, shelfLifeDays: 10, storage: 'CHILLED', leadTimeDays: 1 },
+  carrot: { name: 'Carrot', category: 'VEGETABLES', unit: 'KG', cost: 40, shelfLifeDays: 10, storage: 'CHILLED', leadTimeDays: 1 },
+  lemon: { name: 'Lemon', category: 'FRUITS', unit: 'KG', cost: 92, shelfLifeDays: 10, storage: 'CHILLED', leadTimeDays: 1 },
+  watermelon: { name: 'Watermelon', category: 'FRUITS', unit: 'KG', cost: 24, shelfLifeDays: 7, storage: 'DRY', leadTimeDays: 1 },
+  chicken: { name: 'Chicken Boneless', category: 'MEAT_SEAFOOD', unit: 'KG', cost: 260, shelfLifeDays: 2, storage: 'CHILLED', leadTimeDays: 1 },
+  garam_masala: { name: 'Garam Masala', category: 'SPICES', unit: 'KG', cost: 600, shelfLifeDays: 180, storage: 'DRY', leadTimeDays: 2 },
+  chilli_powder: { name: 'Red Chilli Powder', category: 'SPICES', unit: 'KG', cost: 310, shelfLifeDays: 180, storage: 'DRY', leadTimeDays: 2 },
+  turmeric: { name: 'Turmeric Powder', category: 'SPICES', unit: 'KG', cost: 230, shelfLifeDays: 180, storage: 'DRY', leadTimeDays: 2 },
+  oregano: { name: 'Oregano Seasoning', category: 'SPICES', unit: 'KG', cost: 880, shelfLifeDays: 180, storage: 'DRY', leadTimeDays: 2 },
+  pizza_sauce: { name: 'Pizza Sauce', category: 'CONDIMENTS', unit: 'KG', cost: 180, shelfLifeDays: 30, storage: 'CHILLED', leadTimeDays: 2 },
+  pasta: { name: 'Penne Pasta', category: 'OTHER', unit: 'KG', cost: 160, shelfLifeDays: 365, storage: 'DRY', leadTimeDays: 2 },
+  sev: { name: 'Nylon Sev', category: 'OTHER', unit: 'KG', cost: 180, shelfLifeDays: 45, storage: 'DRY', leadTimeDays: 1 },
+  puri: { name: 'Pani Puri Shells', category: 'OTHER', unit: 'PCS', cost: 0.5, shelfLifeDays: 10, storage: 'DRY', leadTimeDays: 1 },
+  tea: { name: 'CTC Tea', category: 'BEVERAGES', unit: 'KG', cost: 420, shelfLifeDays: 365, storage: 'DRY', leadTimeDays: 3 },
+  coffee: { name: 'Filter Coffee Powder', category: 'BEVERAGES', unit: 'KG', cost: 560, shelfLifeDays: 120, storage: 'DRY', leadTimeDays: 3 },
+  frozen_peas: { name: 'Frozen Green Peas', category: 'FROZEN', unit: 'KG', cost: 120, shelfLifeDays: 180, storage: 'FROZEN', leadTimeDays: 3 },
+  sweet_corn: { name: 'Frozen Sweet Corn', category: 'FROZEN', unit: 'KG', cost: 140, shelfLifeDays: 180, storage: 'FROZEN', leadTimeDays: 3 },
+  fries: { name: 'Frozen French Fries', category: 'FROZEN', unit: 'KG', cost: 150, shelfLifeDays: 180, storage: 'FROZEN', leadTimeDays: 3 },
+  meal_box: { name: 'Meal Box 3 Compartment', category: 'PACKAGING', unit: 'PCS', cost: 8.5, shelfLifeDays: 730, storage: 'DRY', leadTimeDays: 2 },
+  pizza_box: { name: 'Pizza Box 10 inch', category: 'PACKAGING', unit: 'PCS', cost: 13, shelfLifeDays: 730, storage: 'DRY', leadTimeDays: 2 },
+  container_500: { name: 'Round Container 500 ml', category: 'PACKAGING', unit: 'PCS', cost: 5.5, shelfLifeDays: 730, storage: 'DRY', leadTimeDays: 2 },
+  leaf_plate: { name: 'Areca Leaf Plate', category: 'PACKAGING', unit: 'PCS', cost: 2.8, shelfLifeDays: 365, storage: 'DRY', leadTimeDays: 2 },
+  carry_bag: { name: 'Paper Carry Bag', category: 'PACKAGING', unit: 'PCS', cost: 3.8, shelfLifeDays: 730, storage: 'DRY', leadTimeDays: 2 },
+};
+
+// ─── Merchants, menus & recipes ─────────────────────────────────────────────
+
+/** Recipe line: [ingredient key, quantity in the ingredient's unit]. */
+export type RecipeLine = [string, number];
+
+export interface MenuItemDef {
+  name: string;
+  price: number;
+  isVeg: boolean;
+  /** Relative popularity used by the demand simulation. */
+  popularity: number;
+  recipe: RecipeLine[];
+  description?: string;
+  prepTimeMins?: number;
+  station?: string;
+  recommended?: boolean;
+  spiceLevel?: number;
+  variants?: { name: string; priceDelta: number; isDefault?: boolean }[];
+  addons?: { group: string; maxSelect: number; options: { name: string; price: number; isVeg?: boolean }[] };
+}
+
+export interface MenuDef {
+  categories: { name: string; items: MenuItemDef[] }[];
+}
+
+export interface OutletDef {
+  key: string;
+  name: string;
+  type: 'RESTAURANT' | 'FOOD_CART' | 'CLOUD_KITCHEN';
+  locality: string;
+  /** Small offset from the locality centre so outlets do not overlap. */
+  offset: [number, number];
+  addressLine1: string;
+  cuisines: string[];
+  tags: string[];
+  isPureVeg: boolean;
+  costForTwo: number;
+  avgPrepTimeMins: number;
+  packagingCharge: number;
+  minOrderValue: number;
+  dineIn: boolean;
+  qr: boolean;
+  isMobile?: boolean;
+  /** [open, close] "HH:mm" in IST; a close earlier than open crosses midnight. */
+  hours: [string, string];
+  /** Mean daily orders on a normal weekday. */
+  baseDailyOrders: number;
+  /** Ordering-hour profile. */
+  profile: 'meals' | 'breakfast' | 'evening' | 'allday';
+  channelMix: { APP: number; WEB: number; QR: number; POS: number };
+  menu: MenuDef;
+  tables?: number;
+  kdsStations?: string[];
+}
+
+export interface MerchantDef {
+  key: string;
+  type: 'RESTAURANT' | 'FOOD_CART';
+  name: string;
+  legalName: string;
+  pan: string;
+  locality: string;
+  owner: { name: string; email: string; phone: string };
+  staff?: { name: string; email: string; phone: string; role: 'MANAGER' | 'CHEF' | 'CASHIER' | 'PROCUREMENT_MANAGER' | 'ACCOUNTANT' }[];
+  commissionRate?: number;
+  outlets: OutletDef[];
+}
+
+const pkg = (key: string, qty = 1): RecipeLine => [key, qty];
+
+const SPICE_GARDEN_MENU: MenuDef = {
+  categories: [
+    {
+      name: 'Starters',
+      items: [
+        { name: 'Paneer Tikka', price: 289, isVeg: true, popularity: 7, recommended: true, spiceLevel: 2, station: 'TANDOOR', description: 'Cottage cheese cubes marinated in hung curd and spices, char-grilled in the tandoor.', recipe: [['paneer', 0.2], ['curd', 0.05], ['capsicum', 0.05], ['onion', 0.05], ['chilli_powder', 0.005], ['garam_masala', 0.003], ['oil_sunflower', 0.02], pkg('container_500')] },
+        { name: 'Chicken Tikka', price: 329, isVeg: false, popularity: 8, spiceLevel: 2, station: 'TANDOOR', description: 'Boneless chicken marinated overnight, smoky and juicy.', recipe: [['chicken', 0.25], ['curd', 0.06], ['lemon', 0.02], ['chilli_powder', 0.006], ['garam_masala', 0.003], ['oil_sunflower', 0.02], pkg('container_500')] },
+        { name: 'Aloo Tikki', price: 149, isVeg: true, popularity: 4, description: 'Crisp potato patties with peas and coriander.', recipe: [['potato', 0.2], ['frozen_peas', 0.03], ['besan', 0.03], ['coriander', 0.01], ['chilli_powder', 0.003], ['oil_sunflower', 0.04], pkg('container_500')] },
+      ],
+    },
+    {
+      name: 'Main Course',
+      items: [
+        { name: 'Butter Chicken', price: 379, isVeg: false, popularity: 14, recommended: true, spiceLevel: 1, description: 'Tandoori chicken simmered in a velvety tomato-butter gravy.', recipe: [['chicken', 0.25], ['butter', 0.04], ['cream', 0.05], ['tomato', 0.2], ['onion', 0.08], ['ginger', 0.01], ['garlic', 0.01], ['garam_masala', 0.004], ['chilli_powder', 0.004], pkg('container_500')] },
+        { name: 'Paneer Butter Masala', price: 319, isVeg: true, popularity: 11, recommended: true, spiceLevel: 1, recipe: [['paneer', 0.2], ['butter', 0.04], ['cream', 0.05], ['tomato', 0.2], ['onion', 0.08], ['garam_masala', 0.004], pkg('container_500')] },
+        { name: 'Dal Makhani', price: 269, isVeg: true, popularity: 10, description: 'Black lentils slow-cooked overnight with butter and cream.', recipe: [['urad_dal', 0.1], ['butter', 0.03], ['cream', 0.04], ['tomato', 0.1], ['onion', 0.05], ['ginger', 0.01], ['garlic', 0.01], pkg('container_500')] },
+        { name: 'Amritsari Chole', price: 229, isVeg: true, popularity: 6, spiceLevel: 2, recipe: [['chana', 0.12], ['onion', 0.1], ['tomato', 0.1], ['oil_sunflower', 0.02], ['garam_masala', 0.004], ['chilli_powder', 0.004], pkg('container_500')] },
+      ],
+    },
+    {
+      name: 'Breads',
+      items: [
+        { name: 'Butter Naan', price: 69, isVeg: true, popularity: 16, station: 'TANDOOR', recipe: [['maida', 0.1], ['butter', 0.01], ['curd', 0.015], ['sugar', 0.005]] },
+        { name: 'Garlic Naan', price: 89, isVeg: true, popularity: 9, station: 'TANDOOR', recipe: [['maida', 0.1], ['butter', 0.012], ['garlic', 0.01]] },
+        { name: 'Tandoori Roti', price: 39, isVeg: true, popularity: 10, station: 'TANDOOR', recipe: [['atta', 0.08]] },
+      ],
+    },
+    {
+      name: 'Rice & Biryani',
+      items: [
+        { name: 'Chicken Dum Biryani', price: 349, isVeg: false, popularity: 13, recommended: true, spiceLevel: 2, recipe: [['rice_basmati', 0.2], ['chicken', 0.2], ['onion', 0.1], ['curd', 0.05], ['ghee', 0.02], ['garam_masala', 0.006], ['chilli_powder', 0.004], pkg('meal_box')] },
+        { name: 'Veg Dum Biryani', price: 289, isVeg: true, popularity: 7, recipe: [['rice_basmati', 0.2], ['onion', 0.08], ['carrot', 0.04], ['frozen_peas', 0.03], ['curd', 0.04], ['ghee', 0.02], ['garam_masala', 0.005], pkg('meal_box')] },
+        { name: 'Jeera Rice', price: 179, isVeg: true, popularity: 6, recipe: [['rice_basmati', 0.15], ['ghee', 0.015], pkg('container_500')] },
+      ],
+    },
+    {
+      name: 'Desserts & Drinks',
+      items: [
+        { name: 'Gulab Jamun (2 pcs)', price: 99, isVeg: true, popularity: 6, recipe: [['milk', 0.1], ['maida', 0.02], ['sugar', 0.08], ['ghee', 0.03]] },
+        { name: 'Sweet Lassi', price: 99, isVeg: true, popularity: 5, station: 'BAR', recipe: [['curd', 0.25], ['sugar', 0.03]] },
+        { name: 'Masala Chai', price: 49, isVeg: true, popularity: 4, station: 'BAR', recipe: [['milk', 0.15], ['tea', 0.005], ['sugar', 0.015], ['ginger', 0.003]] },
+      ],
+    },
+  ],
+};
+
+const DOSA_CORNER_MENU: MenuDef = {
+  categories: [
+    {
+      name: 'Breakfast',
+      items: [
+        { name: 'Idli (2 pcs)', price: 69, isVeg: true, popularity: 14, recipe: [['rice_idli', 0.08], ['urad_dal', 0.03], pkg('leaf_plate')] },
+        { name: 'Medu Vada (2 pcs)', price: 79, isVeg: true, popularity: 10, recipe: [['urad_dal', 0.08], ['onion', 0.02], ['oil_sunflower', 0.03], pkg('leaf_plate')] },
+        { name: 'Masala Dosa', price: 119, isVeg: true, popularity: 16, recommended: true, recipe: [['rice_idli', 0.12], ['urad_dal', 0.04], ['potato', 0.15], ['onion', 0.04], ['turmeric', 0.002], ['oil_sunflower', 0.02], pkg('leaf_plate')] },
+        { name: 'Ghee Roast Dosa', price: 149, isVeg: true, popularity: 9, recommended: true, recipe: [['rice_idli', 0.12], ['urad_dal', 0.04], ['ghee', 0.03], pkg('leaf_plate')] },
+        { name: 'Onion Uttapam', price: 109, isVeg: true, popularity: 6, recipe: [['rice_idli', 0.12], ['urad_dal', 0.04], ['onion', 0.06], ['tomato', 0.03], ['oil_sunflower', 0.02], pkg('leaf_plate')] },
+        { name: 'Rava Kesari', price: 69, isVeg: true, popularity: 5, recipe: [['sooji', 0.05], ['sugar', 0.04], ['ghee', 0.02]] },
+      ],
+    },
+    {
+      name: 'Meals',
+      items: [
+        { name: 'South Indian Thali', price: 199, isVeg: true, popularity: 9, recommended: true, recipe: [['rice_idli', 0.2], ['toor_dal', 0.06], ['tomato', 0.08], ['onion', 0.04], ['curd', 0.1], ['oil_sunflower', 0.02], pkg('meal_box')] },
+        { name: 'Lemon Rice', price: 129, isVeg: true, popularity: 6, recipe: [['rice_idli', 0.15], ['lemon', 0.02], ['turmeric', 0.002], ['oil_sunflower', 0.015], pkg('container_500')] },
+        { name: 'Curd Rice', price: 119, isVeg: true, popularity: 6, recipe: [['rice_idli', 0.15], ['curd', 0.15], pkg('container_500')] },
+      ],
+    },
+    {
+      name: 'Beverages',
+      items: [
+        { name: 'Filter Coffee', price: 49, isVeg: true, popularity: 15, station: 'BAR', recipe: [['milk', 0.12], ['coffee', 0.012], ['sugar', 0.012]] },
+        { name: 'Badam Milk', price: 79, isVeg: true, popularity: 4, station: 'BAR', recipe: [['milk', 0.2], ['sugar', 0.02]] },
+      ],
+    },
+  ],
+};
+
+const PIZZA_SIZES = [
+  { name: 'Regular (7")', priceDelta: 0, isDefault: true },
+  { name: 'Medium (10")', priceDelta: 150 },
+  { name: 'Large (12")', priceDelta: 300 },
+];
+const PIZZA_TOPPINGS = {
+  group: 'Extra toppings',
+  maxSelect: 3,
+  options: [
+    { name: 'Extra Cheese', price: 60 },
+    { name: 'Jalapeños', price: 40 },
+    { name: 'Black Olives', price: 40 },
+    { name: 'Grilled Chicken', price: 80, isVeg: false },
+  ],
+};
+const pizzaBase: RecipeLine[] = [['pizza_flour', 0.15], ['mozzarella', 0.1], ['pizza_sauce', 0.06], ['oil_olive', 0.008], ['oregano', 0.002], pkg('pizza_box')];
+
+const PIZZA_REPUBLIC_MENU: MenuDef = {
+  categories: [
+    {
+      name: 'Pizzas',
+      items: [
+        { name: 'Margherita', price: 249, isVeg: true, popularity: 12, recipe: pizzaBase, variants: PIZZA_SIZES, addons: PIZZA_TOPPINGS },
+        { name: 'Farmhouse', price: 349, isVeg: true, popularity: 10, recommended: true, recipe: [...pizzaBase, ['capsicum', 0.04], ['onion', 0.04], ['tomato', 0.04], ['sweet_corn', 0.03]], variants: PIZZA_SIZES, addons: PIZZA_TOPPINGS },
+        { name: 'Paneer Tikka Pizza', price: 379, isVeg: true, popularity: 8, recipe: [...pizzaBase, ['paneer', 0.08], ['capsicum', 0.03], ['onion', 0.03]], variants: PIZZA_SIZES, addons: PIZZA_TOPPINGS },
+        { name: 'Chicken Tikka Pizza', price: 429, isVeg: false, popularity: 9, recommended: true, recipe: [...pizzaBase, ['chicken', 0.1], ['onion', 0.03]], variants: PIZZA_SIZES, addons: PIZZA_TOPPINGS },
+        { name: 'Veggie Supreme', price: 399, isVeg: true, popularity: 6, recipe: [...pizzaBase, ['capsicum', 0.04], ['onion', 0.04], ['tomato', 0.04], ['sweet_corn', 0.04]], variants: PIZZA_SIZES, addons: PIZZA_TOPPINGS },
+      ],
+    },
+    {
+      name: 'Sides',
+      items: [
+        { name: 'Garlic Bread', price: 149, isVeg: true, popularity: 9, recipe: [['pizza_flour', 0.08], ['butter', 0.02], ['garlic', 0.01], ['oregano', 0.001], pkg('container_500')] },
+        { name: 'Peri Peri Fries', price: 129, isVeg: true, popularity: 8, recipe: [['fries', 0.15], ['oil_sunflower', 0.04], ['chilli_powder', 0.003], pkg('container_500')] },
+        { name: 'Penne Arrabbiata', price: 279, isVeg: true, popularity: 4, recipe: [['pasta', 0.12], ['pizza_sauce', 0.08], ['garlic', 0.008], ['oil_olive', 0.01], pkg('container_500')] },
+      ],
+    },
+    {
+      name: 'Beverages',
+      items: [
+        { name: 'Cold Coffee', price: 129, isVeg: true, popularity: 6, station: 'BAR', recipe: [['milk', 0.25], ['coffee', 0.008], ['sugar', 0.03]] },
+        { name: 'Lemon Iced Tea', price: 99, isVeg: true, popularity: 5, station: 'BAR', recipe: [['tea', 0.005], ['lemon', 0.03], ['sugar', 0.03]] },
+      ],
+    },
+  ],
+};
+
+const BOWL_THEORY_MENU: MenuDef = {
+  categories: [
+    {
+      name: 'Rice Bowls',
+      items: [
+        { name: 'Paneer Tikka Rice Bowl', price: 249, isVeg: true, popularity: 9, recommended: true, recipe: [['rice_basmati', 0.15], ['paneer', 0.12], ['capsicum', 0.05], ['onion', 0.04], ['curd', 0.03], pkg('meal_box')] },
+        { name: 'Chicken Teriyaki Bowl', price: 289, isVeg: false, popularity: 10, recommended: true, recipe: [['rice_basmati', 0.15], ['chicken', 0.15], ['cabbage', 0.05], ['carrot', 0.04], ['sugar', 0.01], pkg('meal_box')] },
+        { name: 'Rajma Chawal Bowl', price: 199, isVeg: true, popularity: 8, recipe: [['rice_basmati', 0.15], ['rajma', 0.08], ['onion', 0.05], ['tomato', 0.06], ['ginger', 0.005], pkg('meal_box')] },
+        { name: 'Burrito Bowl', price: 259, isVeg: true, popularity: 7, recipe: [['rice_basmati', 0.12], ['rajma', 0.05], ['sweet_corn', 0.05], ['capsicum', 0.05], ['onion', 0.04], ['tomato', 0.05], ['curd', 0.03], pkg('meal_box')] },
+      ],
+    },
+    {
+      name: 'Salads',
+      items: [
+        { name: 'Greek Salad', price: 219, isVeg: true, popularity: 4, recipe: [['tomato', 0.08], ['capsicum', 0.06], ['onion', 0.04], ['oil_olive', 0.015], ['lemon', 0.01], pkg('container_500')] },
+        { name: 'Grilled Chicken Salad', price: 269, isVeg: false, popularity: 5, recipe: [['chicken', 0.15], ['cabbage', 0.06], ['carrot', 0.05], ['oil_olive', 0.01], ['lemon', 0.01], pkg('container_500')] },
+      ],
+    },
+    {
+      name: 'Drinks',
+      items: [
+        { name: 'Watermelon Cooler', price: 99, isVeg: true, popularity: 5, station: 'BAR', recipe: [['watermelon', 0.4], ['lemon', 0.01], ['sugar', 0.01]] },
+      ],
+    },
+  ],
+};
+
+const CHAAT_STREET_MENU: MenuDef = {
+  categories: [
+    {
+      name: 'Chaat',
+      items: [
+        { name: 'Pani Puri (6 pcs)', price: 49, isVeg: true, popularity: 18, recipe: [['puri', 6], ['potato', 0.05], ['chana', 0.02], pkg('leaf_plate')] },
+        { name: 'Sev Puri', price: 59, isVeg: true, popularity: 10, recipe: [['puri', 6], ['potato', 0.04], ['sev', 0.02], ['onion', 0.02], ['tomato', 0.02], pkg('leaf_plate')] },
+        { name: 'Bhel Puri', price: 59, isVeg: true, popularity: 9, recipe: [['murmura', 0.05], ['sev', 0.02], ['onion', 0.03], ['tomato', 0.02], ['lemon', 0.01], pkg('leaf_plate')] },
+        { name: 'Dahi Puri', price: 69, isVeg: true, popularity: 8, recipe: [['puri', 6], ['curd', 0.06], ['potato', 0.03], ['sev', 0.01], pkg('leaf_plate')] },
+        { name: 'Samosa Chaat', price: 79, isVeg: true, popularity: 7, recipe: [['potato', 0.08], ['maida', 0.04], ['oil_sunflower', 0.03], ['chana', 0.04], ['curd', 0.05], pkg('leaf_plate')] },
+        { name: 'Aloo Tikki Chaat', price: 79, isVeg: true, popularity: 6, recipe: [['potato', 0.15], ['besan', 0.02], ['oil_sunflower', 0.03], ['curd', 0.04], ['chana', 0.03], pkg('leaf_plate')] },
+      ],
+    },
+  ],
+};
+
+const MOMO_WAGON_MENU: MenuDef = {
+  categories: [
+    {
+      name: 'Momos',
+      items: [
+        { name: 'Veg Steamed Momos (8 pcs)', price: 99, isVeg: true, popularity: 12, recipe: [['maida', 0.1], ['cabbage', 0.08], ['carrot', 0.03], ['onion', 0.03], ['ginger', 0.005], ['garlic', 0.005], ['oil_sunflower', 0.005], pkg('leaf_plate')] },
+        { name: 'Chicken Steamed Momos (8 pcs)', price: 129, isVeg: false, popularity: 14, recommended: true, recipe: [['maida', 0.1], ['chicken', 0.1], ['onion', 0.04], ['ginger', 0.005], ['garlic', 0.005], pkg('leaf_plate')] },
+        { name: 'Veg Fried Momos (8 pcs)', price: 119, isVeg: true, popularity: 7, recipe: [['maida', 0.1], ['cabbage', 0.08], ['carrot', 0.03], ['onion', 0.03], ['oil_sunflower', 0.05], pkg('leaf_plate')] },
+        { name: 'Paneer Momos (8 pcs)', price: 129, isVeg: true, popularity: 6, recipe: [['maida', 0.1], ['paneer', 0.08], ['onion', 0.03], ['ginger', 0.005], pkg('leaf_plate')] },
+        { name: 'Tandoori Chicken Momos (8 pcs)', price: 159, isVeg: false, popularity: 8, spiceLevel: 2, recipe: [['maida', 0.1], ['chicken', 0.1], ['curd', 0.03], ['chilli_powder', 0.003], ['onion', 0.03], pkg('leaf_plate')] },
+      ],
+    },
+  ],
+};
+
+const OPEN_LUNCH_DINNER: [string, string] = ['11:30', '23:30'];
+
+export const MERCHANTS: MerchantDef[] = [
+  {
+    key: 'spicegarden',
+    type: 'RESTAURANT',
+    name: 'Spice Garden',
+    legalName: 'Spice Garden Hospitality Pvt Ltd',
+    pan: 'AAJCS3456P',
+    locality: 'koramangala',
+    owner: { name: 'Rohit Malhotra', email: 'owner@spicegarden.demo', phone: '+919900010001' },
+    staff: [
+      { name: 'Anita Desai', email: 'manager@spicegarden.demo', phone: '+919900010002', role: 'MANAGER' },
+      { name: 'Gurpreet Singh', email: 'chef@spicegarden.demo', phone: '+919900010003', role: 'CHEF' },
+      { name: 'Deepak Kumar', email: 'cashier@spicegarden.demo', phone: '+919900010004', role: 'CASHIER' },
+      { name: 'Kavya Reddy', email: 'procurement@spicegarden.demo', phone: '+919900010005', role: 'PROCUREMENT_MANAGER' },
+    ],
+    commissionRate: 16,
+    outlets: [
+      { key: 'spicegarden-koramangala', name: 'Spice Garden - Koramangala', type: 'RESTAURANT', locality: 'koramangala', offset: [0.002, -0.001], addressLine1: '80 Feet Road, 4th Block', cuisines: ['North Indian', 'Mughlai', 'Biryani'], tags: ['family', 'bestseller'], isPureVeg: false, costForTwo: 700, avgPrepTimeMins: 22, packagingCharge: 25, minOrderValue: 149, dineIn: true, qr: true, hours: OPEN_LUNCH_DINNER, baseDailyOrders: 30, profile: 'meals', channelMix: { APP: 0.68, WEB: 0.1, QR: 0.12, POS: 0.1 }, menu: SPICE_GARDEN_MENU, tables: 10, kdsStations: ['MAIN', 'TANDOOR', 'BAR'] },
+      { key: 'spicegarden-indiranagar', name: 'Spice Garden - Indiranagar', type: 'RESTAURANT', locality: 'indiranagar', offset: [-0.001, 0.002], addressLine1: '100 Feet Road, HAL 2nd Stage', cuisines: ['North Indian', 'Mughlai', 'Biryani'], tags: ['family'], isPureVeg: false, costForTwo: 750, avgPrepTimeMins: 24, packagingCharge: 25, minOrderValue: 149, dineIn: true, qr: true, hours: OPEN_LUNCH_DINNER, baseDailyOrders: 22, profile: 'meals', channelMix: { APP: 0.72, WEB: 0.1, QR: 0.1, POS: 0.08 }, menu: SPICE_GARDEN_MENU, tables: 6, kdsStations: ['MAIN', 'TANDOOR', 'BAR'] },
+    ],
+  },
+  {
+    key: 'dosacorner',
+    type: 'RESTAURANT',
+    name: 'Dosa Corner',
+    legalName: 'Dosa Corner Foods LLP',
+    pan: 'AAMFD1209C',
+    locality: 'jayanagar',
+    owner: { name: 'Venkatesh Iyer', email: 'owner@dosacorner.demo', phone: '+919900020001' },
+    staff: [{ name: 'Suresh Shetty', email: 'manager@dosacorner.demo', phone: '+919900020002', role: 'MANAGER' }],
+    outlets: [
+      { key: 'dosacorner-jayanagar', name: 'Dosa Corner - Jayanagar', type: 'RESTAURANT', locality: 'jayanagar', offset: [0.001, 0.001], addressLine1: '11th Main, 4th Block', cuisines: ['South Indian', 'Breakfast'], tags: ['pure-veg', 'breakfast'], isPureVeg: true, costForTwo: 250, avgPrepTimeMins: 12, packagingCharge: 10, minOrderValue: 99, dineIn: true, qr: false, hours: ['06:30', '22:00'], baseDailyOrders: 40, profile: 'breakfast', channelMix: { APP: 0.6, WEB: 0.05, QR: 0, POS: 0.35 }, menu: DOSA_CORNER_MENU, kdsStations: ['MAIN', 'BAR'] },
+    ],
+  },
+  {
+    key: 'pizzarepublic',
+    type: 'RESTAURANT',
+    name: 'Pizza Republic',
+    legalName: 'Pizza Republic Foods Pvt Ltd',
+    pan: 'AAKCP7781F',
+    locality: 'hsr',
+    owner: { name: 'Neha Kapoor', email: 'owner@pizzarepublic.demo', phone: '+919900030001' },
+    staff: [{ name: 'Arjun Nair', email: 'chef@pizzarepublic.demo', phone: '+919900030002', role: 'CHEF' }],
+    outlets: [
+      { key: 'pizzarepublic-hsr', name: 'Pizza Republic - HSR Layout', type: 'RESTAURANT', locality: 'hsr', offset: [-0.002, 0.001], addressLine1: '27th Main, Sector 1', cuisines: ['Pizza', 'Italian', 'Fast Food'], tags: ['late-night'], isPureVeg: false, costForTwo: 600, avgPrepTimeMins: 18, packagingCharge: 30, minOrderValue: 199, dineIn: false, qr: false, hours: ['11:00', '02:00'], baseDailyOrders: 28, profile: 'meals', channelMix: { APP: 0.85, WEB: 0.15, QR: 0, POS: 0 }, menu: PIZZA_REPUBLIC_MENU, kdsStations: ['MAIN', 'BAR'] },
+    ],
+  },
+  {
+    key: 'bowltheory',
+    type: 'RESTAURANT',
+    name: 'Bowl Theory',
+    legalName: 'Bowl Theory Kitchens Pvt Ltd',
+    pan: 'AAHCB4412N',
+    locality: 'whitefield',
+    owner: { name: 'Karthik Subramanian', email: 'owner@bowltheory.demo', phone: '+919900040001' },
+    outlets: [
+      { key: 'bowltheory-whitefield', name: 'Bowl Theory - Whitefield', type: 'CLOUD_KITCHEN', locality: 'whitefield', offset: [0.001, -0.002], addressLine1: 'ITPL Main Road, Hoodi', cuisines: ['Healthy', 'Asian', 'Bowls'], tags: ['healthy', 'delivery-only'], isPureVeg: false, costForTwo: 500, avgPrepTimeMins: 15, packagingCharge: 20, minOrderValue: 149, dineIn: false, qr: false, hours: ['11:00', '23:00'], baseDailyOrders: 20, profile: 'meals', channelMix: { APP: 0.9, WEB: 0.1, QR: 0, POS: 0 }, menu: BOWL_THEORY_MENU },
+    ],
+  },
+  {
+    key: 'chaatstreet',
+    type: 'FOOD_CART',
+    name: 'Chaat Street',
+    legalName: 'Chaat Street',
+    pan: 'CMLPG4590K',
+    locality: 'mgroad',
+    owner: { name: 'Mohan Lal Gupta', email: 'owner@chaatstreet.demo', phone: '+919900050001' },
+    outlets: [
+      { key: 'chaatstreet-mgroad', name: 'Chaat Street Cart - MG Road', type: 'FOOD_CART', locality: 'mgroad', offset: [0.001, 0.001], addressLine1: 'Near Metro Station, MG Road', cuisines: ['Street Food', 'Chaat'], tags: ['street-food', 'pure-veg'], isPureVeg: true, costForTwo: 150, avgPrepTimeMins: 6, packagingCharge: 5, minOrderValue: 49, dineIn: false, qr: false, isMobile: true, hours: ['16:00', '22:30'], baseDailyOrders: 45, profile: 'evening', channelMix: { APP: 0.35, WEB: 0, QR: 0, POS: 0.65 }, menu: CHAAT_STREET_MENU },
+    ],
+  },
+  {
+    key: 'momowagon',
+    type: 'FOOD_CART',
+    name: 'Momo Wagon',
+    legalName: 'Momo Wagon',
+    pan: 'DTRPT7765J',
+    locality: 'koramangala',
+    owner: { name: 'Tenzin Dorjee', email: 'owner@momowagon.demo', phone: '+919900060001' },
+    outlets: [
+      { key: 'momowagon-koramangala', name: 'Momo Wagon - Koramangala', type: 'FOOD_CART', locality: 'koramangala', offset: [-0.003, 0.002], addressLine1: 'Sony World Junction, 1st Block', cuisines: ['Tibetan', 'Momos', 'Street Food'], tags: ['street-food'], isPureVeg: false, costForTwo: 200, avgPrepTimeMins: 10, packagingCharge: 5, minOrderValue: 99, dineIn: false, qr: false, isMobile: true, hours: ['12:00', '23:00'], baseDailyOrders: 35, profile: 'allday', channelMix: { APP: 0.45, WEB: 0, QR: 0, POS: 0.55 }, menu: MOMO_WAGON_MENU },
+    ],
+  },
+];
+
+// ─── People ─────────────────────────────────────────────────────────────────
+
+export const FIRST_NAMES = ['Aarav', 'Vivaan', 'Aditya', 'Vihaan', 'Arjun', 'Sai', 'Reyansh', 'Krishna', 'Ishaan', 'Rohan', 'Ananya', 'Diya', 'Priya', 'Saanvi', 'Aadhya', 'Kavya', 'Meera', 'Riya', 'Sneha', 'Pooja', 'Rahul', 'Karan', 'Nikhil', 'Varun', 'Siddharth', 'Neha', 'Shreya', 'Divya', 'Lakshmi', 'Fatima', 'Zoya', 'Imran', 'Joseph', 'Maria', 'Harpreet', 'Manpreet', 'Tanvi', 'Ira', 'Kabir', 'Dev'];
+export const LAST_NAMES = ['Sharma', 'Verma', 'Iyer', 'Reddy', 'Nair', 'Menon', 'Rao', 'Gowda', 'Patel', 'Shah', 'Khan', 'Fernandes', 'Singh', 'Kaur', 'Das', 'Banerjee', 'Mukherjee', 'Pillai', 'Hegde', 'Shetty', 'Kulkarni', 'Joshi', 'Agarwal', 'Gupta', 'Bhat'];
+export const STREETS = ['1st Cross', '2nd Main', '5th Cross', '8th Main', '12th Cross', '17th Main', 'Church Street', 'Residency Road', 'Old Airport Road', 'Outer Ring Road', 'Sarjapur Road', 'Bannerghatta Road'];
+
+/**
+ * Festival & holiday calendar used as demand signals. Lunar festival dates
+ * are approximations; operations should confirm them each year via
+ * POST /api/v1/admin/ai/signals.
+ */
+export const FESTIVALS: { name: string; date: string; impact: number; type: 'FESTIVAL' | 'HOLIDAY'; categories?: string[] }[] = [
+  { name: 'Makar Sankranti', date: '2026-01-14', impact: 1.15, type: 'FESTIVAL', categories: ['SUGAR', 'DAIRY'] },
+  { name: 'Republic Day', date: '2026-01-26', impact: 1.1, type: 'HOLIDAY' },
+  { name: 'Holi', date: '2026-03-04', impact: 1.2, type: 'FESTIVAL', categories: ['DAIRY', 'SUGAR', 'BEVERAGES'] },
+  { name: 'Ugadi', date: '2026-03-19', impact: 1.15, type: 'FESTIVAL' },
+  { name: 'Eid al-Fitr', date: '2026-03-21', impact: 1.3, type: 'FESTIVAL', categories: ['MEAT_SEAFOOD', 'DAIRY', 'SUGAR'] },
+  { name: 'Eid al-Adha', date: '2026-05-27', impact: 1.25, type: 'FESTIVAL', categories: ['MEAT_SEAFOOD'] },
+  { name: 'Independence Day', date: '2026-08-15', impact: 1.2, type: 'HOLIDAY' },
+  { name: 'Onam', date: '2026-08-26', impact: 1.1, type: 'FESTIVAL', categories: ['VEGETABLES', 'GRAINS'] },
+  { name: 'Raksha Bandhan', date: '2026-08-28', impact: 1.15, type: 'FESTIVAL', categories: ['SUGAR', 'DAIRY'] },
+  { name: 'Ganesh Chaturthi', date: '2026-09-14', impact: 1.25, type: 'FESTIVAL', categories: ['SUGAR', 'DAIRY', 'FLOUR'] },
+  { name: 'Navratri begins', date: '2026-10-11', impact: 1.1, type: 'FESTIVAL', categories: ['DAIRY', 'FRUITS'] },
+  { name: 'Dussehra', date: '2026-10-20', impact: 1.3, type: 'FESTIVAL', categories: ['SUGAR', 'DAIRY'] },
+  { name: 'Dhanteras', date: '2026-11-06', impact: 1.15, type: 'FESTIVAL' },
+  { name: 'Diwali', date: '2026-11-08', impact: 1.45, type: 'FESTIVAL', categories: ['SUGAR', 'DAIRY', 'FLOUR', 'OIL'] },
+  { name: 'Christmas', date: '2026-12-25', impact: 1.3, type: 'FESTIVAL', categories: ['DAIRY', 'FLOUR', 'SUGAR'] },
+  { name: "New Year's Eve", date: '2026-12-31', impact: 1.6, type: 'FESTIVAL', categories: ['BEVERAGES', 'MEAT_SEAFOOD'] },
+  { name: 'Makar Sankranti', date: '2027-01-14', impact: 1.15, type: 'FESTIVAL', categories: ['SUGAR', 'DAIRY'] },
+  { name: 'Republic Day', date: '2027-01-26', impact: 1.1, type: 'HOLIDAY' },
+  { name: 'Holi', date: '2027-03-22', impact: 1.2, type: 'FESTIVAL', categories: ['DAIRY', 'SUGAR', 'BEVERAGES'] },
+  { name: 'Independence Day', date: '2027-08-15', impact: 1.2, type: 'HOLIDAY' },
+  { name: 'Diwali', date: '2027-10-29', impact: 1.45, type: 'FESTIVAL', categories: ['SUGAR', 'DAIRY', 'FLOUR', 'OIL'] },
+];
