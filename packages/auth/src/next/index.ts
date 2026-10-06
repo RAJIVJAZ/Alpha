@@ -11,13 +11,24 @@ import { cookies, headers } from 'next/headers';
 import { NextResponse, type NextRequest } from 'next/server';
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 import type { AccessTokenClaims } from '@foodgrid/types';
-import { ACCESS_COOKIE, apiBase, clearSessionCookies, REFRESH_COOKIE, refreshTokens, writeSessionCookies, type AuthTokens } from './shared';
+import {
+  ACCESS_COOKIE,
+  apiBase,
+  clearSessionCookies,
+  REFRESH_COOKIE,
+  refreshTokens,
+  writeSessionCookies,
+  type AuthTokens,
+} from './shared';
 
 export { ACCESS_COOKIE, REFRESH_COOKIE, apiBase } from './shared';
 
 let jwks: ReturnType<typeof createRemoteJWKSet> | undefined;
 function keySet() {
-  jwks ??= createRemoteJWKSet(new URL(process.env.AUTH_JWKS_URL ?? `${new URL(apiBase()).origin}/.well-known/jwks.json`), { cacheMaxAge: 10 * 60_000 });
+  jwks ??= createRemoteJWKSet(
+    new URL(process.env.AUTH_JWKS_URL ?? `${new URL(apiBase()).origin}/.well-known/jwks.json`),
+    { cacheMaxAge: 10 * 60_000 },
+  );
   return jwks;
 }
 
@@ -37,13 +48,22 @@ export async function getSession(): Promise<{ claims: AccessTokenClaims; token: 
 }
 
 /** Fetch the API from a server component / action as the signed-in user. */
-export async function serverApi<T>(path: string, init: RequestInit & { query?: Record<string, string | number | undefined> } = {}): Promise<T> {
+export async function serverApi<T>(
+  path: string,
+  init: RequestInit & { query?: Record<string, string | number | undefined> } = {},
+): Promise<T> {
   const token = (await cookies()).get(ACCESS_COOKIE)?.value;
   const url = new URL(`${apiBase()}/${path.replace(/^\/+/, '')}`);
-  for (const [k, v] of Object.entries(init.query ?? {})) if (v !== undefined && v !== '') url.searchParams.set(k, String(v));
+  for (const [k, v] of Object.entries(init.query ?? {}))
+    if (v !== undefined && v !== '') url.searchParams.set(k, String(v));
   const res = await fetch(url, {
     ...init,
-    headers: { accept: 'application/json', ...(init.body ? { 'content-type': 'application/json' } : {}), ...(token ? { authorization: `Bearer ${token}` } : {}), ...init.headers },
+    headers: {
+      accept: 'application/json',
+      ...(init.body ? { 'content-type': 'application/json' } : {}),
+      ...(token ? { authorization: `Bearer ${token}` } : {}),
+      ...init.headers,
+    },
     cache: init.cache ?? 'no-store',
   });
   if (!res.ok) throw new Error(`API ${res.status} for ${path}`);
@@ -60,14 +80,22 @@ export interface AuthRoutesOptions {
 
 const clientMeta = async () => {
   const h = await headers();
-  return { ip: h.get('x-forwarded-for')?.split(',')[0]?.trim() ?? null, userAgent: h.get('user-agent') };
+  return {
+    ip: h.get('x-forwarded-for')?.split(',')[0]?.trim() ?? null,
+    userAgent: h.get('user-agent'),
+  };
 };
 
 async function forward(path: string, body: unknown, extraHeaders: Record<string, string> = {}) {
   const meta = await clientMeta();
   return fetch(`${apiBase()}/${path}`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json', ...(meta.userAgent ? { 'user-agent': meta.userAgent } : {}), ...(meta.ip ? { 'x-forwarded-for': meta.ip } : {}), ...extraHeaders },
+    headers: {
+      'content-type': 'application/json',
+      ...(meta.userAgent ? { 'user-agent': meta.userAgent } : {}),
+      ...(meta.ip ? { 'x-forwarded-for': meta.ip } : {}),
+      ...extraHeaders,
+    },
     body: JSON.stringify(body),
     cache: 'no-store',
   });
@@ -78,9 +106,15 @@ const json = (status: number, body: unknown) => NextResponse.json(body, { status
 /** Login (OTP / password), logout, tenant switching and session lookup for one app. */
 export function createAuthRoutes(opts: AuthRoutesOptions = {}) {
   async function finishLogin(res: Response) {
-    const body = (await res.json().catch(() => ({}))) as { tokens?: AuthTokens; user?: unknown; isNewUser?: boolean };
+    const body = (await res.json().catch(() => ({}))) as {
+      tokens?: AuthTokens;
+      user?: unknown;
+      isNewUser?: boolean;
+    };
     if (!res.ok || !body.tokens) return json(res.status, body);
-    const claims = JSON.parse(Buffer.from(body.tokens.accessToken.split('.')[1]!, 'base64url').toString('utf8')) as AccessTokenClaims;
+    const claims = JSON.parse(
+      Buffer.from(body.tokens.accessToken.split('.')[1]!, 'base64url').toString('utf8'),
+    ) as AccessTokenClaims;
     const verdict = opts.authorize?.(claims) ?? true;
     if (verdict !== true) {
       // do not leave a live session behind for an account this app refuses
@@ -101,9 +135,17 @@ export function createAuthRoutes(opts: AuthRoutesOptions = {}) {
         return json(res.status, await res.json().catch(() => ({})));
       }
       case 'otp-verify':
-        return finishLogin(await forward('auth/otp/verify', { phone: input.phone, code: input.code, referralCode: input.referralCode }));
+        return finishLogin(
+          await forward('auth/otp/verify', {
+            phone: input.phone,
+            code: input.code,
+            referralCode: input.referralCode,
+          }),
+        );
       case 'password':
-        return finishLogin(await forward('auth/password', { email: input.email, password: input.password }));
+        return finishLogin(
+          await forward('auth/password', { email: input.email, password: input.password }),
+        );
       case 'logout': {
         const refreshToken = jar.get(REFRESH_COOKIE)?.value;
         if (refreshToken) await forward('auth/logout', { refreshToken }).catch(() => null);
@@ -112,7 +154,11 @@ export function createAuthRoutes(opts: AuthRoutesOptions = {}) {
       }
       case 'switch-tenant': {
         const token = jar.get(ACCESS_COOKIE)?.value;
-        const res = await forward('auth/switch-tenant', { tenantId: input.tenantId ?? null }, token ? { authorization: `Bearer ${token}` } : {});
+        const res = await forward(
+          'auth/switch-tenant',
+          { tenantId: input.tenantId ?? null },
+          token ? { authorization: `Bearer ${token}` } : {},
+        );
         return finishLogin(res);
       }
       default:
@@ -123,9 +169,13 @@ export function createAuthRoutes(opts: AuthRoutesOptions = {}) {
   async function GET(_req: NextRequest, ctx: { params: Promise<{ action: string }> }) {
     const { action } = await ctx.params;
     const token = (await cookies()).get(ACCESS_COOKIE)?.value;
-    if (!token) return json(401, { statusCode: 401, code: 'UNAUTHENTICATED', message: 'Not signed in' });
+    if (!token)
+      return json(401, { statusCode: 401, code: 'UNAUTHENTICATED', message: 'Not signed in' });
     if (action === 'session') {
-      const res = await fetch(`${apiBase()}/auth/me`, { headers: { authorization: `Bearer ${token}` }, cache: 'no-store' });
+      const res = await fetch(`${apiBase()}/auth/me`, {
+        headers: { authorization: `Bearer ${token}` },
+        cache: 'no-store',
+      });
       return json(res.status, await res.json().catch(() => ({})));
     }
     if (action === 'ws-token') {
@@ -138,7 +188,14 @@ export function createAuthRoutes(opts: AuthRoutesOptions = {}) {
   return { GET, POST };
 }
 
-const HOP_BY_HOP = new Set(['connection', 'keep-alive', 'transfer-encoding', 'content-encoding', 'content-length', 'host']);
+const HOP_BY_HOP = new Set([
+  'connection',
+  'keep-alive',
+  'transfer-encoding',
+  'content-encoding',
+  'content-length',
+  'host',
+]);
 
 /**
  * Same-origin API proxy: forwards /api/proxy/<path> to the gateway with the
@@ -147,19 +204,27 @@ const HOP_BY_HOP = new Set(['connection', 'keep-alive', 'transfer-encoding', 'co
 export function createApiProxy() {
   async function handle(req: NextRequest, ctx: { params: Promise<{ path: string[] }> }) {
     const { path } = await ctx.params;
-    if (path[0] === 'internal') return json(404, { statusCode: 404, code: 'NOT_FOUND', message: 'Not found' });
+    if (path[0] === 'internal')
+      return json(404, { statusCode: 404, code: 'NOT_FOUND', message: 'Not found' });
     const jar = await cookies();
     const url = `${apiBase()}/${path.map(encodeURIComponent).join('/')}${req.nextUrl.search}`;
-    const body = req.method === 'GET' || req.method === 'HEAD' ? undefined : await req.arrayBuffer();
+    const body =
+      req.method === 'GET' || req.method === 'HEAD' ? undefined : await req.arrayBuffer();
     const meta = await clientMeta();
     const send = (token: string | undefined) =>
       fetch(url, {
         method: req.method,
         headers: {
           accept: req.headers.get('accept') ?? 'application/json',
-          ...(req.headers.get('content-type') ? { 'content-type': req.headers.get('content-type')! } : {}),
-          ...(req.headers.get('idempotency-key') ? { 'idempotency-key': req.headers.get('idempotency-key')! } : {}),
-          ...(req.headers.get('x-device-id') ? { 'x-device-id': req.headers.get('x-device-id')! } : {}),
+          ...(req.headers.get('content-type')
+            ? { 'content-type': req.headers.get('content-type')! }
+            : {}),
+          ...(req.headers.get('idempotency-key')
+            ? { 'idempotency-key': req.headers.get('idempotency-key')! }
+            : {}),
+          ...(req.headers.get('x-device-id')
+            ? { 'x-device-id': req.headers.get('x-device-id')! }
+            : {}),
           ...(meta.ip ? { 'x-forwarded-for': meta.ip } : {}),
           ...(token ? { authorization: `Bearer ${token}` } : {}),
         },
@@ -175,7 +240,9 @@ export function createApiProxy() {
       renewed = await refreshTokens(refreshToken, meta);
       if (renewed) res = await send(renewed.accessToken);
     }
-    const out = new NextResponse(res.status === 204 ? null : await res.arrayBuffer(), { status: res.status });
+    const out = new NextResponse(res.status === 204 ? null : await res.arrayBuffer(), {
+      status: res.status,
+    });
     res.headers.forEach((v, k) => {
       if (!HOP_BY_HOP.has(k) && k !== 'set-cookie') out.headers.set(k, v);
     });

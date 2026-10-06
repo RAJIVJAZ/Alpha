@@ -82,6 +82,13 @@ const timeFmt = new Intl.DateTimeFormat('en-IN', {
   timeZone: 'Asia/Kolkata',
 });
 
+const weekdayFmt = new Intl.DateTimeFormat('en-IN', {
+  weekday: 'short',
+  day: 'numeric',
+  month: 'short',
+  timeZone: 'Asia/Kolkata',
+});
+
 const toDate = (v: string | number | Date | null | undefined) =>
   v === null || v === undefined ? null : v instanceof Date ? v : new Date(v);
 
@@ -91,6 +98,9 @@ export const formatShortDate = (v: string | number | Date | null | undefined) =>
   toDate(v) ? shortDateFmt.format(toDate(v)!) : '—';
 export const formatDateTime = (v: string | number | Date | null | undefined) =>
   toDate(v) ? dateTimeFmt.format(toDate(v)!) : '—';
+/** "Sun, 11 Oct" */
+export const formatWeekday = (v: string | number | Date | null | undefined) =>
+  toDate(v) ? weekdayFmt.format(toDate(v)!) : '—';
 export const formatTime = (v: string | number | Date | null | undefined) =>
   toDate(v) ? timeFmt.format(toDate(v)!) : '—';
 

@@ -56,6 +56,7 @@ export class IncentivesService {
         rewardAmount: s.rewardAmount,
         status: p?.status ?? 'IN_PROGRESS',
         peakWindows: s.peakWindows,
+        minRating: s.minRating,
         startsAt: s.startsAt,
         endsAt: s.endsAt,
         percent: Math.min(100, Math.round(((p?.progress ?? 0) / s.target) * 100)),
