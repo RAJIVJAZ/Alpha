@@ -28,6 +28,19 @@ export class OrdersService {
   ) {}
 
   // ─── customer ──────────────────────────────────────────────────────────────
+  /** Risk, commission and request metadata stay with staff; customers get their order without them. */
+  private static readonly CUSTOMER_OMIT = {
+    tenantId: true,
+    riderId: true,
+    fraudScore: true,
+    commissionRate: true,
+    commissionAmount: true,
+    couponFundedBy: true,
+    idempotencyKey: true,
+    deviceId: true,
+    ipAddress: true,
+  } satisfies Prisma.OrderOmit;
+
   async listForCustomer(userId: string, q: ListOrdersDto) {
     const { page, pageSize, skip, take } = normalizePage(q);
     const where: Prisma.OrderWhereInput = { customerId: userId, ...(q.status?.length ? { status: { in: q.status } } : {}) };
@@ -37,6 +50,7 @@ export class OrdersService {
         orderBy: { createdAt: 'desc' },
         skip,
         take,
+        omit: OrdersService.CUSTOMER_OMIT,
         include: {
           outlet: { select: { name: true, slug: true, coverImageUrl: true } },
           items: { select: { name: true, quantity: true } },
@@ -51,7 +65,13 @@ export class OrdersService {
   async getForCustomer(userId: string, id: string) {
     const order = await this.prisma.order.findUnique({
       where: { id },
-      include: { items: true, events: { orderBy: { createdAt: 'asc' } }, outlet: { select: { name: true, slug: true, phone: true, lat: true, lng: true, addressLine1: true } }, review: true },
+      omit: OrdersService.CUSTOMER_OMIT,
+      include: {
+        items: true,
+        events: { orderBy: { createdAt: 'asc' }, select: { toStatus: true, note: true, createdAt: true } },
+        outlet: { select: { name: true, slug: true, phone: true, lat: true, lng: true, addressLine1: true } },
+        review: true,
+      },
     });
     if (!order || order.customerId !== userId) throw notFound('Order', id);
     return order;

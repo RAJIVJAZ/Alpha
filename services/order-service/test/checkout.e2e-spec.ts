@@ -168,7 +168,13 @@ describe('order-service checkout & lifecycle (e2e)', () => {
     expect(list.body.data).toHaveLength(0);
 
     await api().get(`/api/v1/orders/${id}`).set('Authorization', `Bearer ${customer('cust_B')}`).expect(404);
-    await api().get(`/api/v1/orders/${id}`).set('Authorization', `Bearer ${token}`).expect(200);
+    const mine = await api().get(`/api/v1/orders/${id}`).set('Authorization', `Bearer ${token}`).expect(200);
+    const listed = await api().get('/api/v1/orders').set('Authorization', `Bearer ${token}`).expect(200);
+    // risk, commission and request metadata never reach the customer
+    for (const order of [mine.body, listed.body.data[0]]) {
+      for (const field of ['fraudScore', 'commissionRate', 'commissionAmount', 'couponFundedBy', 'ipAddress', 'deviceId', 'idempotencyKey', 'tenantId']) expect(order).not.toHaveProperty(field);
+    }
+    expect(mine.body.events[0]).not.toHaveProperty('actorId');
     // a customer token cannot reach merchant routes at all
     await api().get('/api/v1/merchant/orders').set('Authorization', `Bearer ${token}`).expect(403);
   });
