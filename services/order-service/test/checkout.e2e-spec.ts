@@ -96,6 +96,15 @@ describe('order-service checkout & lifecycle (e2e)', () => {
     expect(Number(p.total) % 1).toBe(0); // grand total is rounded to the rupee
   });
 
+  it('lists platform offers without an outlet and outlet-specific eligibility with one', async () => {
+    const token = customer('cust_offers');
+    const offers = await api().get('/api/v1/coupons').set('Authorization', `Bearer ${token}`).expect(200);
+    expect(offers.body).toEqual([expect.objectContaining({ code: 'SAVE50', eligible: true })]);
+    await api().get('/api/v1/coupons').query({ outletId: 'outlet_1' }).set('Authorization', `Bearer ${token}`).expect(200);
+    const missing = await api().get('/api/v1/coupons').query({ outletId: 'nope' }).set('Authorization', `Bearer ${token}`).expect(404);
+    expect(missing.body.code).toBe('NOT_FOUND');
+  });
+
   it('places a COD order once per idempotency key and writes the outbox events', async () => {
     const token = customer();
     await fillCart(token);

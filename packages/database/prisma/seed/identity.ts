@@ -12,7 +12,8 @@ export const BACK_OFFICE = [
 ];
 
 export const DEMO_CUSTOMER_PHONE = '+919845000001';
-const CUSTOMER_COUNT = 42;
+// ~400 orders/day across 7 outlets: a few hundred customers keeps order frequency (and retention) realistic
+const CUSTOMER_COUNT = 360;
 
 const fssai = (ctx: SeedContext) => `1${ctx.rng.digits(13)}`;
 
@@ -164,7 +165,7 @@ export async function seedIdentity(ctx: SeedContext) {
       },
     }).then((u) => {
       const ref: CustomerRef = {
-        userId: u.id, name, phone, area, weight: i === 0 ? 6 : 1 / (1 + (i % 9)) + rng.float(0.1, 1.2), hasMembership: i % 7 === 0,
+        userId: u.id, name, phone, area, weight: i === 0 ? 1.5 : 1 / (1 + (i % 9)) + rng.float(0.1, 1.2), hasMembership: i % 7 === 0,
         address: { id: addressId, label: 'Home', line1, city: loc.city, state: loc.state, pincode: loc.pincode, lat, lng },
       };
       ctx.customers.push(ref);

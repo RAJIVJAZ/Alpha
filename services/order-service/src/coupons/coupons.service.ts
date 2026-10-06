@@ -52,15 +52,16 @@ export class CouponsService {
   }
 
   /** Coupons a customer can see for an outlet, with eligibility hints. */
-  async available(userId: string, outletId: string) {
-    const outlet = await this.prisma.outlet.findUnique({ where: { id: outletId } });
-    if (!outlet) throw notFound('Outlet', outletId);
+  /** Without an outlet, lists platform-wide offers (the customer "Offers" page). */
+  async available(userId: string, outletId?: string) {
+    const outlet = outletId ? await this.prisma.outlet.findUnique({ where: { id: outletId } }) : null;
+    if (outletId && !outlet) throw notFound('Outlet', outletId);
     const now = new Date();
     const where: Prisma.CouponWhereInput = {
       isActive: true,
       validFrom: { lte: now },
       validTo: { gte: now },
-      OR: [{ tenantId: null }, { tenantId: outlet.tenantId }],
+      OR: outlet ? [{ tenantId: null }, { tenantId: outlet.tenantId }] : [{ tenantId: null }],
     };
     const [coupons, completed, member, redemptions] = await Promise.all([
       this.prisma.coupon.findMany({ where, orderBy: { value: 'desc' }, take: 50 }),
@@ -73,7 +74,8 @@ export class CouponsService {
       .map((c) => {
         const check = checkCouponEligibility(
           { ...c, value: Number(c.value), maxDiscount: c.maxDiscount ? Number(c.maxDiscount) : null, minOrderValue: Number(c.minOrderValue) },
-          { now, outletId, tenantId: outlet.tenantId, isFirstOrder: completed === 0, isMember: member > 0, userRedemptions: used.get(c.id) ?? 0 },
+          // platform offers carry no outlet restriction worth checking without an outlet
+          { now, outletId: outletId ?? c.outletIds[0] ?? '', tenantId: outlet?.tenantId ?? '', isFirstOrder: completed === 0, isMember: member > 0, userRedemptions: used.get(c.id) ?? 0 },
         );
         return {
           code: c.code,

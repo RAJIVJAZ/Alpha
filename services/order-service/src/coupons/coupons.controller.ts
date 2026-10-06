@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiQuery, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Permissions } from '@foodgrid/auth';
 import { CurrentUser, RequirePermissions, RequireTenant } from '@foodgrid/auth/nest';
 import type { AccessTokenClaims } from '@foodgrid/types';
@@ -13,8 +13,9 @@ export class CouponsController {
   constructor(private readonly coupons: CouponsService) {}
 
   @Get('coupons')
-  @ApiOperation({ summary: 'Coupons available at an outlet with eligibility' })
-  available(@CurrentUser('sub') userId: string, @Query('outletId') outletId: string) {
+  @ApiOperation({ summary: 'Coupons with eligibility — for an outlet, or platform-wide offers when outletId is omitted' })
+  @ApiQuery({ name: 'outletId', required: false })
+  available(@CurrentUser('sub') userId: string, @Query('outletId') outletId?: string) {
     return this.coupons.available(userId, outletId);
   }
 
