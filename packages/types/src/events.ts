@@ -115,6 +115,9 @@ export interface OrderSnapshot {
   items: OrderLineSnapshot[];
   placedAt: string | null;
   isFirstOrder?: boolean;
+  /** Handover OTP (internal consumers only; never exposed to merchants). */
+  deliveryOtp?: string | null;
+  estimatedReadyAt?: string | null;
 }
 
 export interface OrderStatusChangedEvent extends OrderSnapshot {

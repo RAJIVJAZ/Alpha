@@ -52,5 +52,7 @@ export function toOrderSnapshot(
     })),
     placedAt: order.placedAt?.toISOString() ?? null,
     isFirstOrder: extra.isFirstOrder,
+    deliveryOtp: order.deliveryOtp,
+    estimatedReadyAt: order.estimatedReadyAt?.toISOString() ?? null,
   };
 }
