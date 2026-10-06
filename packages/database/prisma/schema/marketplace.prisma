@@ -140,6 +140,7 @@ model Product {
   @@unique([tenantId, sku])
   @@index([categoryId, isActive])
   @@index([tenantId, isActive])
+  @@index([name(ops: raw("gin_trgm_ops"))], type: Gin, map: "Product_name_trgm_idx")
   @@schema("marketplace")
 }
 

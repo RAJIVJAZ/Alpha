@@ -24,11 +24,13 @@
 generator client {
   provider        = "prisma-client-js"
   output          = "../../generated/client"
+  previewFeatures = ["postgresqlExtensions"]
   binaryTargets   = ["native", "linux-musl-openssl-3.0.x", "debian-openssl-3.0.x"]
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
-  schemas  = ["identity", "commerce", "payments", "delivery", "inventory", "procurement", "marketplace", "analytics", "ads", "notifications", "ai", "platform"]
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [pg_trgm(schema: "public")]
+  schemas    = ["identity", "commerce", "payments", "delivery", "inventory", "procurement", "marketplace", "analytics", "ads", "notifications", "ai", "platform"]
 }

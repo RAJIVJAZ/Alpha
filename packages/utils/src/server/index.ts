@@ -12,3 +12,4 @@ export * from './swagger';
 export * from './bootstrap';
 export * from './dto';
 export * from './serialize';
+export * from './distributed-lock';
