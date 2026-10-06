@@ -51,12 +51,27 @@ export class WalletLedgerService {
     const amount = round2(entry.amount);
     if (amount <= 0) throw new AppError('INVALID_AMOUNT', 'Amount must be positive', 400);
     const run = (db: Tx) => this.applyInTx(db, type, { ...entry, amount });
-    return tx ? run(tx) : this.prisma.$transaction(run);
+    if (tx) return run(tx);
+    try {
+      return await this.prisma.$transaction(run);
+    } catch (err) {
+      // A concurrent request with the same idempotency key committed first: the
+      // operation has already happened, so return the original entry.
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+        const existing = await this.prisma.walletTransaction.findUnique({ where: { idempotencyKey: entry.idempotencyKey } });
+        if (existing) return existing;
+      }
+      throw err;
+    }
   }
 
   private async applyInTx(db: Tx, type: 'CREDIT' | 'DEBIT', entry: LedgerEntry): Promise<WalletTransaction> {
     const existing = await db.walletTransaction.findUnique({ where: { idempotencyKey: entry.idempotencyKey } });
     if (existing) return existing;
+    // INSERT ... ON CONFLICT DO NOTHING on the caller's connection: concurrent first-time
+    // operations never fail on the (ownerType, ownerId) unique key, and no second pooled
+    // connection is needed while a transaction is open.
+    await db.wallet.createMany({ data: [{ ownerType: entry.ownerType, ownerId: entry.ownerId }], skipDuplicates: true });
 
     for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
       const wallet = await this.getOrCreate(db, entry.ownerType, entry.ownerId);
