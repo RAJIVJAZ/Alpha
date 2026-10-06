@@ -23,8 +23,12 @@
   },
   "typesVersions": {
     "*": {
-      "permissions": ["dist/permissions.d.ts"],
-      "nest": ["dist/nest/index.d.ts"]
+      "permissions": [
+        "dist/permissions.d.ts"
+      ],
+      "nest": [
+        "dist/nest/index.d.ts"
+      ]
     }
   },
   "scripts": {
@@ -42,13 +46,21 @@
     "@nestjs/common": "^11.0.0",
     "@nestjs/core": "^11.0.0",
     "jose": "^6.0.0",
-    "next": "^15.0.0"
+    "next": "^15.5.0"
   },
   "peerDependenciesMeta": {
-    "@nestjs/common": { "optional": true },
-    "@nestjs/core": { "optional": true },
-    "jose": { "optional": true },
-    "next": { "optional": true }
+    "@nestjs/common": {
+      "optional": true
+    },
+    "@nestjs/core": {
+      "optional": true
+    },
+    "jose": {
+      "optional": true
+    },
+    "next": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@nestjs/common": "^11.1.0",
