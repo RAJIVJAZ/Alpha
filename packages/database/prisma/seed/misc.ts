@@ -100,13 +100,26 @@ export async function seedNotifications(ctx: SeedContext) {
     ],
   });
   await prisma.notificationPreference.create({ data: { userId: demo.userId, quietHoursStart: '23:00', quietHoursEnd: '07:00' } });
+
+  // app installs registered for push: most customers, every rider, merchant owners
+  const rng = new Rng(77);
+  const device = (userId: string, app: 'CUSTOMER' | 'RIDER' | 'MERCHANT', at: Date) => ({
+    userId, app, platform: rng.chance(0.78) ? ('ANDROID' as const) : ('IOS' as const), token: `demo-${app.toLowerCase()}-${randomBytes(16).toString('hex')}`,
+    lastSeenAt: addMinutes(ctx.now, -rng.int(5, 4 * 1440)), createdAt: at,
+  });
+  const devices = [
+    ...ctx.customers.filter((c) => c.userId === demo.userId || rng.chance(0.85)).map((c) => device(c.userId, 'CUSTOMER', c.joinedAt)),
+    ...ctx.riders.map((r) => device(r.userId, 'RIDER', istMidnight(150, ctx.now))),
+    ...[...ctx.merchants.values()].map((m) => device(m.ownerUserId, 'MERCHANT', istMidnight(120, ctx.now))),
+  ];
+  await prisma.deviceToken.createMany({ data: devices });
   await prisma.pushCampaign.createMany({
     data: [
       { title: 'Weekend feast is here', body: 'Flat 20% off on biryanis this weekend. Use FOODGRID20.', app: 'CUSTOMER', audience: { cities: ['Bengaluru'] }, status: 'SENT', scheduledAt: istMidnight(9, ctx.now), sentAt: istMidnight(9, ctx.now), targetCount: ctx.customers.length, sentCount: ctx.customers.length - 2, failedCount: 2, openCount: 11, createdBy: ctx.adminUserId },
       { title: 'Diwali stock-up week', body: 'Bulk prices on ghee, sugar and flour for restaurants.', app: 'MERCHANT', audience: { tenantTypes: ['RESTAURANT', 'FOOD_CART'] }, status: 'SCHEDULED', scheduledAt: istMidnight(-3, ctx.now), createdBy: ctx.adminUserId },
     ],
   });
-  log('notifications', '4 inbox items, 2 push campaigns');
+  log('notifications', `4 inbox items, 2 push campaigns, ${devices.length} push devices`);
 }
 
 /** Persists document counters so live services continue numbering after the seeded history. */

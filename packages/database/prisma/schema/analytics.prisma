@@ -30,6 +30,8 @@ model OrderFact {
   isFirstOrder    Boolean   @default(false)
   prepMins        Int?
   deliveryMins    Int?
+  /// Minutes to the ETA promised at checkout (delivery orders); on time = deliveryMins <= promisedMins
+  promisedMins    Int?
   riderId         String?
   placedAt        DateTime
   deliveredAt     DateTime?

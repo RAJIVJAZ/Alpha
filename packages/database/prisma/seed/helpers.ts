@@ -57,6 +57,14 @@ export function haversineKm(a: LatLng, b: LatLng): number {
   return 2 * 6371.0088 * Math.asin(Math.min(1, Math.sqrt(h)));
 }
 
+/** Riding time at the city average speed (same as utils.travelMinutes). */
+export function travelMinutes(distanceKm: number, avgSpeedKmph = 22): number {
+  return Math.max(1, Math.round((distanceKm / avgSpeedKmph) * 60));
+}
+
+/** Mirrors delivery-service's HANDOVER_BUFFER_MINS in the checkout ETA. */
+export const HANDOVER_BUFFER_MINS = 12;
+
 const BASE32 = '0123456789bcdefghjkmnpqrstuvwxyz';
 
 export function encodeGeohash(lat: number, lng: number, precision = 6): string {

@@ -44,6 +44,7 @@ export class ProjectionsService {
       platformRevenue: round2(channelRevenue),
       prepMins: o.prepMins ?? undefined,
       deliveryMins: o.deliveryMins ?? undefined,
+      promisedMins: o.promisedMins ?? undefined,
       riderId: o.riderId ?? undefined,
       placedAt,
       ...(o.status === 'DELIVERED' || o.status === 'COMPLETED' ? { deliveredAt: new Date() } : {}),

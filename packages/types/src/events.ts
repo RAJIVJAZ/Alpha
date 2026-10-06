@@ -126,6 +126,8 @@ export interface OrderStatusChangedEvent extends OrderSnapshot {
   riderId?: string | null;
   prepMins?: number | null;
   deliveryMins?: number | null;
+  /** Minutes from placing to the delivery time the customer was promised (delivery orders). */
+  promisedMins?: number | null;
 }
 
 export interface ReviewCreatedEvent {

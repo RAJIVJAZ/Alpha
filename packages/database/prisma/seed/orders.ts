@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import { computeGst, istParts } from './helpers';
+import { computeGst, HANDOVER_BUFFER_MINS, istParts, travelMinutes } from './helpers';
 import type { Prisma } from '../../generated/client';
 import { istDateStamp } from '../../src/sequence';
 import type { CustomerRef, OutletRef, RiderRef, SeedContext } from './context';
@@ -8,6 +8,9 @@ import { DEMO_CUSTOMER_PHONE } from './identity';
 import type { InventoryResult } from './inventory';
 import { addMinutes, atIst, id, inChunks, istDay, istMidnight, log, r2, Rng } from './lib';
 import { buildOrder, ORDER_DAYS, type SimOrder, type Simulation } from './simulate';
+
+/** The checkout ETA for delivery orders, as delivery-service quotes it: prep + riding + hand-over. */
+const promisedMins = (o: SimOrder) => (o.type === 'DELIVERY' ? o.outlet.def.avgPrepTimeMins + travelMinutes(o.distanceKm ?? 3) + HANDOVER_BUFFER_MINS : null);
 
 const REVIEW_COMMENTS: Record<number, string[]> = {
   5: ['Absolutely delicious, will order again!', 'Hot, fresh and on time.', 'Best in the area.', 'Perfect packaging and great taste.', ''],
@@ -147,7 +150,7 @@ function addOrderRows(ctx: SeedContext, c: Ctx2, o: SimOrder, orderNumber: strin
     couponFundedBy: o.couponFundedBy, commissionRate: o.commissionRate, commissionAmount: o.commissionAmount, deliveryAddress: address ?? undefined,
     deliveryLat: address?.lat, deliveryLng: address?.lng, distanceKm: o.distanceKm, tableId: null, riderId: o.rider?.profileId ?? null,
     deliveryOtp: otp, estimatedReadyAt: o.acceptedAt ? addMinutes(o.acceptedAt, outlet.def.avgPrepTimeMins) : null,
-    estimatedDeliveryAt: o.type === 'DELIVERY' ? addMinutes(o.placedAt, outlet.def.avgPrepTimeMins + 25) : null, placedAt: o.placedAt, acceptedAt: o.acceptedAt,
+    estimatedDeliveryAt: o.type === 'DELIVERY' ? addMinutes(o.placedAt, promisedMins(o)!) : null, placedAt: o.placedAt, acceptedAt: o.acceptedAt,
     preparingAt: o.preparingAt, readyAt: o.readyAt, pickedUpAt: o.pickedUpAt, deliveredAt: o.deliveredAt, completedAt: o.completedAt, cancelledAt: o.cancelledAt,
     cancelReason: o.cancelReason, cancelledBy: o.cancelledBy, fraudScore: Math.round(o.fraudScore * 1000) / 1000, deviceId: o.customer ? `dev_${o.customer.userId.slice(0, 8)}` : null,
     createdAt: o.placedAt,
@@ -288,7 +291,7 @@ function addOrderRows(ctx: SeedContext, c: Ctx2, o: SimOrder, orderNumber: strin
     itemsCount: o.lines.reduce((s, l) => s + l.quantity, 0), gmv: o.total, subtotal: o.subtotal, discount: r2(o.couponDiscount + o.membershipDiscount),
     deliveryFee: o.deliveryFee, tax: o.taxTotal, commission, platformRevenue: o.channel === 'POS' ? 0 : r2(commission + o.deliveryFee + o.platformFee), foodCost,
     isFirstOrder: o.isFirstOrder, prepMins: o.readyAt && o.acceptedAt ? minutes(o.acceptedAt, o.readyAt) : null,
-    deliveryMins: o.deliveredAt ? minutes(o.placedAt, o.deliveredAt) : null, riderId: o.rider?.profileId ?? null, placedAt: o.placedAt, deliveredAt: o.completedAt,
+    deliveryMins: o.deliveredAt ? minutes(o.placedAt, o.deliveredAt) : null, promisedMins: promisedMins(o), riderId: o.rider?.profileId ?? null, placedAt: o.placedAt, deliveredAt: o.completedAt,
   });
 
   if (o.fraudScore >= 0.7) {

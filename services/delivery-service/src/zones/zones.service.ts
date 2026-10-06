@@ -11,6 +11,13 @@ const MAX_DELIVERY_KM = 15;
 const surgeKey = (zoneId: string) => `surge:${zoneId}`;
 
 /** Delivery zones, serviceability, fee quotes and live surge. */
+/**
+ * Minutes promised on top of preparation and riding time: accepting the order,
+ * the rider's wait at pickup and the hand-over at the door. Customers judge
+ * "on time" against this promise, so it has to be honest.
+ */
+export const HANDOVER_BUFFER_MINS = 12;
+
 @Injectable()
 export class ZonesService {
   private readonly logger = new Logger(ZonesService.name);
@@ -50,7 +57,7 @@ export class ZonesService {
       serviceable: distanceKm <= MAX_DELIVERY_KM,
       distanceKm,
       deliveryFee: deliveryFee(tariff, distanceKm, surge),
-      etaMins: prepMins + travelMinutes(distanceKm) + 5,
+      etaMins: prepMins + travelMinutes(distanceKm) + HANDOVER_BUFFER_MINS,
       surgeMultiplier: surge,
       zoneId: zone.id,
     };

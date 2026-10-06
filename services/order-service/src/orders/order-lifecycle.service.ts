@@ -106,6 +106,7 @@ export class OrderLifecycleService {
         riderId: order.riderId,
         prepMins: minutes(order.acceptedAt, order.readyAt),
         deliveryMins: minutes(order.placedAt, order.deliveredAt ?? order.completedAt),
+        promisedMins: minutes(order.placedAt, order.estimatedDeliveryAt),
       },
     });
   }

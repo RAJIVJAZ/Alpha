@@ -1,4 +1,4 @@
-import { haversineKm } from './helpers';
+import { haversineKm, travelMinutes } from './helpers';
 import { FESTIVALS } from './catalog';
 import type { CustomerRef, MenuItemRef, OutletRef, RiderRef, SeedContext } from './context';
 import { addMinutes, atIst, id, istIsoWeekday, istMidnight, r2, Rng } from './lib';
@@ -297,9 +297,10 @@ export function buildOrder(
   const ok = status === 'DELIVERED' || status === 'COMPLETED';
   const acceptedAt = status === 'REJECTED' || (status === 'CANCELLED' && cancelledBy === 'CUSTOMER') ? null : addMinutes(placedAt, rng.int(1, 3));
   const preparingAt = ok ? addMinutes(acceptedAt!, rng.int(0, 2)) : null;
-  const readyAt = ok ? addMinutes(preparingAt!, Math.max(4, def.avgPrepTimeMins + rng.int(-5, 8))) : null;
-  const pickedUpAt = ok && type === 'DELIVERY' ? addMinutes(readyAt!, rng.int(2, 9)) : null;
-  const deliveredAt = pickedUpAt ? addMinutes(pickedUpAt, Math.round(((distanceKm ?? 3) / 20) * 60) + rng.int(2, 8)) : null;
+  // kitchens mostly hit their prep time; riders are assigned before the food is ready
+  const readyAt = ok ? addMinutes(preparingAt!, Math.max(4, def.avgPrepTimeMins + rng.int(-4, 5))) : null;
+  const pickedUpAt = ok && type === 'DELIVERY' ? addMinutes(readyAt!, rng.int(1, 5)) : null;
+  const deliveredAt = pickedUpAt ? addMinutes(pickedUpAt, Math.round(travelMinutes(distanceKm ?? 3) * rng.float(0.85, 1.15)) + rng.int(1, 4)) : null;
   const completedAt = ok ? (deliveredAt ?? addMinutes(readyAt!, type === 'DINE_IN' ? rng.int(20, 50) : rng.int(3, 15))) : null;
   const cancelledAt = ok ? null : addMinutes(placedAt, rng.int(2, 9));
 

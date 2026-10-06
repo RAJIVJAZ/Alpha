@@ -260,7 +260,8 @@ export class ReportsService {
     const cancelled = placed.filter((f) => f.status === 'CANCELLED').length;
     const done = placed.filter((f) => ['DELIVERED', 'COMPLETED'].includes(f.status));
     const prep = done.map((f) => f.prepMins).filter((x): x is number => x != null);
-    const deliveryTimes = done.map((f) => f.deliveryMins).filter((x): x is number => x != null);
+    // on time = delivered by the ETA the customer was promised at checkout
+    const promised = done.filter((f) => f.deliveryMins != null && f.promisedMins != null);
     const customers = new Map<string, number>();
     for (const f of done) if (f.customerId) customers.set(f.customerId, (customers.get(f.customerId) ?? 0) + 1);
     return {
@@ -269,7 +270,7 @@ export class ReportsService {
       acceptanceRate: placed.length ? 1 - rejected / placed.length : 1,
       cancellationRate: placed.length ? cancelled / placed.length : 0,
       avgPrepMins: prep.length ? prep.reduce((a, b) => a + b, 0) / prep.length : 20,
-      onTimeRate: deliveryTimes.length ? deliveryTimes.filter((m) => m <= 40).length / deliveryTimes.length : 1,
+      onTimeRate: promised.length ? promised.filter((f) => f.deliveryMins! <= f.promisedMins!).length / promised.length : 1,
       repeatRate: customers.size ? [...customers.values()].filter((c) => c > 1).length / customers.size : 0,
     };
   }
