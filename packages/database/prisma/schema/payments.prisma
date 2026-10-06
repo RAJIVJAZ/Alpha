@@ -1,0 +1,355 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// payments: gateway payments, refunds, double-entry style wallet ledger,
+// commissions, merchant settlements, rider payouts and GST invoices.
+// Owned by payment-service.
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum PaymentProvider {
+  RAZORPAY
+  WALLET
+  CASH
+
+  @@schema("payments")
+}
+
+enum PaymentPurpose {
+  ORDER
+  WALLET_TOPUP
+  MEMBERSHIP
+  MEAL_SUBSCRIPTION
+  B2B_ORDER
+  AD_CAMPAIGN
+
+  @@schema("payments")
+}
+
+enum PaymentState {
+  CREATED
+  AUTHORIZED
+  CAPTURED
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
+  CANCELLED
+
+  @@schema("payments")
+}
+
+enum RefundStatus {
+  PENDING
+  PROCESSED
+  FAILED
+
+  @@schema("payments")
+}
+
+enum WalletOwnerType {
+  CUSTOMER
+  RIDER
+  TENANT
+
+  @@schema("payments")
+}
+
+enum WalletStatus {
+  ACTIVE
+  FROZEN
+  CLOSED
+
+  @@schema("payments")
+}
+
+enum LedgerEntryType {
+  CREDIT
+  DEBIT
+
+  @@schema("payments")
+}
+
+enum LedgerReason {
+  TOPUP
+  ORDER_PAYMENT
+  ORDER_REFUND
+  CASHBACK
+  REFERRAL_BONUS
+  DELIVERY_EARNING
+  INCENTIVE
+  TIP
+  PAYOUT
+  PAYOUT_REVERSAL
+  ADJUSTMENT
+  MEMBERSHIP_PURCHASE
+  SUBSCRIPTION_PURCHASE
+  COD_COLLECTION
+  PENALTY
+
+  @@schema("payments")
+}
+
+enum SettlementStatus {
+  PENDING
+  PROCESSING
+  PAID
+  FAILED
+  ON_HOLD
+
+  @@schema("payments")
+}
+
+enum PayoutStatus {
+  REQUESTED
+  PROCESSING
+  PAID
+  FAILED
+  REJECTED
+
+  @@schema("payments")
+}
+
+enum InvoiceType {
+  CUSTOMER_ORDER
+  COMMISSION
+  DELIVERY_SERVICE
+  B2B_SALE
+
+  @@schema("payments")
+}
+
+model Payment {
+  id                String          @id @default(cuid())
+  purpose           PaymentPurpose
+  referenceId       String
+  userId            String?
+  tenantId          String?
+  amount            Decimal         @db.Decimal(12, 2)
+  currency          String          @default("INR")
+  method            PaymentMethod?
+  provider          PaymentProvider
+  state             PaymentState    @default(CREATED)
+  providerOrderId   String?         @unique
+  providerPaymentId String?         @unique
+  providerSignature String?
+  failureCode       String?
+  failureReason     String?
+  idempotencyKey    String?         @unique
+  refundedAmount    Decimal         @default(0) @db.Decimal(12, 2)
+  capturedAt        DateTime?
+  metadata          Json            @default("{}")
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  refunds Refund[]
+
+  @@index([purpose, referenceId])
+  @@index([userId, createdAt])
+  @@index([state, createdAt])
+  @@schema("payments")
+}
+
+model Refund {
+  id               String       @id @default(cuid())
+  paymentId        String
+  amount           Decimal      @db.Decimal(12, 2)
+  reason           String
+  status           RefundStatus @default(PENDING)
+  /// Refund to the original instrument or to the platform wallet.
+  toWallet         Boolean      @default(false)
+  providerRefundId String?      @unique
+  initiatedBy      String?
+  processedAt      DateTime?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  payment Payment @relation(fields: [paymentId], references: [id])
+
+  @@index([paymentId])
+  @@schema("payments")
+}
+
+model Wallet {
+  id        String          @id @default(cuid())
+  ownerType WalletOwnerType
+  ownerId   String
+  balance   Decimal         @default(0) @db.Decimal(12, 2)
+  currency  String          @default("INR")
+  status    WalletStatus    @default(ACTIVE)
+  /// Optimistic-lock version, incremented on every balance change.
+  version   Int             @default(0)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  transactions WalletTransaction[]
+  payouts      Payout[]
+
+  @@unique([ownerType, ownerId])
+  @@schema("payments")
+}
+
+/// Append-only wallet ledger. balanceAfter allows O(1) statement rendering
+/// and makes tampering detectable (running balance must reconcile).
+model WalletTransaction {
+  id             String          @id @default(cuid())
+  walletId       String
+  type           LedgerEntryType
+  reason         LedgerReason
+  amount         Decimal         @db.Decimal(12, 2)
+  balanceAfter   Decimal         @db.Decimal(12, 2)
+  referenceType  String?
+  referenceId    String?
+  description    String?
+  idempotencyKey String          @unique
+  createdAt      DateTime        @default(now())
+
+  wallet Wallet @relation(fields: [walletId], references: [id])
+
+  @@index([walletId, createdAt])
+  @@index([referenceType, referenceId])
+  @@schema("payments")
+}
+
+/// Commission rules. The most specific active rule wins
+/// (outlet > tenant > tenantType > default) and then by priority.
+model CommissionRule {
+  id            String      @id @default(cuid())
+  name          String
+  tenantType    TenantType?
+  tenantId      String?
+  outletId      String?
+  ratePct       Decimal     @db.Decimal(5, 2)
+  fixedFee      Decimal     @default(0) @db.Decimal(10, 2)
+  minFee        Decimal?    @db.Decimal(10, 2)
+  maxFee        Decimal?    @db.Decimal(10, 2)
+  priority      Int         @default(0)
+  effectiveFrom DateTime    @default(now())
+  effectiveTo   DateTime?
+  isActive      Boolean     @default(true)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@index([tenantId])
+  @@index([tenantType, isActive])
+  @@schema("payments")
+}
+
+model Settlement {
+  id                String           @id @default(cuid())
+  tenantId          String
+  periodStart       DateTime
+  periodEnd         DateTime
+  ordersCount       Int
+  grossSales        Decimal          @db.Decimal(14, 2)
+  merchantDiscounts Decimal          @default(0) @db.Decimal(14, 2)
+  commission        Decimal          @db.Decimal(14, 2)
+  /// 18% GST charged by the platform on its commission.
+  commissionGst     Decimal          @db.Decimal(14, 2)
+  /// Section 52 CGST Act TCS collected by the e-commerce operator.
+  tcs               Decimal          @db.Decimal(14, 2)
+  /// Section 194-O Income Tax TDS.
+  tds               Decimal          @db.Decimal(14, 2)
+  refunds           Decimal          @default(0) @db.Decimal(14, 2)
+  adjustments       Decimal          @default(0) @db.Decimal(14, 2)
+  netPayable        Decimal          @db.Decimal(14, 2)
+  status            SettlementStatus @default(PENDING)
+  payoutReference   String?
+  paidAt            DateTime?
+  notes             String?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  lines SettlementLine[]
+
+  @@unique([tenantId, periodStart, periodEnd])
+  @@index([status])
+  @@schema("payments")
+}
+
+/// Per-order accrual created when an order is delivered/completed.
+model SettlementLine {
+  id               String   @id @default(cuid())
+  settlementId     String?
+  tenantId         String
+  outletId         String
+  orderId          String   @unique
+  orderDate        DateTime
+  orderTotal       Decimal  @db.Decimal(12, 2)
+  taxableValue     Decimal  @db.Decimal(12, 2)
+  gstCollected     Decimal  @db.Decimal(12, 2)
+  merchantDiscount Decimal  @default(0) @db.Decimal(12, 2)
+  commission       Decimal  @db.Decimal(12, 2)
+  commissionGst    Decimal  @db.Decimal(12, 2)
+  tcs              Decimal  @db.Decimal(12, 2)
+  tds              Decimal  @db.Decimal(12, 2)
+  netAmount        Decimal  @db.Decimal(12, 2)
+  createdAt        DateTime @default(now())
+
+  settlement Settlement? @relation(fields: [settlementId], references: [id])
+
+  @@index([tenantId, settlementId])
+  @@index([orderDate])
+  @@schema("payments")
+}
+
+model Payout {
+  id            String          @id @default(cuid())
+  walletId      String
+  ownerType     WalletOwnerType
+  ownerId       String
+  amount        Decimal         @db.Decimal(12, 2)
+  status        PayoutStatus    @default(REQUESTED)
+  method        String          @default("UPI")
+  destination   Json
+  utr           String?
+  failureReason String?
+  requestedAt   DateTime        @default(now())
+  processedAt   DateTime?
+
+  wallet Wallet @relation(fields: [walletId], references: [id])
+
+  @@index([ownerType, ownerId])
+  @@index([status])
+  @@schema("payments")
+}
+
+model GstInvoice {
+  id                String      @id @default(cuid())
+  invoiceNumber     String      @unique
+  type              InvoiceType
+  referenceId       String
+  tenantId          String?
+  supplierName      String
+  supplierGstin     String?
+  supplierStateCode String
+  recipientName     String?
+  recipientGstin    String?
+  placeOfSupply     String
+  isInterState      Boolean
+  hsnSac            String
+  taxableValue      Decimal     @db.Decimal(14, 2)
+  cgst              Decimal     @default(0) @db.Decimal(14, 2)
+  sgst              Decimal     @default(0) @db.Decimal(14, 2)
+  igst              Decimal     @default(0) @db.Decimal(14, 2)
+  cess              Decimal     @default(0) @db.Decimal(14, 2)
+  total             Decimal     @db.Decimal(14, 2)
+  issuedAt          DateTime    @default(now())
+  pdfUrl            String?
+
+  @@index([tenantId, issuedAt])
+  @@index([type, issuedAt])
+  @@index([referenceId])
+  @@schema("payments")
+}
+
+/// Raw gateway webhooks, stored for idempotent processing and audit.
+model PaymentWebhookEvent {
+  id             String          @id @default(cuid())
+  provider       PaymentProvider
+  eventId        String          @unique
+  eventType      String
+  payload        Json
+  signatureValid Boolean
+  processedAt    DateTime?
+  error          String?
+  receivedAt     DateTime        @default(now())
+
+  @@schema("payments")
+}

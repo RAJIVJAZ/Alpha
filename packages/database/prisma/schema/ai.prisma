@@ -1,0 +1,154 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// ai: model run audit trail, fraud assessments, pricing suggestions, outlet
+// performance scores and external demand signals (weather, festivals).
+// Owned by ai-service.
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum AiModelKind {
+  DEMAND_FORECAST
+  DYNAMIC_PRICING
+  INVENTORY_OPTIMIZATION
+  SUPPLIER_RECOMMENDATION
+  FRAUD_DETECTION
+  ROUTE_OPTIMIZATION
+  CUSTOMER_RECOMMENDATION
+  OUTLET_SCORING
+
+  @@schema("ai")
+}
+
+enum FraudEntityType {
+  ORDER
+  PAYMENT
+  USER
+  RIDER
+  COUPON_REDEMPTION
+  REFUND
+
+  @@schema("ai")
+}
+
+enum FraudDecision {
+  ALLOW
+  REVIEW
+  BLOCK
+
+  @@schema("ai")
+}
+
+enum PricingTargetType {
+  MENU_ITEM
+  PRODUCT
+  DELIVERY_FEE
+
+  @@schema("ai")
+}
+
+enum SuggestionStatus {
+  SUGGESTED
+  APPLIED
+  DISMISSED
+  EXPIRED
+
+  @@schema("ai")
+}
+
+enum SignalType {
+  FESTIVAL
+  WEATHER
+  EVENT
+  HOLIDAY
+
+  @@schema("ai")
+}
+
+model AiModelRun {
+  id         String      @id @default(cuid())
+  kind       AiModelKind
+  tenantId   String?
+  scope      Json?
+  success    Boolean     @default(true)
+  metrics    Json?
+  durationMs Int
+  error      String?
+  createdAt  DateTime    @default(now())
+
+  @@index([kind, createdAt])
+  @@schema("ai")
+}
+
+model FraudAssessment {
+  id            String          @id @default(cuid())
+  entityType    FraudEntityType
+  entityId      String
+  userId        String?
+  score         Float
+  decision      FraudDecision
+  reasons       String[]        @default([])
+  features      Json
+  reviewedBy    String?
+  reviewOutcome String?
+  reviewedAt    DateTime?
+  createdAt     DateTime        @default(now())
+
+  @@index([entityType, entityId])
+  @@index([decision, createdAt])
+  @@schema("ai")
+}
+
+model PricingSuggestion {
+  id             String            @id @default(cuid())
+  tenantId       String?
+  targetType     PricingTargetType
+  targetId       String
+  targetName     String?
+  currentPrice   Decimal           @db.Decimal(12, 2)
+  suggestedPrice Decimal           @db.Decimal(12, 2)
+  changePct      Float
+  reason         String
+  confidence     Float
+  factors        Json              @default("{}")
+  status         SuggestionStatus  @default(SUGGESTED)
+  validUntil     DateTime?
+  appliedAt      DateTime?
+  createdAt      DateTime          @default(now())
+
+  @@index([tenantId, status])
+  @@schema("ai")
+}
+
+model OutletScore {
+  id              String   @id @default(cuid())
+  tenantId        String
+  outletId        String
+  periodStart     DateTime @db.Date
+  periodEnd       DateTime @db.Date
+  score           Float
+  grade           String
+  components      Json
+  recommendations String[] @default([])
+  createdAt       DateTime @default(now())
+
+  @@unique([outletId, periodStart, periodEnd])
+  @@index([tenantId])
+  @@schema("ai")
+}
+
+/// Exogenous demand drivers for forecasting. city = null means nationwide.
+model ExternalSignal {
+  id         String     @id @default(cuid())
+  type       SignalType
+  name       String
+  city       String?
+  date       DateTime   @db.Date
+  /// Expected demand multiplier (1.0 = neutral).
+  impact     Float      @default(1)
+  /// Ingredient categories most affected (empty = all).
+  categories String[]   @default([])
+  data       Json       @default("{}")
+  createdAt  DateTime   @default(now())
+
+  @@unique([type, name, city, date])
+  @@index([date, city])
+  @@schema("ai")
+}

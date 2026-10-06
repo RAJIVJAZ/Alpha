@@ -1,0 +1,355 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// marketplace: B2B product marketplace for suppliers, wholesalers and
+// retailers — catalog, bulk price tiers, MOQ, delivery zones & slots,
+// territories, dealer network, B2B orders and seller ratings.
+// Owned by supplier-service.
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum SellerType {
+  SUPPLIER
+  WHOLESALER
+  RETAILER
+
+  @@schema("marketplace")
+}
+
+enum StockStatus {
+  IN_STOCK
+  LOW_STOCK
+  OUT_OF_STOCK
+
+  @@schema("marketplace")
+}
+
+enum BuyerSegment {
+  ALL
+  RESTAURANT
+  RETAILER
+  DEALER
+
+  @@schema("marketplace")
+}
+
+enum B2bOrderStatus {
+  PLACED
+  CONFIRMED
+  PARTIALLY_CONFIRMED
+  REJECTED
+  PACKED
+  DISPATCHED
+  IN_TRANSIT
+  DELIVERED
+  CANCELLED
+
+  @@schema("marketplace")
+}
+
+enum B2bPaymentStatus {
+  PENDING
+  PAID
+  PARTIAL
+  OVERDUE
+
+  @@schema("marketplace")
+}
+
+enum PaymentTerms {
+  PREPAID
+  COD
+  NET_7
+  NET_15
+  NET_30
+
+  @@schema("marketplace")
+}
+
+enum DealerTier {
+  PLATINUM
+  GOLD
+  SILVER
+  BRONZE
+
+  @@schema("marketplace")
+}
+
+enum DealerStatus {
+  PROSPECT
+  ACTIVE
+  INACTIVE
+  BLOCKED
+
+  @@schema("marketplace")
+}
+
+/// Dairy, Flour, Sugar, Rice, Vegetables, Fruits, Packaging, Spices,
+/// Beverages, Frozen ... (seeded).
+model ProductCategory {
+  id        String  @id @default(cuid())
+  code      String  @unique
+  name      String
+  slug      String  @unique
+  parentId  String?
+  imageUrl  String?
+  sortOrder Int     @default(0)
+  isActive  Boolean @default(true)
+
+  parent   ProductCategory?  @relation("CategoryTree", fields: [parentId], references: [id])
+  children ProductCategory[] @relation("CategoryTree")
+  products Product[]
+
+  @@schema("marketplace")
+}
+
+model Product {
+  id                String      @id @default(cuid())
+  tenantId          String
+  sellerType        SellerType
+  categoryId        String
+  name              String
+  slug              String
+  sku               String
+  brand             String?
+  description       String?
+  images            String[]    @default([])
+  unit              StockUnit
+  /// Quantity of `unit` contained in one sellable pack (e.g. 25 KG bag).
+  packSize          Decimal     @default(1) @db.Decimal(10, 3)
+  /// Base price per pack (pre-tax). Bulk tiers override this.
+  price             Decimal     @db.Decimal(12, 2)
+  mrp               Decimal?    @db.Decimal(12, 2)
+  moq               Decimal     @default(1) @db.Decimal(12, 3)
+  maxOrderQty       Decimal?    @db.Decimal(12, 3)
+  stepQty           Decimal     @default(1) @db.Decimal(12, 3)
+  gstRate           Decimal     @db.Decimal(5, 2)
+  hsnCode           String?
+  deliveryTimeHours Int         @default(24)
+  stockQty          Decimal     @default(0) @db.Decimal(14, 3)
+  lowStockThreshold Decimal     @default(10) @db.Decimal(14, 3)
+  stockStatus       StockStatus @default(IN_STOCK)
+  isActive          Boolean     @default(true)
+  rating            Float       @default(0)
+  ratingCount       Int         @default(0)
+  attributes        Json        @default("{}")
+  tags              String[]    @default([])
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  category   ProductCategory @relation(fields: [categoryId], references: [id])
+  priceTiers PriceTier[]
+
+  @@unique([tenantId, sku])
+  @@index([categoryId, isActive])
+  @@index([tenantId, isActive])
+  @@schema("marketplace")
+}
+
+/// Bulk / segment pricing: the highest minQty tier <= ordered qty applies.
+model PriceTier {
+  id        String       @id @default(cuid())
+  productId String
+  minQty    Decimal      @db.Decimal(12, 3)
+  maxQty    Decimal?     @db.Decimal(12, 3)
+  unitPrice Decimal      @db.Decimal(12, 2)
+  segment   BuyerSegment @default(ALL)
+  validFrom DateTime?
+  validTo   DateTime?
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId, segment])
+  @@schema("marketplace")
+}
+
+model SellerDeliveryZone {
+  id                String   @id @default(cuid())
+  tenantId          String
+  name              String
+  pincodes          String[] @default([])
+  centerLat         Float?
+  centerLng         Float?
+  radiusKm          Float?
+  deliveryCharge    Decimal  @db.Decimal(10, 2)
+  freeDeliveryAbove Decimal? @db.Decimal(12, 2)
+  minOrderValue     Decimal  @default(0) @db.Decimal(12, 2)
+  leadTimeHours     Int      @default(24)
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([tenantId, isActive])
+  @@schema("marketplace")
+}
+
+model DeliverySlot {
+  id            String   @id @default(cuid())
+  tenantId      String
+  label         String?
+  /// 0 = Sunday ... 6 = Saturday
+  dayOfWeek     Int
+  startTime     String
+  endTime       String
+  capacity      Int
+  cutoffMinutes Int      @default(120)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+
+  @@index([tenantId, dayOfWeek])
+  @@schema("marketplace")
+}
+
+model Territory {
+  id            String   @id @default(cuid())
+  tenantId      String
+  name          String
+  code          String?
+  states        String[] @default([])
+  cities        String[] @default([])
+  pincodes      String[] @default([])
+  managerUserId String?
+  monthlyTarget Decimal? @db.Decimal(14, 2)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  dealers Dealer[]
+
+  @@index([tenantId])
+  @@schema("marketplace")
+}
+
+model Dealer {
+  id             String       @id @default(cuid())
+  tenantId       String
+  /// The dealer's own organisation, if it is on the platform.
+  dealerTenantId String?
+  name           String
+  contactName    String?
+  phone          String
+  email          String?
+  gstin          String?
+  address        String?
+  city           String
+  territoryId    String?
+  tier           DealerTier   @default(BRONZE)
+  status         DealerStatus @default(PROSPECT)
+  creditLimit    Decimal      @default(0) @db.Decimal(14, 2)
+  outstanding    Decimal      @default(0) @db.Decimal(14, 2)
+  paymentTerms   PaymentTerms @default(PREPAID)
+  discountPct    Decimal      @default(0) @db.Decimal(5, 2)
+  onboardedAt    DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  territory Territory? @relation(fields: [territoryId], references: [id])
+
+  @@unique([tenantId, phone])
+  @@index([tenantId, territoryId])
+  @@schema("marketplace")
+}
+
+model B2bOrder {
+  id                    String           @id @default(cuid())
+  orderNumber           String           @unique
+  buyerTenantId         String
+  buyerName             String
+  sellerTenantId        String
+  sellerName            String
+  sourcePurchaseOrderId String?          @unique
+  status                B2bOrderStatus   @default(PLACED)
+  subtotal              Decimal          @db.Decimal(14, 2)
+  discount              Decimal          @default(0) @db.Decimal(14, 2)
+  taxTotal              Decimal          @db.Decimal(14, 2)
+  deliveryCharge        Decimal          @default(0) @db.Decimal(12, 2)
+  total                 Decimal          @db.Decimal(14, 2)
+  paymentTerms          PaymentTerms     @default(PREPAID)
+  paymentStatus         B2bPaymentStatus @default(PENDING)
+  deliverySlotId        String?
+  deliveryDate          DateTime?        @db.Date
+  deliveryAddress       Json
+  expectedDeliveryAt    DateTime?
+  trackingInfo          Json?
+  notes                 String?
+  rejectionReason       String?
+  confirmedAt           DateTime?
+  packedAt              DateTime?
+  dispatchedAt          DateTime?
+  deliveredAt           DateTime?
+  cancelledAt           DateTime?
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+
+  items  B2bOrderItem[]
+  events B2bOrderEvent[]
+
+  @@index([sellerTenantId, status])
+  @@index([buyerTenantId, createdAt])
+  @@index([deliverySlotId, deliveryDate])
+  @@schema("marketplace")
+}
+
+model B2bOrderItem {
+  id           String   @id @default(cuid())
+  orderId      String
+  productId    String
+  name         String
+  sku          String
+  quantity     Decimal  @db.Decimal(12, 3)
+  unit         String
+  unitPrice    Decimal  @db.Decimal(12, 2)
+  gstRate      Decimal  @db.Decimal(5, 2)
+  taxAmount    Decimal  @db.Decimal(12, 2)
+  lineTotal    Decimal  @db.Decimal(14, 2)
+  confirmedQty Decimal? @db.Decimal(12, 3)
+
+  order B2bOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([productId])
+  @@schema("marketplace")
+}
+
+model B2bOrderEvent {
+  id        String         @id @default(cuid())
+  orderId   String
+  status    B2bOrderStatus
+  note      String?
+  lat       Float?
+  lng       Float?
+  actorId   String?
+  createdAt DateTime       @default(now())
+
+  order B2bOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId, createdAt])
+  @@schema("marketplace")
+}
+
+model SellerRating {
+  id             String   @id @default(cuid())
+  b2bOrderId     String   @unique
+  buyerTenantId  String
+  sellerTenantId String
+  rating         Int
+  qualityRating  Int?
+  onTime         Boolean
+  comment        String?
+  createdAt      DateTime @default(now())
+
+  @@index([sellerTenantId])
+  @@schema("marketplace")
+}
+
+/// Denormalised seller KPIs consumed by the supplier recommendation engine.
+model SellerMetrics {
+  tenantId         String   @id
+  sellerName       String
+  avgRating        Float    @default(0)
+  ratingCount      Int      @default(0)
+  onTimeRate       Float    @default(1)
+  fillRate         Float    @default(1)
+  avgLeadTimeHours Float    @default(24)
+  totalOrders      Int      @default(0)
+  updatedAt        DateTime @updatedAt
+
+  @@schema("marketplace")
+}

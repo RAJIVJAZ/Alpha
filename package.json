@@ -1,0 +1,58 @@
+{
+  "name": "foodgrid-platform",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Multi-tenant food commerce ecosystem: consumer delivery, restaurant ERP, B2B supply marketplace and AI procurement.",
+  "packageManager": "pnpm@10.28.0",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "build:packages": "turbo run build --filter=./packages/*",
+    "dev": "turbo run dev --parallel",
+    "dev:services": "turbo run dev --parallel --filter=./services/*",
+    "dev:web": "turbo run dev --parallel --filter=./apps/*-web",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "test:integration": "turbo run test:integration --concurrency=1",
+    "format": "prettier --write \"**/*.{ts,tsx,js,mjs,json,md,yml,yaml}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,mjs,json,md,yml,yaml}\"",
+    "db:generate": "pnpm --filter @foodgrid/database db:generate",
+    "db:migrate": "pnpm --filter @foodgrid/database db:migrate",
+    "db:deploy": "pnpm --filter @foodgrid/database db:deploy",
+    "db:seed": "pnpm --filter @foodgrid/database db:seed",
+    "db:reset": "pnpm --filter @foodgrid/database db:reset",
+    "docs:erd": "pnpm --filter @foodgrid/database docs:erd",
+    "docs:openapi": "tsx scripts/generate-openapi.ts",
+    "keys:generate": "bash scripts/generate-jwt-keys.sh",
+    "clean": "turbo run clean && rm -rf node_modules"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.0",
+    "@types/node": "^22.19.0",
+    "eslint": "^9.39.0",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^16.5.0",
+    "prettier": "^3.6.2",
+    "tsx": "^4.20.6",
+    "turbo": "^2.6.0",
+    "typescript": "~5.9.3",
+    "typescript-eslint": "^8.46.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@nestjs/core",
+      "@prisma/client",
+      "@prisma/engines",
+      "@swc/core",
+      "esbuild",
+      "prisma",
+      "sharp",
+      "unrs-resolver",
+      "@tailwindcss/oxide",
+      "msgpackr-extract"
+    ]
+  }
+}

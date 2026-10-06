@@ -1,0 +1,64 @@
+{
+  "name": "@foodgrid/database",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Prisma schema, generated client, tenant scoping, migrations and seed data.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./nest": {
+      "types": "./dist/nest/index.d.ts",
+      "default": "./dist/nest/index.js"
+    }
+  },
+  "typesVersions": {
+    "*": {
+      "nest": [
+        "dist/nest/index.d.ts"
+      ]
+    }
+  },
+  "scripts": {
+    "build": "prisma generate && tsc -p tsconfig.build.json",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
+    "db:seed": "tsx prisma/seed/index.ts",
+    "db:reset": "prisma migrate reset --force",
+    "db:studio": "prisma studio",
+    "docs:erd": "tsx scripts/generate-erd.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint src prisma/seed scripts",
+    "test": "jest",
+    "clean": "rm -rf dist generated"
+  },
+  "dependencies": {
+    "@prisma/client": "6.19.3"
+  },
+  "peerDependencies": {
+    "@nestjs/common": "^11.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@nestjs/common": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@faker-js/faker": "^9.9.0",
+    "@nestjs/common": "^11.1.0",
+    "@prisma/internals": "6.19.3",
+    "@types/jest": "^29.5.14",
+    "jest": "^29.7.0",
+    "prisma": "6.19.3",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2",
+    "ts-jest": "^29.4.5",
+    "tsx": "^4.20.6",
+    "typescript": "~5.9.3",
+    "dotenv": "^17.2.3"
+  }
+}

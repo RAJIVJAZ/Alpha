@@ -1,0 +1,248 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// inventory: ingredients, FEFO stock batches, stock ledger, daily consumption,
+// recipes (bill of materials), production planning and food costing.
+// Owned by inventory-service.
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum IngredientCategory {
+  FLOUR
+  OIL
+  SUGAR
+  DAIRY
+  VEGETABLES
+  FRUITS
+  PACKAGING
+  SPICES
+  GRAINS
+  PULSES
+  MEAT_SEAFOOD
+  BEVERAGES
+  FROZEN
+  BAKERY
+  CONDIMENTS
+  OTHER
+
+  @@schema("inventory")
+}
+
+enum StorageType {
+  DRY
+  CHILLED
+  FROZEN
+
+  @@schema("inventory")
+}
+
+enum StockMovementType {
+  OPENING
+  PURCHASE
+  CONSUMPTION
+  WASTAGE
+  ADJUSTMENT
+  TRANSFER_IN
+  TRANSFER_OUT
+  PRODUCTION
+  RETURN
+
+  @@schema("inventory")
+}
+
+enum ProductionPlanStatus {
+  DRAFT
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+
+  @@schema("inventory")
+}
+
+model Ingredient {
+  id                   String             @id @default(cuid())
+  tenantId             String
+  outletId             String
+  name                 String
+  sku                  String
+  category             IngredientCategory
+  unit                 StockUnit
+  currentStock         Decimal            @default(0) @db.Decimal(14, 3)
+  reorderLevel         Decimal            @default(0) @db.Decimal(14, 3)
+  reorderQty           Decimal            @default(0) @db.Decimal(14, 3)
+  safetyStock          Decimal            @default(0) @db.Decimal(14, 3)
+  maxStock             Decimal?           @db.Decimal(14, 3)
+  /// Weighted average cost per unit (moving average on every receipt).
+  avgUnitCost          Decimal            @default(0) @db.Decimal(12, 4)
+  lastPurchasePrice    Decimal?           @db.Decimal(12, 4)
+  shelfLifeDays        Int?
+  storageType          StorageType        @default(DRY)
+  isPerishable         Boolean            @default(false)
+  leadTimeDays         Int                @default(2)
+  preferredSupplierId  String?
+  /// Link to the B2B marketplace product category for procurement matching.
+  marketplaceCategory  String?
+  marketplaceProductId String?
+  isActive             Boolean            @default(true)
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  batches     StockBatch[]
+  movements   StockMovement[]
+  recipeLines RecipeIngredient[]
+  consumption ConsumptionDaily[]
+
+  @@unique([outletId, sku])
+  @@index([tenantId, category])
+  @@schema("inventory")
+}
+
+model StockBatch {
+  id               String    @id @default(cuid())
+  tenantId         String
+  ingredientId     String
+  batchNumber      String?
+  quantity         Decimal   @db.Decimal(14, 3)
+  remainingQty     Decimal   @db.Decimal(14, 3)
+  unitCost         Decimal   @db.Decimal(12, 4)
+  receivedAt       DateTime  @default(now())
+  expiresAt        DateTime?
+  purchaseOrderId  String?
+  supplierTenantId String?
+  createdAt        DateTime  @default(now())
+
+  ingredient Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+
+  @@index([ingredientId, expiresAt])
+  @@schema("inventory")
+}
+
+/// Immutable stock ledger. quantity is signed (+in / -out).
+model StockMovement {
+  id            String            @id @default(cuid())
+  tenantId      String
+  outletId      String
+  ingredientId  String
+  type          StockMovementType
+  quantity      Decimal           @db.Decimal(14, 3)
+  unitCost      Decimal?          @db.Decimal(12, 4)
+  totalCost     Decimal?          @db.Decimal(14, 2)
+  balanceAfter  Decimal           @db.Decimal(14, 3)
+  referenceType String?
+  referenceId   String?
+  reason        String?
+  createdBy     String?
+  createdAt     DateTime          @default(now())
+
+  ingredient Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+
+  @@index([ingredientId, createdAt])
+  @@index([tenantId, outletId, createdAt])
+  @@index([referenceType, referenceId])
+  @@schema("inventory")
+}
+
+/// Daily roll-up of consumption — the training series for demand forecasting.
+model ConsumptionDaily {
+  id           String   @id @default(cuid())
+  tenantId     String
+  outletId     String
+  ingredientId String
+  date         DateTime @db.Date
+  consumedQty  Decimal  @db.Decimal(14, 3)
+  wastedQty    Decimal  @default(0) @db.Decimal(14, 3)
+  ordersCount  Int      @default(0)
+
+  ingredient Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+
+  @@unique([ingredientId, date])
+  @@index([tenantId, outletId, date])
+  @@schema("inventory")
+}
+
+/// Bill of materials for one menu item (per 1 portion unless yieldQty > 1).
+model Recipe {
+  id           String    @id @default(cuid())
+  tenantId     String
+  outletId     String
+  menuItemId   String    @unique
+  name         String
+  yieldQty     Decimal   @default(1) @db.Decimal(10, 3)
+  yieldUnit    StockUnit @default(PCS)
+  prepTimeMins Int?
+  instructions String?
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  lines RecipeIngredient[]
+
+  @@index([tenantId, outletId])
+  @@schema("inventory")
+}
+
+model RecipeIngredient {
+  id           String    @id @default(cuid())
+  recipeId     String
+  ingredientId String
+  /// Quantity expressed in `unit`; converted to the ingredient's unit at use.
+  quantity     Decimal   @db.Decimal(14, 4)
+  unit         StockUnit
+  wastagePct   Decimal   @default(0) @db.Decimal(5, 2)
+
+  recipe     Recipe     @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  ingredient Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+
+  @@unique([recipeId, ingredientId])
+  @@schema("inventory")
+}
+
+model ProductionPlan {
+  id        String               @id @default(cuid())
+  tenantId  String
+  outletId  String
+  planDate  DateTime             @db.Date
+  status    ProductionPlanStatus @default(DRAFT)
+  notes     String?
+  createdBy String?
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+
+  items ProductionPlanItem[]
+
+  @@unique([outletId, planDate])
+  @@schema("inventory")
+}
+
+model ProductionPlanItem {
+  id          String  @id @default(cuid())
+  planId      String
+  menuItemId  String
+  recipeId    String?
+  name        String
+  forecastQty Decimal @db.Decimal(10, 2)
+  plannedQty  Decimal @db.Decimal(10, 2)
+  producedQty Decimal @default(0) @db.Decimal(10, 2)
+
+  plan ProductionPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@index([planId])
+  @@schema("inventory")
+}
+
+/// Daily food-cost snapshot per menu item (theoretical cost from recipe).
+model CostSnapshot {
+  id            String   @id @default(cuid())
+  tenantId      String
+  outletId      String
+  menuItemId    String
+  date          DateTime @db.Date
+  sellingPrice  Decimal  @db.Decimal(10, 2)
+  foodCost      Decimal  @db.Decimal(10, 4)
+  packagingCost Decimal  @default(0) @db.Decimal(10, 4)
+  foodCostPct   Decimal  @db.Decimal(6, 2)
+  marginPct     Decimal  @db.Decimal(6, 2)
+  createdAt     DateTime @default(now())
+
+  @@unique([menuItemId, date])
+  @@index([tenantId, outletId, date])
+  @@schema("inventory")
+}

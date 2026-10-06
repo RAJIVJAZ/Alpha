@@ -1,0 +1,252 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// procurement: smart procurement engine — demand forecasts, reorder alerts,
+// supplier price comparison, purchase orders, approvals and PO tracking.
+// Owned by procurement-service.
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum AlertSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+
+  @@schema("procurement")
+}
+
+enum ReorderAlertStatus {
+  OPEN
+  PO_CREATED
+  DISMISSED
+  RESOLVED
+
+  @@schema("procurement")
+}
+
+enum PurchaseOrderStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+  SENT_TO_SUPPLIER
+  CONFIRMED
+  PARTIALLY_CONFIRMED
+  SUPPLIER_REJECTED
+  DISPATCHED
+  IN_TRANSIT
+  DELIVERED
+  PARTIALLY_RECEIVED
+  RECEIVED
+  CANCELLED
+  CLOSED
+
+  @@schema("procurement")
+}
+
+enum PurchaseOrderSource {
+  MANUAL
+  AUTO_REORDER
+  PRODUCTION_PLAN
+
+  @@schema("procurement")
+}
+
+enum SupplierStrategy {
+  LOWEST_COST
+  FASTEST
+  BEST_RATED
+  BALANCED
+
+  @@schema("procurement")
+}
+
+enum ApprovalDecision {
+  APPROVED
+  REJECTED
+
+  @@schema("procurement")
+}
+
+model ProcurementSettings {
+  id                  String           @id @default(cuid())
+  tenantId            String           @unique
+  autoPoEnabled       Boolean          @default(true)
+  /// Auto-generated POs at or below this total skip owner approval.
+  autoApproveBelow    Decimal          @default(0) @db.Decimal(12, 2)
+  defaultStrategy     SupplierStrategy @default(BALANCED)
+  forecastHorizonDays Int              @default(14)
+  /// Target cycle-service level used to size safety stock (z-score).
+  serviceLevel        Float            @default(0.95)
+  reviewPeriodDays    Int              @default(7)
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+
+  @@schema("procurement")
+}
+
+model DemandForecast {
+  id           String   @id @default(cuid())
+  tenantId     String
+  outletId     String
+  ingredientId String
+  forecastDate DateTime @db.Date
+  predictedQty Decimal  @db.Decimal(14, 3)
+  lowerQty     Decimal  @db.Decimal(14, 3)
+  upperQty     Decimal  @db.Decimal(14, 3)
+  model        String
+  /// Signals applied (festival / weather multipliers, seasonality index ...).
+  features     Json     @default("{}")
+  generatedAt  DateTime @default(now())
+
+  @@unique([ingredientId, forecastDate])
+  @@index([tenantId, outletId, forecastDate])
+  @@schema("procurement")
+}
+
+model ReorderAlert {
+  id                     String             @id @default(cuid())
+  tenantId               String
+  outletId               String
+  ingredientId           String
+  ingredientName         String
+  category               String
+  unit                   String
+  currentStock           Decimal            @db.Decimal(14, 3)
+  reorderLevel           Decimal            @db.Decimal(14, 3)
+  avgDailyUsage          Decimal            @db.Decimal(14, 3)
+  daysOfCover            Float
+  predictedDepletionDate DateTime?
+  suggestedQty           Decimal            @db.Decimal(14, 3)
+  severity               AlertSeverity
+  status                 ReorderAlertStatus @default(OPEN)
+  purchaseOrderId        String?
+  resolvedAt             DateTime?
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
+
+  @@index([tenantId, status])
+  @@index([ingredientId, status])
+  @@schema("procurement")
+}
+
+/// Ranked supplier comparison captured at decision time (explainability).
+model SupplierQuote {
+  id               String           @id @default(cuid())
+  tenantId         String
+  ingredientId     String
+  productId        String
+  supplierTenantId String
+  supplierName     String
+  quantity         Decimal          @db.Decimal(14, 3)
+  unitPrice        Decimal          @db.Decimal(12, 4)
+  landedCost       Decimal          @db.Decimal(14, 2)
+  leadTimeHours    Int
+  rating           Float
+  onTimeRate       Float
+  score            Float
+  rank             Int
+  strategy         SupplierStrategy
+  purchaseOrderId  String?
+  generatedAt      DateTime         @default(now())
+
+  @@index([tenantId, ingredientId, generatedAt])
+  @@schema("procurement")
+}
+
+model PurchaseOrder {
+  id                  String              @id @default(cuid())
+  poNumber            String              @unique
+  tenantId            String
+  outletId            String
+  supplierTenantId    String
+  supplierName        String
+  status              PurchaseOrderStatus @default(DRAFT)
+  source              PurchaseOrderSource @default(MANUAL)
+  strategy            SupplierStrategy?
+  subtotal            Decimal             @db.Decimal(14, 2)
+  taxTotal            Decimal             @db.Decimal(14, 2)
+  deliveryCharge      Decimal             @default(0) @db.Decimal(12, 2)
+  total               Decimal             @db.Decimal(14, 2)
+  currency            String              @default("INR")
+  paymentTerms        String              @default("PREPAID")
+  expectedDeliveryAt  DateTime?
+  deliveryAddress     Json?
+  notes               String?
+  createdBy           String?
+  submittedAt         DateTime?
+  approvedAt          DateTime?
+  approvedBy          String?
+  rejectedReason      String?
+  sentAt              DateTime?
+  supplierOrderId     String?
+  supplierConfirmedAt DateTime?
+  supplierNotes       String?
+  dispatchedAt        DateTime?
+  deliveredAt         DateTime?
+  receivedAt          DateTime?
+  receivedBy          String?
+  /// { vehicleNumber, driverName, driverPhone, lat, lng, eta }
+  trackingInfo        Json?
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  items     PurchaseOrderItem[]
+  approvals PurchaseOrderApproval[]
+  events    PurchaseOrderEvent[]
+
+  @@index([tenantId, status])
+  @@index([supplierTenantId, status])
+  @@schema("procurement")
+}
+
+model PurchaseOrderItem {
+  id              String   @id @default(cuid())
+  purchaseOrderId String
+  ingredientId    String?
+  productId       String?
+  name            String
+  sku             String?
+  quantity        Decimal  @db.Decimal(14, 3)
+  unit            String
+  unitPrice       Decimal  @db.Decimal(12, 4)
+  gstRate         Decimal  @db.Decimal(5, 2)
+  taxAmount       Decimal  @db.Decimal(12, 2)
+  lineTotal       Decimal  @db.Decimal(14, 2)
+  confirmedQty    Decimal? @db.Decimal(14, 3)
+  receivedQty     Decimal  @default(0) @db.Decimal(14, 3)
+
+  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+
+  @@index([purchaseOrderId])
+  @@schema("procurement")
+}
+
+model PurchaseOrderApproval {
+  id              String           @id @default(cuid())
+  purchaseOrderId String
+  approverId      String
+  decision        ApprovalDecision
+  comment         String?
+  decidedAt       DateTime         @default(now())
+
+  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+
+  @@index([purchaseOrderId])
+  @@schema("procurement")
+}
+
+model PurchaseOrderEvent {
+  id              String              @id @default(cuid())
+  purchaseOrderId String
+  status          PurchaseOrderStatus
+  note            String?
+  actorType       String?
+  actorId         String?
+  lat             Float?
+  lng             Float?
+  createdAt       DateTime            @default(now())
+
+  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+
+  @@index([purchaseOrderId, createdAt])
+  @@schema("procurement")
+}

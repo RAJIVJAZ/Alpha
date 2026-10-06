@@ -1,0 +1,10 @@
+node_modules
+dist
+.next
+coverage
+pnpm-lock.yaml
+packages/database/generated
+packages/database/prisma/schema/migrations
+docs/api/*.json
+apps/*-mobile
+infrastructure/terraform/**/.terraform

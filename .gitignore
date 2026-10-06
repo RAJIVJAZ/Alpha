@@ -1,0 +1,48 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# builds
+dist/
+build/
+.next/
+out/
+*.tsbuildinfo
+coverage/
+.turbo/
+
+# prisma generated client
+packages/database/generated/
+
+# env & secrets
+.env
+.env.*
+!.env.example
+*.pem
+!**/fixtures/*.pem
+secrets/
+
+# terraform
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfplan
+.terraform.lock.hcl
+crash.log
+
+# flutter / dart
+**/.dart_tool/
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+**/.packages
+**/build/
+**/ios/Pods/
+**/android/.gradle/
+**/*.g.dart.bak
+
+# misc
+.DS_Store
+*.log
+.idea/
+.vscode/*
+!.vscode/extensions.json

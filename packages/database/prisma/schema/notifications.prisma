@@ -1,0 +1,146 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// notifications: templates, delivery log, device tokens, push campaigns,
+// user preferences. Owned by notification-service.
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum NotificationChannel {
+  PUSH
+  SMS
+  EMAIL
+  IN_APP
+  WHATSAPP
+
+  @@schema("notifications")
+}
+
+enum NotificationStatus {
+  QUEUED
+  SENT
+  DELIVERED
+  FAILED
+  READ
+  SKIPPED
+
+  @@schema("notifications")
+}
+
+enum DevicePlatform {
+  ANDROID
+  IOS
+  WEB
+
+  @@schema("notifications")
+}
+
+enum AppKind {
+  CUSTOMER
+  RIDER
+  MERCHANT
+  ADMIN
+
+  @@schema("notifications")
+}
+
+enum PushCampaignStatus {
+  DRAFT
+  SCHEDULED
+  SENDING
+  SENT
+  CANCELLED
+  FAILED
+
+  @@schema("notifications")
+}
+
+model NotificationTemplate {
+  id        String              @id @default(cuid())
+  key       String
+  channel   NotificationChannel
+  locale    String              @default("en")
+  title     String?
+  /// Mustache-style placeholders: "Order {{orderNumber}} is on the way"
+  body      String
+  isActive  Boolean             @default(true)
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+
+  @@unique([key, channel, locale])
+  @@schema("notifications")
+}
+
+model Notification {
+  id                String              @id @default(cuid())
+  userId            String?
+  tenantId          String?
+  recipient         String
+  channel           NotificationChannel
+  templateKey       String?
+  title             String?
+  body              String
+  data              Json                @default("{}")
+  status            NotificationStatus  @default(QUEUED)
+  provider          String?
+  providerMessageId String?
+  error             String?
+  attempts          Int                 @default(0)
+  campaignId        String?
+  sentAt            DateTime?
+  readAt            DateTime?
+  createdAt         DateTime            @default(now())
+
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+  @@index([campaignId])
+  @@schema("notifications")
+}
+
+model DeviceToken {
+  id         String         @id @default(cuid())
+  userId     String
+  token      String         @unique
+  platform   DevicePlatform
+  app        AppKind
+  isActive   Boolean        @default(true)
+  lastSeenAt DateTime       @default(now())
+  createdAt  DateTime       @default(now())
+
+  @@index([userId, app])
+  @@schema("notifications")
+}
+
+model PushCampaign {
+  id          String             @id @default(cuid())
+  title       String
+  body        String
+  imageUrl    String?
+  deepLink    String?
+  app         AppKind
+  /// { "cities": [...], "inactiveDays": 30, "segment": "MEMBERS" }
+  audience    Json               @default("{}")
+  status      PushCampaignStatus @default(DRAFT)
+  scheduledAt DateTime?
+  sentAt      DateTime?
+  targetCount Int                @default(0)
+  sentCount   Int                @default(0)
+  failedCount Int                @default(0)
+  openCount   Int                @default(0)
+  createdBy   String
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  @@index([status, scheduledAt])
+  @@schema("notifications")
+}
+
+model NotificationPreference {
+  userId           String   @id
+  pushEnabled      Boolean  @default(true)
+  smsEnabled       Boolean  @default(true)
+  emailEnabled     Boolean  @default(true)
+  marketingEnabled Boolean  @default(true)
+  quietHoursStart  String?
+  quietHoursEnd    String?
+  updatedAt        DateTime @updatedAt
+
+  @@schema("notifications")
+}

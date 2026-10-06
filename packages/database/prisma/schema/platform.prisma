@@ -1,0 +1,84 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// platform: shared kernel enums + messaging / consistency infrastructure
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Payment instruments accepted across consumer and B2B flows.
+enum PaymentMethod {
+  UPI
+  CARD
+  NETBANKING
+  WALLET
+  COD
+  CASH
+
+  @@schema("platform")
+}
+
+/// Units of measure shared by inventory, recipes and the B2B marketplace.
+enum StockUnit {
+  KG
+  G
+  L
+  ML
+  PCS
+  PACK
+  DOZEN
+  BOX
+
+  @@schema("platform")
+}
+
+/// Transactional outbox. Rows are written in the same DB transaction as the
+/// business change and relayed to Redis Streams by the owning service.
+model OutboxEvent {
+  id            String    @id
+  source        String
+  stream        String
+  type          String
+  aggregateType String
+  aggregateId   String
+  tenantId      String?
+  payload       Json
+  occurredAt    DateTime  @default(now())
+  publishedAt   DateTime?
+  attempts      Int       @default(0)
+  lastError     String?
+
+  @@index([source, publishedAt, occurredAt])
+  @@schema("platform")
+}
+
+/// Consumer-side de-duplication for at-least-once event delivery.
+model ProcessedEvent {
+  consumer    String
+  eventId     String
+  eventType   String
+  processedAt DateTime @default(now())
+
+  @@id([consumer, eventId])
+  @@schema("platform")
+}
+
+/// Stored responses for Idempotency-Key protected endpoints.
+model IdempotencyRecord {
+  scope          String
+  key            String
+  requestHash    String
+  responseStatus Int?
+  responseBody   Json?
+  createdAt      DateTime @default(now())
+  expiresAt      DateTime
+
+  @@id([scope, key])
+  @@index([expiresAt])
+  @@schema("platform")
+}
+
+/// Gap-free human readable numbering (order numbers, PO numbers, invoices).
+model SequenceCounter {
+  name      String   @id
+  value     BigInt   @default(0)
+  updatedAt DateTime @updatedAt
+
+  @@schema("platform")
+}

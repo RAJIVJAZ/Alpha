@@ -1,0 +1,34 @@
+// FoodGrid platform — Prisma schema entry point.
+//
+// The data model is split into one file per bounded context. Each context
+// owns its own PostgreSQL schema (namespace), which mirrors service
+// ownership:
+//
+//   identity      -> auth-service, user-service
+//   commerce      -> order-service (outlets, menus, orders, KDS, coupons, reviews, subscriptions)
+//   payments      -> payment-service (payments, wallets, settlements, GST invoices)
+//   delivery      -> delivery-service (riders, dispatch, attendance, incentives)
+//   inventory     -> inventory-service (ingredients, stock, recipes, production, costing)
+//   procurement   -> procurement-service (forecasts, reorder alerts, purchase orders)
+//   marketplace   -> supplier-service (B2B catalog, pricing, zones, dealers, B2B orders)
+//   analytics     -> analytics-service (read models / fact tables)
+//   ads           -> ads-service
+//   notifications -> notification-service
+//   ai            -> ai-service
+//   platform      -> shared infrastructure (outbox, idempotency, sequences, shared enums)
+//
+// Rule: relations (foreign keys) exist only *within* a context. References
+// across contexts are plain string ids, kept consistent through domain
+// events, so any context can be moved to its own database later.
+
+generator client {
+  provider        = "prisma-client-js"
+  output          = "../../generated/client"
+  binaryTargets   = ["native", "linux-musl-openssl-3.0.x", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["identity", "commerce", "payments", "delivery", "inventory", "procurement", "marketplace", "analytics", "ads", "notifications", "ai", "platform"]
+}

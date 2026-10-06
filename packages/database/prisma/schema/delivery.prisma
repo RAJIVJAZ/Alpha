@@ -1,0 +1,335 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// delivery: riders, zones, dispatch (offers), live tracking, attendance,
+// incentives and earnings. Owned by delivery-service.
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum RiderStatus {
+  PENDING_APPROVAL
+  ACTIVE
+  SUSPENDED
+  REJECTED
+  OFFBOARDED
+
+  @@schema("delivery")
+}
+
+enum VehicleType {
+  BICYCLE
+  SCOOTER
+  MOTORCYCLE
+  EV_SCOOTER
+
+  @@schema("delivery")
+}
+
+enum DeliveryStatus {
+  UNASSIGNED
+  SEARCHING
+  ASSIGNED
+  AT_PICKUP
+  PICKED_UP
+  AT_DROP
+  DELIVERED
+  FAILED
+  CANCELLED
+
+  @@schema("delivery")
+}
+
+enum OfferStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  EXPIRED
+  CANCELLED
+
+  @@schema("delivery")
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  HALF_DAY
+  ON_LEAVE
+
+  @@schema("delivery")
+}
+
+enum IncentiveType {
+  ORDER_COUNT
+  PEAK_HOURS
+  LOGIN_HOURS
+  STREAK
+  RATING
+
+  @@schema("delivery")
+}
+
+enum IncentiveProgressStatus {
+  IN_PROGRESS
+  ACHIEVED
+  PAID
+  EXPIRED
+
+  @@schema("delivery")
+}
+
+enum EarningType {
+  BASE_PAY
+  DISTANCE_PAY
+  SURGE
+  TIP
+  INCENTIVE
+  WAITING_TIME
+  PENALTY
+  ADJUSTMENT
+
+  @@schema("delivery")
+}
+
+model RiderProfile {
+  id              String      @id @default(cuid())
+  userId          String      @unique
+  status          RiderStatus @default(PENDING_APPROVAL)
+  name            String
+  phone           String
+  city            String
+  zoneId          String?
+  vehicleType     VehicleType @default(MOTORCYCLE)
+  vehicleNumber   String?
+  licenseNumber   String?
+  aadhaarLast4    String?
+  documents       Json        @default("[]")
+  rating          Float       @default(5)
+  ratingCount     Int         @default(0)
+  isOnline        Boolean     @default(false)
+  isOnDelivery    Boolean     @default(false)
+  currentLat      Float?
+  currentLng      Float?
+  lastLocationAt  DateTime?
+  acceptanceRate  Float       @default(1)
+  totalDeliveries Int         @default(0)
+  bankAccount     Json?
+  upiId           String?
+  approvedAt      DateTime?
+  approvedBy      String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  zone       DeliveryZone?     @relation(fields: [zoneId], references: [id])
+  deliveries Delivery[]
+  offers     DeliveryOffer[]
+  attendance RiderAttendance[]
+  incentives RiderIncentive[]
+  earnings   RiderEarning[]
+
+  @@index([status, isOnline])
+  @@index([zoneId])
+  @@schema("delivery")
+}
+
+model DeliveryZone {
+  id              String   @id @default(cuid())
+  name            String
+  city            String
+  /// GeoJSON Polygon coordinates: [[[lng, lat], ...]]
+  polygon         Json
+  centerLat       Float
+  centerLng       Float
+  baseFee         Decimal  @db.Decimal(10, 2)
+  perKmFee        Decimal  @db.Decimal(10, 2)
+  freeKm          Float    @default(2)
+  surgeMultiplier Float    @default(1)
+  riderBasePay    Decimal  @db.Decimal(10, 2)
+  riderPerKm      Decimal  @db.Decimal(10, 2)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  riders     RiderProfile[]
+  deliveries Delivery[]
+  incentives IncentiveScheme[]
+
+  @@index([city])
+  @@schema("delivery")
+}
+
+model Delivery {
+  id                String         @id @default(cuid())
+  orderId           String         @unique
+  orderNumber       String
+  tenantId          String
+  outletId          String
+  customerId        String?
+  riderId           String?
+  zoneId            String?
+  status            DeliveryStatus @default(UNASSIGNED)
+  pickupName        String
+  pickupAddress     String
+  pickupLat         Float
+  pickupLng         Float
+  pickupPhone       String?
+  dropName          String?
+  dropAddress       String
+  dropLat           Float
+  dropLng           Float
+  dropPhone         String?
+  distanceKm        Float
+  estimatedMins     Int
+  orderValue        Decimal        @db.Decimal(12, 2)
+  isCod             Boolean        @default(false)
+  codAmount         Decimal        @default(0) @db.Decimal(12, 2)
+  tipAmount         Decimal        @default(0) @db.Decimal(10, 2)
+  riderEarning      Decimal        @default(0) @db.Decimal(10, 2)
+  surgeMultiplier   Float          @default(1)
+  deliveryOtp       String?
+  proofPhotoUrl     String?
+  proofSignatureUrl String?
+  proofNote         String?
+  failureReason     String?
+  /// Optimised route: ordered stops + polyline.
+  route             Json?
+  batchId           String?
+  searchAttempts    Int            @default(0)
+  readyAt           DateTime?
+  assignedAt        DateTime?
+  arrivedPickupAt   DateTime?
+  pickedUpAt        DateTime?
+  arrivedDropAt     DateTime?
+  deliveredAt       DateTime?
+  cancelledAt       DateTime?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  rider  RiderProfile?   @relation(fields: [riderId], references: [id])
+  zone   DeliveryZone?   @relation(fields: [zoneId], references: [id])
+  offers DeliveryOffer[]
+
+  @@index([riderId, status])
+  @@index([status, createdAt])
+  @@index([tenantId, createdAt])
+  @@schema("delivery")
+}
+
+model DeliveryOffer {
+  id                 String      @id @default(cuid())
+  deliveryId         String
+  riderId            String
+  status             OfferStatus @default(PENDING)
+  score              Float
+  distanceToPickupKm Float
+  estimatedEarning   Decimal     @db.Decimal(10, 2)
+  offeredAt          DateTime    @default(now())
+  expiresAt          DateTime
+  respondedAt        DateTime?
+  rejectReason       String?
+
+  delivery Delivery     @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+  rider    RiderProfile @relation(fields: [riderId], references: [id])
+
+  @@index([riderId, status])
+  @@index([deliveryId])
+  @@schema("delivery")
+}
+
+/// Sampled GPS trail. Hot "current position" lives in Redis GEO; this table
+/// keeps history for disputes, fraud checks and heat maps.
+model RiderLocationPing {
+  id         String   @id @default(cuid())
+  riderId    String
+  deliveryId String?
+  lat        Float
+  lng        Float
+  accuracyM  Float?
+  speedKmph  Float?
+  heading    Float?
+  batteryPct Int?
+  recordedAt DateTime @default(now())
+
+  @@index([riderId, recordedAt])
+  @@index([recordedAt])
+  @@schema("delivery")
+}
+
+model RiderAttendance {
+  id            String           @id @default(cuid())
+  riderId       String
+  date          DateTime         @db.Date
+  status        AttendanceStatus @default(PRESENT)
+  checkInAt     DateTime?
+  checkOutAt    DateTime?
+  checkInLat    Float?
+  checkInLng    Float?
+  onlineMinutes Int              @default(0)
+  deliveryCount Int              @default(0)
+  distanceKm    Float            @default(0)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  rider RiderProfile @relation(fields: [riderId], references: [id])
+
+  @@unique([riderId, date])
+  @@schema("delivery")
+}
+
+model IncentiveScheme {
+  id           String        @id @default(cuid())
+  name         String
+  description  String?
+  type         IncentiveType
+  zoneId       String?
+  city         String?
+  target       Int
+  rewardAmount Decimal       @db.Decimal(10, 2)
+  /// [{ "start": "12:00", "end": "14:30" }] for PEAK_HOURS schemes.
+  peakWindows  Json?
+  minRating    Float?
+  startsAt     DateTime
+  endsAt       DateTime
+  isActive     Boolean       @default(true)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  zone     DeliveryZone?    @relation(fields: [zoneId], references: [id])
+  progress RiderIncentive[]
+
+  @@index([isActive, startsAt, endsAt])
+  @@schema("delivery")
+}
+
+model RiderIncentive {
+  id           String                  @id @default(cuid())
+  riderId      String
+  schemeId     String
+  progress     Int                     @default(0)
+  target       Int
+  rewardAmount Decimal                 @db.Decimal(10, 2)
+  status       IncentiveProgressStatus @default(IN_PROGRESS)
+  achievedAt   DateTime?
+  paidAt       DateTime?
+  createdAt    DateTime                @default(now())
+  updatedAt    DateTime                @updatedAt
+
+  rider  RiderProfile    @relation(fields: [riderId], references: [id])
+  scheme IncentiveScheme @relation(fields: [schemeId], references: [id])
+
+  @@unique([riderId, schemeId])
+  @@schema("delivery")
+}
+
+model RiderEarning {
+  id          String      @id @default(cuid())
+  riderId     String
+  deliveryId  String?
+  type        EarningType
+  amount      Decimal     @db.Decimal(10, 2)
+  description String?
+  earnedAt    DateTime    @default(now())
+  settledAt   DateTime?
+  walletTxnId String?
+
+  rider RiderProfile @relation(fields: [riderId], references: [id])
+
+  @@index([riderId, earnedAt])
+  @@schema("delivery")
+}

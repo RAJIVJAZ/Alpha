@@ -1,0 +1,619 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// commerce: outlets (restaurants / food carts), menus, orders, KDS, QR tables,
+// coupons, reviews, meal subscriptions and customer memberships.
+// Owned by order-service.
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum OutletType {
+  RESTAURANT
+  FOOD_CART
+  CLOUD_KITCHEN
+
+  @@schema("commerce")
+}
+
+enum OutletStatus {
+  DRAFT
+  PENDING_APPROVAL
+  ACTIVE
+  PAUSED
+  SUSPENDED
+  CLOSED
+
+  @@schema("commerce")
+}
+
+enum OrderChannel {
+  APP
+  WEB
+  QR
+  POS
+
+  @@schema("commerce")
+}
+
+enum OrderType {
+  DELIVERY
+  TAKEAWAY
+  DINE_IN
+
+  @@schema("commerce")
+}
+
+enum OrderStatus {
+  PENDING_PAYMENT
+  PLACED
+  ACCEPTED
+  PREPARING
+  READY
+  PICKED_UP
+  OUT_FOR_DELIVERY
+  DELIVERED
+  COMPLETED
+  CANCELLED
+  REJECTED
+
+  @@schema("commerce")
+}
+
+enum OrderPaymentStatus {
+  PENDING
+  PAID
+  COD_PENDING
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
+
+  @@schema("commerce")
+}
+
+enum ActorType {
+  CUSTOMER
+  MERCHANT
+  RIDER
+  ADMIN
+  SYSTEM
+
+  @@schema("commerce")
+}
+
+enum KdsStatus {
+  QUEUED
+  IN_PROGRESS
+  READY
+  SERVED
+  CANCELLED
+
+  @@schema("commerce")
+}
+
+enum CouponType {
+  FLAT
+  PERCENT
+  FREE_DELIVERY
+
+  @@schema("commerce")
+}
+
+enum FundingSource {
+  PLATFORM
+  MERCHANT
+  SHARED
+
+  @@schema("commerce")
+}
+
+enum ReviewStatus {
+  PUBLISHED
+  HIDDEN
+  FLAGGED
+
+  @@schema("commerce")
+}
+
+enum MealSlot {
+  BREAKFAST
+  LUNCH
+  DINNER
+
+  @@schema("commerce")
+}
+
+enum SubscriptionStatus {
+  PENDING_PAYMENT
+  ACTIVE
+  PAUSED
+  CANCELLED
+  EXPIRED
+
+  @@schema("commerce")
+}
+
+enum CustomerMembershipStatus {
+  PENDING_PAYMENT
+  ACTIVE
+  EXPIRED
+  CANCELLED
+
+  @@schema("commerce")
+}
+
+/// A restaurant, food cart or cloud kitchen. A tenant may own many outlets.
+model Outlet {
+  id               String       @id @default(cuid())
+  tenantId         String
+  type             OutletType
+  status           OutletStatus @default(DRAFT)
+  name             String
+  slug             String       @unique
+  description      String?
+  cuisines         String[]     @default([])
+  tags             String[]     @default([])
+  phone            String?
+  email            String?
+  addressLine1     String
+  addressLine2     String?
+  city             String
+  state            String
+  stateCode        String?
+  pincode          String
+  lat              Float
+  lng              Float
+  /// Geohash (precision 6, ~1.2km) used for proximity pre-filtering.
+  geohash          String
+  isPureVeg        Boolean      @default(false)
+  costForTwo       Decimal      @default(300) @db.Decimal(10, 2)
+  avgPrepTimeMins  Int          @default(20)
+  deliveryRadiusKm Float        @default(6)
+  minOrderValue    Decimal      @default(0) @db.Decimal(10, 2)
+  packagingCharge  Decimal      @default(0) @db.Decimal(10, 2)
+  ratingAvg        Float        @default(0)
+  ratingCount      Int          @default(0)
+  isOpen           Boolean      @default(false)
+  /// [{ "day": 0-6, "open": "09:00", "close": "23:00" }]
+  openingHours     Json         @default("[]")
+  fssaiNumber      String?
+  gstin            String?
+  logoUrl          String?
+  coverImageUrl    String?
+  images           String[]     @default([])
+  acceptsDelivery  Boolean      @default(true)
+  acceptsTakeaway  Boolean      @default(true)
+  acceptsDineIn    Boolean      @default(false)
+  acceptsQrOrders  Boolean      @default(false)
+  /// Food carts move during the day; lat/lng is refreshed from the vendor app.
+  isMobile         Boolean      @default(false)
+  lastLocationAt   DateTime?
+  commissionRate   Decimal?     @db.Decimal(5, 2)
+  kdsStations      String[]     @default(["MAIN"])
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  categories        MenuCategory[]
+  items             MenuItem[]
+  tables            DiningTable[]
+  orders            Order[]
+  reviews           Review[]
+  subscriptionPlans SubscriptionPlan[]
+
+  @@index([tenantId])
+  @@index([city, status])
+  @@index([geohash])
+  @@schema("commerce")
+}
+
+model MenuCategory {
+  id          String   @id @default(cuid())
+  tenantId    String
+  outletId    String
+  name        String
+  description String?
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  outlet Outlet     @relation(fields: [outletId], references: [id], onDelete: Cascade)
+  items  MenuItem[]
+
+  @@index([outletId, sortOrder])
+  @@schema("commerce")
+}
+
+model MenuItem {
+  id             String   @id @default(cuid())
+  tenantId       String
+  outletId       String
+  categoryId     String
+  name           String
+  description    String?
+  imageUrl       String?
+  sku            String?
+  price          Decimal  @db.Decimal(10, 2)
+  compareAtPrice Decimal? @db.Decimal(10, 2)
+  isVeg          Boolean  @default(true)
+  isAvailable    Boolean  @default(true)
+  isRecommended  Boolean  @default(false)
+  prepTimeMins   Int?
+  /// Restaurant service GST is 5% (no ITC) for most outlets.
+  gstRate        Decimal  @default(5) @db.Decimal(5, 2)
+  hsnCode        String?  @default("996331")
+  tags           String[] @default([])
+  spiceLevel     Int?
+  calories       Int?
+  kdsStation     String   @default("MAIN")
+  sortOrder      Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  outlet      Outlet            @relation(fields: [outletId], references: [id], onDelete: Cascade)
+  category    MenuCategory      @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  variants    MenuItemVariant[]
+  addonGroups MenuAddonGroup[]
+
+  @@index([outletId, categoryId])
+  @@index([tenantId])
+  @@schema("commerce")
+}
+
+model MenuItemVariant {
+  id          String  @id @default(cuid())
+  menuItemId  String
+  name        String
+  priceDelta  Decimal @default(0) @db.Decimal(10, 2)
+  isDefault   Boolean @default(false)
+  isAvailable Boolean @default(true)
+
+  menuItem MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+
+  @@index([menuItemId])
+  @@schema("commerce")
+}
+
+model MenuAddonGroup {
+  id         String @id @default(cuid())
+  menuItemId String
+  name       String
+  minSelect  Int    @default(0)
+  maxSelect  Int    @default(1)
+
+  menuItem MenuItem    @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  addons   MenuAddon[]
+
+  @@index([menuItemId])
+  @@schema("commerce")
+}
+
+model MenuAddon {
+  id          String  @id @default(cuid())
+  groupId     String
+  name        String
+  price       Decimal @default(0) @db.Decimal(10, 2)
+  isVeg       Boolean @default(true)
+  isAvailable Boolean @default(true)
+
+  group MenuAddonGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@index([groupId])
+  @@schema("commerce")
+}
+
+/// Dine-in table / QR stand. The qrToken is encoded in the printed QR code.
+model DiningTable {
+  id        String   @id @default(cuid())
+  tenantId  String
+  outletId  String
+  label     String
+  seats     Int      @default(4)
+  qrToken   String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  outlet Outlet @relation(fields: [outletId], references: [id], onDelete: Cascade)
+
+  @@unique([outletId, label])
+  @@schema("commerce")
+}
+
+model Order {
+  id                  String             @id @default(cuid())
+  orderNumber         String             @unique
+  tenantId            String
+  outletId            String
+  customerId          String?
+  customerName        String?
+  customerPhone       String?
+  channel             OrderChannel       @default(APP)
+  type                OrderType          @default(DELIVERY)
+  status              OrderStatus        @default(PENDING_PAYMENT)
+  paymentStatus       OrderPaymentStatus @default(PENDING)
+  paymentMethod       PaymentMethod?
+  paymentId           String?
+  subtotal            Decimal            @db.Decimal(12, 2)
+  couponDiscount      Decimal            @default(0) @db.Decimal(12, 2)
+  membershipDiscount  Decimal            @default(0) @db.Decimal(12, 2)
+  deliveryFee         Decimal            @default(0) @db.Decimal(12, 2)
+  packagingCharge     Decimal            @default(0) @db.Decimal(12, 2)
+  platformFee         Decimal            @default(0) @db.Decimal(12, 2)
+  taxTotal            Decimal            @default(0) @db.Decimal(12, 2)
+  cgst                Decimal            @default(0) @db.Decimal(12, 2)
+  sgst                Decimal            @default(0) @db.Decimal(12, 2)
+  igst                Decimal            @default(0) @db.Decimal(12, 2)
+  tip                 Decimal            @default(0) @db.Decimal(12, 2)
+  roundOff            Decimal            @default(0) @db.Decimal(6, 2)
+  total               Decimal            @db.Decimal(12, 2)
+  couponCode          String?
+  couponFundedBy      FundingSource?
+  commissionRate      Decimal?           @db.Decimal(5, 2)
+  commissionAmount    Decimal?           @db.Decimal(12, 2)
+  deliveryAddress     Json?
+  deliveryLat         Float?
+  deliveryLng         Float?
+  distanceKm          Float?
+  tableId             String?
+  specialInstructions String?
+  scheduledFor        DateTime?
+  mealSubscriptionId  String?
+  riderId             String?
+  deliveryOtp         String?
+  estimatedReadyAt    DateTime?
+  estimatedDeliveryAt DateTime?
+  placedAt            DateTime?
+  acceptedAt          DateTime?
+  preparingAt         DateTime?
+  readyAt             DateTime?
+  pickedUpAt          DateTime?
+  deliveredAt         DateTime?
+  completedAt         DateTime?
+  cancelledAt         DateTime?
+  cancelReason        String?
+  cancelledBy         ActorType?
+  fraudScore          Float?
+  idempotencyKey      String?            @unique
+  deviceId            String?
+  ipAddress           String?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  outlet         Outlet             @relation(fields: [outletId], references: [id])
+  items          OrderItem[]
+  events         OrderStatusEvent[]
+  kitchenTickets KitchenTicket[]
+  review         Review?
+
+  @@index([tenantId, createdAt])
+  @@index([outletId, status])
+  @@index([customerId, createdAt])
+  @@index([status, createdAt])
+  @@schema("commerce")
+}
+
+model OrderItem {
+  id         String    @id @default(cuid())
+  orderId    String
+  menuItemId String
+  name       String
+  variantId  String?
+  variant    String?
+  /// [{ "id": "...", "name": "Extra cheese", "price": "30.00" }]
+  addons     Json      @default("[]")
+  quantity   Int
+  unitPrice  Decimal   @db.Decimal(10, 2)
+  totalPrice Decimal   @db.Decimal(12, 2)
+  gstRate    Decimal   @db.Decimal(5, 2)
+  taxAmount  Decimal   @db.Decimal(12, 2)
+  isVeg      Boolean   @default(true)
+  notes      String?
+  kdsStation String    @default("MAIN")
+  kdsStatus  KdsStatus @default(QUEUED)
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([menuItemId])
+  @@schema("commerce")
+}
+
+model OrderStatusEvent {
+  id         String       @id @default(cuid())
+  orderId    String
+  fromStatus OrderStatus?
+  toStatus   OrderStatus
+  actorType  ActorType
+  actorId    String?
+  note       String?
+  createdAt  DateTime     @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId, createdAt])
+  @@schema("commerce")
+}
+
+/// Kitchen display ticket — one per (order, station).
+model KitchenTicket {
+  id           String    @id @default(cuid())
+  tenantId     String
+  outletId     String
+  orderId      String
+  ticketNumber Int
+  station      String
+  status       KdsStatus @default(QUEUED)
+  priority     Int       @default(0)
+  items        Json
+  startedAt    DateTime?
+  readyAt      DateTime?
+  bumpedAt     DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([outletId, status, createdAt])
+  @@schema("commerce")
+}
+
+model Coupon {
+  id             String          @id @default(cuid())
+  code           String          @unique
+  /// null = platform-wide coupon.
+  tenantId       String?
+  outletIds      String[]        @default([])
+  title          String
+  description    String?
+  type           CouponType
+  value          Decimal         @db.Decimal(10, 2)
+  maxDiscount    Decimal?        @db.Decimal(10, 2)
+  minOrderValue  Decimal         @default(0) @db.Decimal(10, 2)
+  usageLimit     Int?
+  perUserLimit   Int             @default(1)
+  usedCount      Int             @default(0)
+  firstOrderOnly Boolean         @default(false)
+  membersOnly    Boolean         @default(false)
+  paymentMethods PaymentMethod[] @default([])
+  fundedBy       FundingSource   @default(PLATFORM)
+  validFrom      DateTime
+  validTo        DateTime
+  isActive       Boolean         @default(true)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  redemptions CouponRedemption[]
+
+  @@index([tenantId, isActive])
+  @@schema("commerce")
+}
+
+model CouponRedemption {
+  id        String   @id @default(cuid())
+  couponId  String
+  userId    String
+  orderId   String   @unique
+  discount  Decimal  @db.Decimal(10, 2)
+  createdAt DateTime @default(now())
+
+  coupon Coupon @relation(fields: [couponId], references: [id], onDelete: Cascade)
+
+  @@index([couponId, userId])
+  @@schema("commerce")
+}
+
+model Review {
+  id             String       @id @default(cuid())
+  orderId        String       @unique
+  tenantId       String
+  outletId       String
+  customerId     String
+  riderId        String?
+  rating         Int
+  foodRating     Int?
+  deliveryRating Int?
+  comment        String?
+  photos         String[]     @default([])
+  tags           String[]     @default([])
+  status         ReviewStatus @default(PUBLISHED)
+  reply          String?
+  repliedAt      DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  order  Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  outlet Outlet @relation(fields: [outletId], references: [id], onDelete: Cascade)
+
+  @@index([outletId, createdAt])
+  @@index([customerId])
+  @@schema("commerce")
+}
+
+/// Tiffin / meal subscription plan offered by an outlet.
+model SubscriptionPlan {
+  id           String   @id @default(cuid())
+  tenantId     String
+  outletId     String
+  name         String
+  description  String?
+  slot         MealSlot
+  mealsPerDay  Int      @default(1)
+  durationDays Int
+  /// ISO weekdays served (1 = Monday ... 7 = Sunday).
+  daysOfWeek   Int[]    @default([1, 2, 3, 4, 5, 6])
+  pricePerMeal Decimal  @db.Decimal(10, 2)
+  totalPrice   Decimal  @db.Decimal(10, 2)
+  isVeg        Boolean  @default(true)
+  /// { "1": ["menuItemId", ...], "2": [...] } keyed by ISO weekday.
+  menuRotation Json     @default("{}")
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  outlet        Outlet             @relation(fields: [outletId], references: [id], onDelete: Cascade)
+  subscriptions MealSubscription[]
+
+  @@index([outletId, isActive])
+  @@schema("commerce")
+}
+
+model MealSubscription {
+  id              String             @id @default(cuid())
+  tenantId        String
+  outletId        String
+  planId          String
+  customerId      String
+  status          SubscriptionStatus @default(PENDING_PAYMENT)
+  startDate       DateTime           @db.Date
+  endDate         DateTime           @db.Date
+  slot            MealSlot
+  deliveryTime    String
+  deliveryAddress Json
+  mealsTotal      Int
+  mealsDelivered  Int                @default(0)
+  pausedDates     DateTime[]         @db.Date
+  paymentId       String?
+  amountPaid      Decimal            @default(0) @db.Decimal(10, 2)
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  plan SubscriptionPlan @relation(fields: [planId], references: [id])
+
+  @@index([customerId])
+  @@index([outletId, status])
+  @@schema("commerce")
+}
+
+/// Customer loyalty membership (free delivery / extra discounts).
+model MembershipPlan {
+  id           String   @id @default(cuid())
+  code         String   @unique
+  name         String
+  description  String?
+  price        Decimal  @db.Decimal(10, 2)
+  durationDays Int
+  /// { "freeDeliveryAbove": 149, "extraDiscountPct": 10, "maxDiscountPerOrder": 60 }
+  benefits     Json
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  memberships CustomerMembership[]
+
+  @@schema("commerce")
+}
+
+model CustomerMembership {
+  id         String                   @id @default(cuid())
+  customerId String
+  planId     String
+  status     CustomerMembershipStatus @default(PENDING_PAYMENT)
+  startsAt   DateTime
+  endsAt     DateTime
+  paymentId  String?
+  autoRenew  Boolean                  @default(false)
+  savings    Decimal                  @default(0) @db.Decimal(10, 2)
+  createdAt  DateTime                 @default(now())
+  updatedAt  DateTime                 @updatedAt
+
+  plan MembershipPlan @relation(fields: [planId], references: [id])
+
+  @@index([customerId, status])
+  @@schema("commerce")
+}

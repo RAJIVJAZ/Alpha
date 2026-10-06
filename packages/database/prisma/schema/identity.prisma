@@ -1,0 +1,353 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// identity: tenants (business organisations), users, credentials, approvals, CMS
+// Owned by auth-service (credentials, sessions) and user-service (everything else)
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum TenantType {
+  PLATFORM
+  RESTAURANT
+  FOOD_CART
+  SUPPLIER
+  WHOLESALER
+  RETAILER
+
+  @@schema("identity")
+}
+
+enum TenantStatus {
+  PENDING_APPROVAL
+  ACTIVE
+  SUSPENDED
+  REJECTED
+
+  @@schema("identity")
+}
+
+enum PlatformRole {
+  CUSTOMER
+  RIDER
+  ADMIN
+  SUPPORT
+  FINANCE
+  OPS
+
+  @@schema("identity")
+}
+
+enum TenantRole {
+  OWNER
+  MANAGER
+  CHEF
+  CASHIER
+  STAFF
+  ACCOUNTANT
+  PROCUREMENT_MANAGER
+
+  @@schema("identity")
+}
+
+enum UserStatus {
+  ACTIVE
+  BLOCKED
+  DELETED
+
+  @@schema("identity")
+}
+
+enum TenantMemberStatus {
+  INVITED
+  ACTIVE
+  REVOKED
+
+  @@schema("identity")
+}
+
+enum OtpPurpose {
+  LOGIN
+  VERIFY_PHONE
+  DELIVERY_HANDOVER
+
+  @@schema("identity")
+}
+
+enum OAuthProvider {
+  GOOGLE
+
+  @@schema("identity")
+}
+
+enum ApprovalEntityType {
+  TENANT
+  OUTLET
+  RIDER
+  PRODUCT
+  AD_CAMPAIGN
+
+  @@schema("identity")
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CHANGES_REQUESTED
+
+  @@schema("identity")
+}
+
+enum ContentStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+
+  @@schema("identity")
+}
+
+enum Audience {
+  ALL
+  CUSTOMER
+  MERCHANT
+  RIDER
+  SUPPLIER
+
+  @@schema("identity")
+}
+
+/// A business organisation on the platform. Every merchant-side record is
+/// partitioned by tenantId.
+model Tenant {
+  id              String       @id @default(cuid())
+  type            TenantType
+  status          TenantStatus @default(PENDING_APPROVAL)
+  name            String
+  slug            String       @unique
+  legalName       String?
+  gstin           String?
+  pan             String?
+  fssaiLicense    String?
+  email           String?
+  phone           String?
+  addressLine1    String?
+  city            String?
+  state           String?
+  /// GST state code (e.g. "29" Karnataka) used for CGST/SGST vs IGST.
+  stateCode       String?
+  pincode         String?
+  lat             Float?
+  lng             Float?
+  logoUrl         String?
+  /// Overrides the default commission rule for this tenant (percent).
+  commissionRate  Decimal?     @db.Decimal(5, 2)
+  settings        Json         @default("{}")
+  kycDocuments    Json         @default("[]")
+  approvedAt      DateTime?
+  approvedBy      String?
+  rejectionReason String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  members TenantMember[]
+
+  @@index([type, status])
+  @@schema("identity")
+}
+
+model User {
+  id              String         @id @default(cuid())
+  phone           String?        @unique
+  email           String?        @unique
+  name            String?
+  avatarUrl       String?
+  passwordHash    String?
+  roles           PlatformRole[] @default([CUSTOMER])
+  status          UserStatus     @default(ACTIVE)
+  phoneVerifiedAt DateTime?
+  emailVerifiedAt DateTime?
+  referralCode    String?        @unique
+  referredBy      String?
+  preferences     Json           @default("{}")
+  lastLoginAt     DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  memberships   TenantMember[]
+  addresses     Address[]
+  refreshTokens RefreshToken[]
+  oauthAccounts OAuthAccount[]
+
+  @@schema("identity")
+}
+
+model TenantMember {
+  id        String             @id @default(cuid())
+  tenantId  String
+  userId    String
+  role      TenantRole
+  status    TenantMemberStatus @default(ACTIVE)
+  /// Empty = access to every outlet of the tenant.
+  outletIds String[]           @default([])
+  title     String?
+  invitedBy String?
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, userId])
+  @@index([userId])
+  @@schema("identity")
+}
+
+model Address {
+  id           String   @id @default(cuid())
+  userId       String
+  label        String   @default("Home")
+  contactName  String?
+  contactPhone String?
+  line1        String
+  line2        String?
+  landmark     String?
+  city         String
+  state        String
+  pincode      String
+  lat          Float
+  lng          Float
+  isDefault    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@schema("identity")
+}
+
+model OtpChallenge {
+  id          String     @id @default(cuid())
+  phone       String
+  purpose     OtpPurpose @default(LOGIN)
+  codeHash    String
+  attempts    Int        @default(0)
+  maxAttempts Int        @default(5)
+  expiresAt   DateTime
+  consumedAt  DateTime?
+  ip          String?
+  createdAt   DateTime   @default(now())
+
+  @@index([phone, purpose, createdAt])
+  @@schema("identity")
+}
+
+/// Opaque refresh tokens with rotation + reuse detection (token families).
+model RefreshToken {
+  id            String    @id @default(cuid())
+  userId        String
+  tokenHash     String    @unique
+  familyId      String
+  tenantId      String?
+  deviceId      String?
+  userAgent     String?
+  ip            String?
+  expiresAt     DateTime
+  revokedAt     DateTime?
+  revokedReason String?
+  replacedById  String?
+  createdAt     DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([familyId])
+  @@index([userId])
+  @@schema("identity")
+}
+
+model OAuthAccount {
+  id                String        @id @default(cuid())
+  userId            String
+  provider          OAuthProvider
+  providerAccountId String
+  email             String?
+  createdAt         DateTime      @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@schema("identity")
+}
+
+/// Admin approval queue (restaurant / rider / supplier onboarding, ads ...).
+model ApprovalRequest {
+  id          String             @id @default(cuid())
+  entityType  ApprovalEntityType
+  entityId    String
+  tenantId    String?
+  title       String
+  submittedBy String?
+  status      ApprovalStatus     @default(PENDING)
+  documents   Json               @default("[]")
+  metadata    Json               @default("{}")
+  reviewedBy  String?
+  reviewedAt  DateTime?
+  reviewNotes String?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  @@index([entityType, status, createdAt])
+  @@index([entityId])
+  @@schema("identity")
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  tenantId   String?
+  action     String
+  entityType String
+  entityId   String?
+  changes    Json?
+  ip         String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  @@index([tenantId, createdAt])
+  @@index([entityType, entityId])
+  @@schema("identity")
+}
+
+model CmsPage {
+  id             String        @id @default(cuid())
+  slug           String        @unique
+  title          String
+  body           String
+  status         ContentStatus @default(DRAFT)
+  audience       Audience      @default(ALL)
+  seoTitle       String?
+  seoDescription String?
+  publishedAt    DateTime?
+  updatedBy      String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@schema("identity")
+}
+
+model CmsBanner {
+  id        String    @id @default(cuid())
+  title     String
+  subtitle  String?
+  imageUrl  String
+  linkUrl   String?
+  placement String
+  audience  Audience  @default(CUSTOMER)
+  cities    String[]  @default([])
+  sortOrder Int       @default(0)
+  startsAt  DateTime?
+  endsAt    DateTime?
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([placement, isActive])
+  @@schema("identity")
+}
