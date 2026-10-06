@@ -65,7 +65,16 @@ export interface SellerOrder {
   buyerName: string;
   sellerName: string;
   sourcePurchaseOrderId: string | null;
-  status: 'PLACED' | 'CONFIRMED' | 'PARTIALLY_CONFIRMED' | 'REJECTED' | 'PACKED' | 'DISPATCHED' | 'IN_TRANSIT' | 'DELIVERED' | 'CANCELLED';
+  status:
+    | 'PLACED'
+    | 'CONFIRMED'
+    | 'PARTIALLY_CONFIRMED'
+    | 'REJECTED'
+    | 'PACKED'
+    | 'DISPATCHED'
+    | 'IN_TRANSIT'
+    | 'DELIVERED'
+    | 'CANCELLED';
   subtotal: Dec;
   discount: Dec;
   taxTotal: Dec;
@@ -74,14 +83,49 @@ export interface SellerOrder {
   paymentTerms: PaymentTerms;
   paymentStatus: string;
   deliveryDate: string | null;
-  deliveryAddress: { contactName?: string; contactPhone?: string; line1: string; city: string; state: string; pincode: string; lat?: number; lng?: number } | null;
+  deliveryAddress: {
+    contactName?: string;
+    contactPhone?: string;
+    line1: string;
+    city: string;
+    state: string;
+    pincode: string;
+    lat?: number;
+    lng?: number;
+  } | null;
   expectedDeliveryAt: string | null;
-  trackingInfo: { vehicleNumber?: string; driverName?: string; driverPhone?: string; eta?: string; lat?: number; lng?: number } | null;
+  trackingInfo: {
+    vehicleNumber?: string;
+    driverName?: string;
+    driverPhone?: string;
+    eta?: string;
+    lat?: number;
+    lng?: number;
+  } | null;
   notes: string | null;
   rejectionReason: string | null;
   createdAt: string;
-  items: { id: string; productId: string; name: string; sku: string; quantity: Dec; unit: string; unitPrice: Dec; gstRate: Dec; taxAmount: Dec; lineTotal: Dec; confirmedQty: Dec | null }[];
-  events?: { id: string; status: string; note: string | null; lat: number | null; lng: number | null; createdAt: string }[];
+  items: {
+    id: string;
+    productId: string;
+    name: string;
+    sku: string;
+    quantity: Dec;
+    unit: string;
+    unitPrice: Dec;
+    gstRate: Dec;
+    taxAmount: Dec;
+    lineTotal: Dec;
+    confirmedQty: Dec | null;
+  }[];
+  events?: {
+    id: string;
+    status: string;
+    note: string | null;
+    lat: number | null;
+    lng: number | null;
+    createdAt: string;
+  }[];
 }
 
 export interface SellerSummary {

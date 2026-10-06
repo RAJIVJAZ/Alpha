@@ -32,7 +32,9 @@ export function ChartFrame({
         <div className="flex items-start justify-between gap-3">
           <figcaption className="min-w-0">
             <p className="font-semibold leading-tight">{title}</p>
-            {description ? <p className="mt-0.5 text-sm text-muted-foreground">{description}</p> : null}
+            {description ? (
+              <p className="mt-0.5 text-sm text-muted-foreground">{description}</p>
+            ) : null}
           </figcaption>
           <div className="flex shrink-0 items-center gap-1">
             {actions}
@@ -51,9 +53,10 @@ export function ChartFrame({
           </div>
         </div>
         {!asTable && legend}
-        <div className={cn('transition-opacity', loading && 'opacity-50')}>{asTable ? table : children}</div>
+        <div className={cn('transition-opacity', loading && 'opacity-50')}>
+          {asTable ? table : children}
+        </div>
       </figure>
     </Card>
   );
 }
-

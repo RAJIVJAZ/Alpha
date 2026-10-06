@@ -11,13 +11,26 @@ const RAMP = ['#cde2fb', '#9ec5f4', '#6da7ec', '#3987e5', '#256abf', '#184f95', 
  * Day-of-week x hour heatmap (one hue, more is darker) with a scale legend,
  * per-cell hover/focus readout and a table view.
  */
-export function WeekHourHeatmap({ title, description, cells, unit = 'orders' }: { title: string; description?: string; cells: { dow: number; hour: number; orders: number }[] | undefined; unit?: string }) {
+export function WeekHourHeatmap({
+  title,
+  description,
+  cells,
+  unit = 'orders',
+}: {
+  title: string;
+  description?: string;
+  cells: { dow: number; hour: number; orders: number }[] | undefined;
+  unit?: string;
+}) {
   const [hover, setHover] = React.useState<{ dow: number; hour: number; v: number } | null>(null);
   const grid = new Map((cells ?? []).map((c) => [`${c.dow}-${c.hour}`, c.orders]));
   const hours = [...new Set((cells ?? []).map((c) => c.hour))].sort((a, b) => a - b);
-  const hourRange = hours.length ? Array.from({ length: hours[hours.length - 1]! - hours[0]! + 1 }, (_, i) => hours[0]! + i) : [];
+  const hourRange = hours.length
+    ? Array.from({ length: hours[hours.length - 1]! - hours[0]! + 1 }, (_, i) => hours[0]! + i)
+    : [];
   const max = Math.max(1, ...(cells ?? []).map((c) => c.orders));
-  const step = (v: number) => (v <= 0 ? null : RAMP[Math.min(RAMP.length - 1, Math.floor((v / max) * RAMP.length))]!);
+  const step = (v: number) =>
+    v <= 0 ? null : RAMP[Math.min(RAMP.length - 1, Math.floor((v / max) * RAMP.length))]!;
   const label = (h: number) => `${h % 12 || 12}${h < 12 ? 'a' : 'p'}`;
   const table = (
     <div className="max-h-80 overflow-auto text-sm">
@@ -50,7 +63,13 @@ export function WeekHourHeatmap({ title, description, cells, unit = 'orders' }: 
   return (
     <ChartFrame title={title} description={description} table={table}>
       <div className="overflow-x-auto">
-        <div className="inline-grid gap-[2px]" style={{ gridTemplateColumns: `2.5rem repeat(${hourRange.length}, minmax(1.25rem, 1fr))` }} onMouseLeave={() => setHover(null)}>
+        <div
+          className="inline-grid gap-[2px]"
+          style={{
+            gridTemplateColumns: `2.5rem repeat(${hourRange.length}, minmax(1.25rem, 1fr))`,
+          }}
+          onMouseLeave={() => setHover(null)}
+        >
           <span />
           {hourRange.map((h) => (
             <span key={h} className="text-center text-[10px] text-[var(--chart-axis)]">
@@ -59,7 +78,9 @@ export function WeekHourHeatmap({ title, description, cells, unit = 'orders' }: 
           ))}
           {DAYS.map((d, di) => (
             <React.Fragment key={d}>
-              <span className="pr-1 text-right text-xs leading-5 text-[var(--chart-axis)]">{d}</span>
+              <span className="pr-1 text-right text-xs leading-5 text-[var(--chart-axis)]">
+                {d}
+              </span>
               {hourRange.map((h) => {
                 const v = grid.get(`${di}-${h}`) ?? 0;
                 const fill = step(v);
@@ -83,7 +104,8 @@ export function WeekHourHeatmap({ title, description, cells, unit = 'orders' }: 
         <span aria-live="polite" className="min-h-4">
           {hover ? (
             <>
-              <strong className="text-foreground tabular">{hover.v}</strong> {unit} · {DAYS[hover.dow]} {label(hover.hour)}
+              <strong className="text-foreground tabular">{hover.v}</strong> {unit} ·{' '}
+              {DAYS[hover.dow]} {label(hover.hour)}
             </>
           ) : (
             'Hover a cell for details'

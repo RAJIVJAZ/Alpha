@@ -72,7 +72,10 @@ export function DataTable<T>({
 
   return (
     <div className={cn('rounded-xl border bg-card', className)}>
-      <div className={cn('transition-opacity', fetching && !loading && 'opacity-60')} aria-busy={loading || fetching || undefined}>
+      <div
+        className={cn('transition-opacity', fetching && !loading && 'opacity-60')}
+        aria-busy={loading || fetching || undefined}
+      >
         <Table>
           {caption ? <caption className="sr-only">{caption}</caption> : null}
           <TableHeader>
@@ -80,15 +83,37 @@ export function DataTable<T>({
               {columns.map((c) => {
                 const active = sort?.key === c.key;
                 return (
-                  <TableHead key={c.key} className={cn(c.align === 'right' && 'text-right', c.align === 'center' && 'text-center', c.className)} aria-sort={active ? (sort!.dir === 1 ? 'ascending' : 'descending') : undefined}>
+                  <TableHead
+                    key={c.key}
+                    className={cn(
+                      c.align === 'right' && 'text-right',
+                      c.align === 'center' && 'text-center',
+                      c.className,
+                    )}
+                    aria-sort={active ? (sort!.dir === 1 ? 'ascending' : 'descending') : undefined}
+                  >
                     {c.sortValue ? (
                       <button
                         type="button"
                         className="inline-flex items-center gap-1 hover:text-foreground"
-                        onClick={() => setSort((s) => (s?.key === c.key ? (s.dir === 1 ? { key: c.key, dir: -1 } : null) : { key: c.key, dir: 1 }))}
+                        onClick={() =>
+                          setSort((s) =>
+                            s?.key === c.key
+                              ? s.dir === 1
+                                ? { key: c.key, dir: -1 }
+                                : null
+                              : { key: c.key, dir: 1 },
+                          )
+                        }
                       >
                         {c.header}
-                        {active ? sort!.dir === 1 ? <ArrowUp className="size-3" /> : <ArrowDown className="size-3" /> : null}
+                        {active ? (
+                          sort!.dir === 1 ? (
+                            <ArrowUp className="size-3" />
+                          ) : (
+                            <ArrowDown className="size-3" />
+                          )
+                        ) : null}
                       </button>
                     ) : (
                       c.header
@@ -114,11 +139,22 @@ export function DataTable<T>({
                     key={getRowId(row)}
                     className={cn(onRowClick && 'cursor-pointer')}
                     onClick={onRowClick ? () => onRowClick(row) : undefined}
-                    onKeyDown={onRowClick ? (e) => (e.key === 'Enter' ? onRowClick(row) : undefined) : undefined}
+                    onKeyDown={
+                      onRowClick
+                        ? (e) => (e.key === 'Enter' ? onRowClick(row) : undefined)
+                        : undefined
+                    }
                     tabIndex={onRowClick ? 0 : undefined}
                   >
                     {columns.map((c) => (
-                      <TableCell key={c.key} className={cn(c.align === 'right' && 'text-right tabular', c.align === 'center' && 'text-center', c.className)}>
+                      <TableCell
+                        key={c.key}
+                        className={cn(
+                          c.align === 'right' && 'text-right tabular',
+                          c.align === 'center' && 'text-center',
+                          c.className,
+                        )}
+                      >
                         {c.cell(row)}
                       </TableCell>
                     ))}
@@ -134,10 +170,22 @@ export function DataTable<T>({
             {pagination.total !== undefined ? ` · ${pagination.total} total` : ''}
           </span>
           <div className="flex gap-1">
-            <Button variant="outline" size="icon" aria-label="Previous page" disabled={pagination.page <= 1} onClick={() => pagination.onPageChange(pagination.page - 1)}>
+            <Button
+              variant="outline"
+              size="icon"
+              aria-label="Previous page"
+              disabled={pagination.page <= 1}
+              onClick={() => pagination.onPageChange(pagination.page - 1)}
+            >
               <ChevronLeft />
             </Button>
-            <Button variant="outline" size="icon" aria-label="Next page" disabled={pagination.page >= pagination.totalPages} onClick={() => pagination.onPageChange(pagination.page + 1)}>
+            <Button
+              variant="outline"
+              size="icon"
+              aria-label="Next page"
+              disabled={pagination.page >= pagination.totalPages}
+              onClick={() => pagination.onPageChange(pagination.page + 1)}
+            >
               <ChevronRight />
             </Button>
           </div>

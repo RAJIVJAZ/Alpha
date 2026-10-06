@@ -9,36 +9,70 @@ import { cn } from '../lib/utils';
 export const DropdownMenu = DropdownPrimitive.Root;
 export const DropdownMenuTrigger = DropdownPrimitive.Trigger;
 
-export function DropdownMenuContent({ className, sideOffset = 6, ...props }: React.ComponentProps<typeof DropdownPrimitive.Content>) {
+export function DropdownMenuContent({
+  className,
+  sideOffset = 6,
+  ...props
+}: React.ComponentProps<typeof DropdownPrimitive.Content>) {
   return (
     <DropdownPrimitive.Portal>
       <DropdownPrimitive.Content
         sideOffset={sideOffset}
-        className={cn('z-50 min-w-48 overflow-hidden rounded-lg border bg-popover p-1 text-popover-foreground shadow-md', className)}
+        className={cn(
+          'z-50 min-w-48 overflow-hidden rounded-lg border bg-popover p-1 text-popover-foreground shadow-md',
+          className,
+        )}
         {...props}
       />
     </DropdownPrimitive.Portal>
   );
 }
 
-export const DropdownMenuItem = ({ className, ...props }: React.ComponentProps<typeof DropdownPrimitive.Item>) => (
+export const DropdownMenuItem = ({
+  className,
+  ...props
+}: React.ComponentProps<typeof DropdownPrimitive.Item>) => (
   <DropdownPrimitive.Item
-    className={cn('relative flex cursor-default select-none items-center gap-2 rounded-md px-2 py-1.5 text-sm outline-none focus:bg-muted data-[disabled]:opacity-50 [&_svg]:size-4', className)}
+    className={cn(
+      'relative flex cursor-default select-none items-center gap-2 rounded-md px-2 py-1.5 text-sm outline-none focus:bg-muted data-[disabled]:opacity-50 [&_svg]:size-4',
+      className,
+    )}
     {...props}
   />
 );
-export const DropdownMenuLabel = ({ className, ...props }: React.ComponentProps<typeof DropdownPrimitive.Label>) => (
-  <DropdownPrimitive.Label className={cn('px-2 py-1.5 text-xs text-muted-foreground', className)} {...props} />
+export const DropdownMenuLabel = ({
+  className,
+  ...props
+}: React.ComponentProps<typeof DropdownPrimitive.Label>) => (
+  <DropdownPrimitive.Label
+    className={cn('px-2 py-1.5 text-xs text-muted-foreground', className)}
+    {...props}
+  />
 );
-export const DropdownMenuSeparator = ({ className, ...props }: React.ComponentProps<typeof DropdownPrimitive.Separator>) => (
+export const DropdownMenuSeparator = ({
+  className,
+  ...props
+}: React.ComponentProps<typeof DropdownPrimitive.Separator>) => (
   <DropdownPrimitive.Separator className={cn('-mx-1 my-1 h-px bg-border', className)} {...props} />
 );
 
 export const Tabs = TabsPrimitive.Root;
-export const TabsList = ({ className, ...props }: React.ComponentProps<typeof TabsPrimitive.List>) => (
-  <TabsPrimitive.List className={cn('inline-flex h-9 items-center gap-1 rounded-lg bg-muted p-1 text-muted-foreground', className)} {...props} />
+export const TabsList = ({
+  className,
+  ...props
+}: React.ComponentProps<typeof TabsPrimitive.List>) => (
+  <TabsPrimitive.List
+    className={cn(
+      'inline-flex h-9 items-center gap-1 rounded-lg bg-muted p-1 text-muted-foreground',
+      className,
+    )}
+    {...props}
+  />
 );
-export const TabsTrigger = ({ className, ...props }: React.ComponentProps<typeof TabsPrimitive.Trigger>) => (
+export const TabsTrigger = ({
+  className,
+  ...props
+}: React.ComponentProps<typeof TabsPrimitive.Trigger>) => (
   <TabsPrimitive.Trigger
     className={cn(
       'inline-flex h-7 items-center justify-center gap-1.5 whitespace-nowrap rounded-md px-3 text-sm font-medium transition-colors data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-xs',
@@ -47,7 +81,12 @@ export const TabsTrigger = ({ className, ...props }: React.ComponentProps<typeof
     {...props}
   />
 );
-export const TabsContent = ({ className, ...props }: React.ComponentProps<typeof TabsPrimitive.Content>) => <TabsPrimitive.Content className={cn('mt-4', className)} {...props} />;
+export const TabsContent = ({
+  className,
+  ...props
+}: React.ComponentProps<typeof TabsPrimitive.Content>) => (
+  <TabsPrimitive.Content className={cn('mt-4', className)} {...props} />
+);
 
 export function Switch({ className, ...props }: React.ComponentProps<typeof SwitchPrimitive.Root>) {
   return (

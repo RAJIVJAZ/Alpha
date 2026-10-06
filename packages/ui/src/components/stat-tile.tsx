@@ -47,14 +47,21 @@ export function StatTile({
 }
 
 function DeltaLine({ pct, label, upIsGood = true }: StatDelta) {
-  if (pct === null || !Number.isFinite(pct)) return <p className="text-xs text-muted-foreground">No data {label}</p>;
+  if (pct === null || !Number.isFinite(pct))
+    return <p className="text-xs text-muted-foreground">No data {label}</p>;
   const flat = Math.abs(pct) < 0.05;
   const up = pct > 0;
   const good = flat ? null : up === upIsGood;
   const Icon = flat ? Minus : up ? ArrowUpRight : ArrowDownRight;
   return (
     <p className="flex items-center gap-1 text-xs text-muted-foreground">
-      <span className={cn('inline-flex items-center gap-0.5 font-medium', good === true && 'text-delta-up', good === false && 'text-delta-down')}>
+      <span
+        className={cn(
+          'inline-flex items-center gap-0.5 font-medium',
+          good === true && 'text-delta-up',
+          good === false && 'text-delta-down',
+        )}
+      >
         <Icon className="size-3.5" aria-hidden />
         {up ? '+' : ''}
         {pct.toFixed(1)}%
@@ -65,17 +72,44 @@ function DeltaLine({ pct, label, upIsGood = true }: StatDelta) {
 }
 
 /** 12-ish point trend line: de-emphasis stroke, accent end-dot with surface ring. */
-export function Sparkline({ values, width = 96, height = 32 }: { values: number[]; width?: number; height?: number }) {
+export function Sparkline({
+  values,
+  width = 96,
+  height = 32,
+}: {
+  values: number[];
+  width?: number;
+  height?: number;
+}) {
   const pad = 4;
   const min = Math.min(...values);
   const max = Math.max(...values);
   const span = max - min || 1;
-  const pts = values.map((v, i) => [pad + (i * (width - 2 * pad)) / (values.length - 1), height - pad - ((v - min) / span) * (height - 2 * pad)] as const);
+  const pts = values.map(
+    (v, i) =>
+      [
+        pad + (i * (width - 2 * pad)) / (values.length - 1),
+        height - pad - ((v - min) / span) * (height - 2 * pad),
+      ] as const,
+  );
   const d = pts.map(([x, y], i) => `${i ? 'L' : 'M'}${x.toFixed(1)},${y.toFixed(1)}`).join(' ');
   const [lx, ly] = pts[pts.length - 1]!;
   return (
-    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} aria-hidden className="shrink-0 overflow-visible">
-      <path d={d} fill="none" stroke="var(--chart-muted)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    <svg
+      width={width}
+      height={height}
+      viewBox={`0 0 ${width} ${height}`}
+      aria-hidden
+      className="shrink-0 overflow-visible"
+    >
+      <path
+        d={d}
+        fill="none"
+        stroke="var(--chart-muted)"
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
       <circle cx={lx} cy={ly} r={4} fill="var(--chart-1)" stroke="var(--card)" strokeWidth={2} />
     </svg>
   );

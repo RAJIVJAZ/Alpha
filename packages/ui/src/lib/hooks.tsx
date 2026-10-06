@@ -1,7 +1,15 @@
 'use client';
 
 import * as React from 'react';
-import { keepPreviousData, QueryClient, QueryClientProvider, useMutation, useQuery, useQueryClient, type UseQueryOptions } from '@tanstack/react-query';
+import {
+  keepPreviousData,
+  QueryClient,
+  QueryClientProvider,
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type UseQueryOptions,
+} from '@tanstack/react-query';
 import { toast, Toaster } from 'sonner';
 import type { SessionUser } from '@foodgrid/types';
 import { api, ApiError, apiFetch, type ApiRequest } from './api';
@@ -9,7 +17,11 @@ import { api, ApiError, apiFetch, type ApiRequest } from './api';
 type Query = ApiRequest['query'];
 
 /** GET with caching; keeps showing the previous data while refetching. */
-export function useApi<T>(path: string | null, query?: Query, options: Omit<UseQueryOptions<T, Error>, 'queryKey' | 'queryFn'> = {}) {
+export function useApi<T>(
+  path: string | null,
+  query?: Query,
+  options: Omit<UseQueryOptions<T, Error>, 'queryKey' | 'queryFn'> = {},
+) {
   return useQuery<T, Error>({
     queryKey: [path, query ?? {}],
     queryFn: ({ signal }) => apiFetch<T>(path!, { query, signal }),
@@ -25,16 +37,25 @@ export function useApi<T>(path: string | null, query?: Query, options: Omit<UseQ
  */
 export function useApiMutation<TVars = void, TResult = unknown>(
   run: (vars: TVars) => Promise<TResult>,
-  opts: { invalidate?: string[]; success?: string | ((r: TResult) => string); onSuccess?: (r: TResult, vars: TVars) => void } = {},
+  opts: {
+    invalidate?: string[];
+    success?: string | ((r: TResult) => string);
+    onSuccess?: (r: TResult, vars: TVars) => void;
+  } = {},
 ) {
   const qc = useQueryClient();
   return useMutation<TResult, Error, TVars>({
     mutationFn: run,
     onSuccess: async (result, vars) => {
       if (opts.invalidate?.length) {
-        await qc.invalidateQueries({ predicate: (q) => typeof q.queryKey[0] === 'string' && opts.invalidate!.some((p) => (q.queryKey[0] as string).startsWith(p)) });
+        await qc.invalidateQueries({
+          predicate: (q) =>
+            typeof q.queryKey[0] === 'string' &&
+            opts.invalidate!.some((p) => (q.queryKey[0] as string).startsWith(p)),
+        });
       }
-      if (opts.success) toast.success(typeof opts.success === 'function' ? opts.success(result) : opts.success);
+      if (opts.success)
+        toast.success(typeof opts.success === 'function' ? opts.success(result) : opts.success);
       opts.onSuccess?.(result, vars);
     },
     onError: (err) => toast.error(err.message),

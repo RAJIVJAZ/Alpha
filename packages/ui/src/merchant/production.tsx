@@ -28,20 +28,34 @@ export function ProductionPlanner({ procurementHref }: { procurementHref?: strin
   const [date, setDate] = React.useState(() => istDate(1));
   const [buffer, setBuffer] = React.useState('10');
   const [selected, setSelected] = React.useState<string | null>(null);
-  const plans = useApi<PlanRow[]>(outletId ? 'inventory/production-plans' : null, { outletId: outletId ?? undefined });
+  const plans = useApi<PlanRow[]>(outletId ? 'inventory/production-plans' : null, {
+    outletId: outletId ?? undefined,
+  });
 
   React.useEffect(() => setSelected(null), [outletId]);
   const activeId = selected ?? plans.data?.[0]?.id ?? null;
 
-  const generate = useApiMutation(() => api.post<ProductionPlan>('inventory/production-plans/generate', { outletId, date, bufferPct: Number(buffer) || 0 }), {
-    invalidate: ['inventory/production-plans'],
-    success: (p) => `Plan drafted with ${p.items.length} dishes`,
-    onSuccess: (p) => setSelected(p.id),
-  });
+  const generate = useApiMutation(
+    () =>
+      api.post<ProductionPlan>('inventory/production-plans/generate', {
+        outletId,
+        date,
+        bufferPct: Number(buffer) || 0,
+      }),
+    {
+      invalidate: ['inventory/production-plans'],
+      success: (p) => `Plan drafted with ${p.items.length} dishes`,
+      onSuccess: (p) => setSelected(p.id),
+    },
+  );
 
   return (
     <>
-      <PageHeader title="Production planning" description="Batch quantities forecast from the last 4 weeks of sales, by weekday" actions={<OutletPicker />} />
+      <PageHeader
+        title="Production planning"
+        description="Batch quantities forecast from the last 4 weeks of sales, by weekday"
+        actions={<OutletPicker />}
+      />
       <div className="grid gap-4 lg:grid-cols-[18rem_1fr]">
         <div className="grid content-start gap-4">
           <Card>
@@ -50,12 +64,25 @@ export function ProductionPlanner({ procurementHref }: { procurementHref?: strin
               <CardDescription>Regenerating a draft replaces it.</CardDescription>
             </CardHeader>
             <CardContent>
-              <form className="grid gap-3" onSubmit={(e) => (e.preventDefault(), generate.mutate())}>
+              <form
+                className="grid gap-3"
+                onSubmit={(e) => (e.preventDefault(), generate.mutate())}
+              >
                 <Field label="Production date">
-                  <Input type="date" value={date} min={istDate(0)} onChange={(e) => setDate(e.target.value)} required />
+                  <Input
+                    type="date"
+                    value={date}
+                    min={istDate(0)}
+                    onChange={(e) => setDate(e.target.value)}
+                    required
+                  />
                 </Field>
                 <Field label="Safety buffer (%)" hint="Added on top of the forecast">
-                  <Input inputMode="numeric" value={buffer} onChange={(e) => setBuffer(e.target.value)} />
+                  <Input
+                    inputMode="numeric"
+                    value={buffer}
+                    onChange={(e) => setBuffer(e.target.value)}
+                  />
                 </Field>
                 <Button type="submit" loading={generate.isPending} disabled={!outletId}>
                   <CalendarPlus /> Generate plan
@@ -76,11 +103,16 @@ export function ProductionPlanner({ procurementHref }: { procurementHref?: strin
                         type="button"
                         onClick={() => setSelected(p.id)}
                         aria-current={p.id === activeId ? 'true' : undefined}
-                        className={cn('flex w-full items-center justify-between gap-2 rounded-md px-3 py-2 text-left text-sm hover:bg-muted', p.id === activeId && 'bg-accent text-accent-foreground')}
+                        className={cn(
+                          'flex w-full items-center justify-between gap-2 rounded-md px-3 py-2 text-left text-sm hover:bg-muted',
+                          p.id === activeId && 'bg-accent text-accent-foreground',
+                        )}
                       >
                         <span>
                           <span className="font-medium">{formatDate(p.planDate)}</span>
-                          <span className="block text-xs text-muted-foreground">{p._count?.items ?? p.items?.length ?? 0} dishes</span>
+                          <span className="block text-xs text-muted-foreground">
+                            {p._count?.items ?? p.items?.length ?? 0} dishes
+                          </span>
                         </span>
                         <StatusBadge status={p.status} />
                       </button>
@@ -88,12 +120,22 @@ export function ProductionPlanner({ procurementHref }: { procurementHref?: strin
                   ))}
                 </ul>
               ) : (
-                <p className="px-3 pb-2 text-sm text-muted-foreground">{plans.isLoading ? 'Loading…' : 'No plans yet.'}</p>
+                <p className="px-3 pb-2 text-sm text-muted-foreground">
+                  {plans.isLoading ? 'Loading…' : 'No plans yet.'}
+                </p>
               )}
             </CardContent>
           </Card>
         </div>
-        {activeId ? <PlanDetail id={activeId} procurementHref={procurementHref} /> : <EmptyState icon={<ChefHat />} title="No production plan yet" description="Generate one for tomorrow to see batch sizes and ingredient needs." />}
+        {activeId ? (
+          <PlanDetail id={activeId} procurementHref={procurementHref} />
+        ) : (
+          <EmptyState
+            icon={<ChefHat />}
+            title="No production plan yet"
+            description="Generate one for tomorrow to see batch sizes and ingredient needs."
+          />
+        )}
       </div>
     </>
   );
@@ -102,29 +144,55 @@ export function ProductionPlanner({ procurementHref }: { procurementHref?: strin
 function PlanDetail({ id, procurementHref }: { id: string; procurementHref?: string }) {
   const plan = useApi<ProductionPlan>(`inventory/production-plans/${id}`);
   const p = plan.data;
-  const move = useApiMutation((to: 'confirm' | 'start' | 'complete') => api.post(`inventory/production-plans/${id}/${to}`), {
-    invalidate: ['inventory/production-plans'],
-    success: 'Plan updated',
-  });
+  const move = useApiMutation(
+    (to: 'confirm' | 'start' | 'complete') => api.post(`inventory/production-plans/${id}/${to}`),
+    {
+      invalidate: ['inventory/production-plans'],
+      success: 'Plan updated',
+    },
+  );
   if (!p) return <Card className="min-h-64 animate-pulse" aria-busy />;
 
   const editable = p.status !== 'COMPLETED' && p.status !== 'CANCELLED';
   const shortages = (p.requirements ?? []).filter((r) => r.shortage > 0);
   const columns: Column<ProductionPlanItem>[] = [
-    { key: 'name', header: 'Dish', sortValue: (i) => i.name, cell: (i) => <span className="font-medium">{i.name}</span> },
-    { key: 'forecast', header: 'Forecast', align: 'right', sortValue: (i) => Number(i.forecastQty), cell: (i) => n(i.forecastQty) },
+    {
+      key: 'name',
+      header: 'Dish',
+      sortValue: (i) => i.name,
+      cell: (i) => <span className="font-medium">{i.name}</span>,
+    },
+    {
+      key: 'forecast',
+      header: 'Forecast',
+      align: 'right',
+      sortValue: (i) => Number(i.forecastQty),
+      cell: (i) => n(i.forecastQty),
+    },
     {
       key: 'planned',
       header: 'Planned',
       align: 'right',
       sortValue: (i) => Number(i.plannedQty),
-      cell: (i) => (editable && p.status !== 'IN_PROGRESS' ? <QtyInput planId={p.id} item={i} field="plannedQty" /> : n(i.plannedQty)),
+      cell: (i) =>
+        editable && p.status !== 'IN_PROGRESS' ? (
+          <QtyInput planId={p.id} item={i} field="plannedQty" />
+        ) : (
+          n(i.plannedQty)
+        ),
     },
     {
       key: 'produced',
       header: 'Produced',
       align: 'right',
-      cell: (i) => (p.status === 'IN_PROGRESS' ? <QtyInput planId={p.id} item={i} field="producedQty" /> : p.status === 'COMPLETED' ? n(i.producedQty) : '—'),
+      cell: (i) =>
+        p.status === 'IN_PROGRESS' ? (
+          <QtyInput planId={p.id} item={i} field="producedQty" />
+        ) : p.status === 'COMPLETED' ? (
+          n(i.producedQty)
+        ) : (
+          '—'
+        ),
     },
   ];
 
@@ -135,7 +203,8 @@ function PlanDetail({ id, procurementHref }: { id: string; procurementHref?: str
           <div>
             <CardTitle>Plan for {formatDate(p.planDate)}</CardTitle>
             <CardDescription>
-              {p.items.length} dishes · {n(p.items.reduce((s, i) => s + Number(i.plannedQty), 0))} portions planned
+              {p.items.length} dishes · {n(p.items.reduce((s, i) => s + Number(i.plannedQty), 0))}{' '}
+              portions planned
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
@@ -158,7 +227,12 @@ function PlanDetail({ id, procurementHref }: { id: string; procurementHref?: str
           </div>
         </CardHeader>
         <CardContent>
-          <DataTable columns={columns} rows={p.items} getRowId={(i) => i.id} empty={{ title: 'No sales history to plan from' }} />
+          <DataTable
+            columns={columns}
+            rows={p.items}
+            getRowId={(i) => i.id}
+            empty={{ title: 'No sales history to plan from' }}
+          />
         </CardContent>
       </Card>
 
@@ -202,7 +276,14 @@ function PlanDetail({ id, procurementHref }: { id: string; procurementHref?: str
                       {n(r.currentStock)} {r.unit.toLowerCase()}
                     </td>
                     <td className="py-2">
-                      {r.shortage > 0 ? <StatusBadge status="OUT_OF_STOCK" label={`Short ${n(r.shortage)} ${r.unit.toLowerCase()}`} /> : <StatusBadge status="IN_STOCK" label="Enough" />}
+                      {r.shortage > 0 ? (
+                        <StatusBadge
+                          status="OUT_OF_STOCK"
+                          label={`Short ${n(r.shortage)} ${r.unit.toLowerCase()}`}
+                        />
+                      ) : (
+                        <StatusBadge status="IN_STOCK" label="Enough" />
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -216,11 +297,23 @@ function PlanDetail({ id, procurementHref }: { id: string; procurementHref?: str
 }
 
 /** Inline quantity editor; saves on blur or Enter. */
-function QtyInput({ planId, item, field }: { planId: string; item: ProductionPlanItem; field: 'plannedQty' | 'producedQty' }) {
+function QtyInput({
+  planId,
+  item,
+  field,
+}: {
+  planId: string;
+  item: ProductionPlanItem;
+  field: 'plannedQty' | 'producedQty';
+}) {
   const initial = String(Number(item[field]));
   const [value, setValue] = React.useState(initial);
   React.useEffect(() => setValue(initial), [initial]);
-  const save = useApiMutation((qty: number) => api.patch(`inventory/production-plans/${planId}/items/${item.id}`, { [field]: qty }), { invalidate: [`inventory/production-plans/${planId}`] });
+  const save = useApiMutation(
+    (qty: number) =>
+      api.patch(`inventory/production-plans/${planId}/items/${item.id}`, { [field]: qty }),
+    { invalidate: [`inventory/production-plans/${planId}`] },
+  );
   const commit = () => {
     const qty = Number(value);
     if (value === initial || !Number.isFinite(qty) || qty < 0) return setValue(initial);
@@ -235,7 +328,9 @@ function QtyInput({ planId, item, field }: { planId: string; item: ProductionPla
       disabled={save.isPending}
       onChange={(e) => setValue(e.target.value)}
       onBlur={commit}
-      onKeyDown={(e) => (e.key === 'Enter' ? (e.currentTarget as HTMLInputElement).blur() : undefined)}
+      onKeyDown={(e) =>
+        e.key === 'Enter' ? (e.currentTarget as HTMLInputElement).blur() : undefined
+      }
     />
   );
 }

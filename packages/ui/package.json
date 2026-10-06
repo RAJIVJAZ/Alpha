@@ -11,6 +11,7 @@
     "./charts": "./src/charts/index.tsx",
     "./client": "./src/client.ts",
     "./merchant": "./src/merchant/index.ts",
+    "./seller": "./src/seller/index.ts",
     "./styles.css": "./src/styles.css"
   },
   "scripts": {

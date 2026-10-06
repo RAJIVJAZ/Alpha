@@ -26,7 +26,11 @@ function elapsedLabel(s: number) {
 export function KitchenDisplay() {
   const { outletId } = useOutlet();
   const [station, setStation] = React.useState('ALL');
-  const tickets = useApi<KitchenTicket[]>(outletId ? 'kds/tickets' : null, { outletId: outletId ?? undefined, station: station === 'ALL' ? undefined : station }, { refetchInterval: 5_000 });
+  const tickets = useApi<KitchenTicket[]>(
+    outletId ? 'kds/tickets' : null,
+    { outletId: outletId ?? undefined, station: station === 'ALL' ? undefined : station },
+    { refetchInterval: 5_000 },
+  );
   // re-render every second so timers count up between refetches
   const [now, setNow] = React.useState(() => Date.now());
   React.useEffect(() => {
@@ -42,7 +46,11 @@ export function KitchenDisplay() {
   ];
   return (
     <>
-      <PageHeader title="Kitchen display" description="Tickets refresh every 5 seconds" actions={<OutletPicker />} />
+      <PageHeader
+        title="Kitchen display"
+        description="Tickets refresh every 5 seconds"
+        actions={<OutletPicker />}
+      />
       <FilterBar>
         <Tabs value={station} onValueChange={setStation}>
           <TabsList>
@@ -56,18 +64,27 @@ export function KitchenDisplay() {
         </Tabs>
       </FilterBar>
       {tickets.data && tickets.data.length === 0 ? (
-        <EmptyState title="Kitchen is clear" description="Accepted orders appear here as tickets, one per station." />
+        <EmptyState
+          title="Kitchen is clear"
+          description="Accepted orders appear here as tickets, one per station."
+        />
       ) : (
         <div className="grid gap-4 lg:grid-cols-3">
           {columns.map((col) => {
-            const list = (tickets.data ?? []).filter((t) => t.status === col.key).sort((a, b) => b.elapsedSeconds - a.elapsedSeconds);
+            const list = (tickets.data ?? [])
+              .filter((t) => t.status === col.key)
+              .sort((a, b) => b.elapsedSeconds - a.elapsedSeconds);
             return (
               <section key={col.key} aria-label={col.label} className="flex flex-col gap-3">
                 <h2 className="flex items-center gap-2 text-sm font-semibold">
                   {col.label} <Badge variant="neutral">{list.length}</Badge>
                 </h2>
                 {list.map((t) => (
-                  <TicketCard key={t.id} ticket={t} elapsed={t.elapsedSeconds + Math.max(0, Math.floor((now - fetchedAt) / 1000))} />
+                  <TicketCard
+                    key={t.id}
+                    ticket={t}
+                    elapsed={t.elapsedSeconds + Math.max(0, Math.floor((now - fetchedAt) / 1000))}
+                  />
                 ))}
               </section>
             );
@@ -79,7 +96,9 @@ export function KitchenDisplay() {
 }
 
 function TicketCard({ ticket, elapsed }: { ticket: KitchenTicket; elapsed: number }) {
-  const act = useApiMutation((action: string) => api.post(`kds/tickets/${ticket.id}/${action}`), { invalidate: ['kds/', 'merchant/orders'] });
+  const act = useApiMutation((action: string) => api.post(`kds/tickets/${ticket.id}/${action}`), {
+    invalidate: ['kds/', 'merchant/orders'],
+  });
   const late = elapsed >= SLA_LATE;
   const warn = !late && elapsed >= SLA_WARN && ticket.status !== 'READY';
   return (
@@ -91,7 +110,16 @@ function TicketCard({ ticket, elapsed }: { ticket: KitchenTicket; elapsed: numbe
             {ticket.orderNumber} · {humanize(ticket.orderType)} · {humanize(ticket.station)}
           </p>
         </div>
-        <span className={cn('inline-flex items-center gap-1 text-sm font-medium tabular', late && ticket.status !== 'READY' ? 'text-status-critical' : warn ? 'text-foreground' : 'text-muted-foreground')}>
+        <span
+          className={cn(
+            'inline-flex items-center gap-1 text-sm font-medium tabular',
+            late && ticket.status !== 'READY'
+              ? 'text-status-critical'
+              : warn
+                ? 'text-foreground'
+                : 'text-muted-foreground',
+          )}
+        >
           <AlarmClock className="size-4" aria-hidden />
           {elapsedLabel(elapsed)}
           {late && ticket.status !== 'READY' ? <span className="sr-only"> (late)</span> : null}
@@ -101,7 +129,12 @@ function TicketCard({ ticket, elapsed }: { ticket: KitchenTicket; elapsed: numbe
         {ticket.items.map((i, idx) => (
           <li key={idx}>
             <span className="font-semibold tabular">{i.quantity}×</span> {i.name}
-            {i.variant || i.addons.length ? <span className="text-muted-foreground"> · {[i.variant, ...i.addons].filter(Boolean).join(', ')}</span> : null}
+            {i.variant || i.addons.length ? (
+              <span className="text-muted-foreground">
+                {' '}
+                · {[i.variant, ...i.addons].filter(Boolean).join(', ')}
+              </span>
+            ) : null}
             {i.notes ? <p className="text-xs">Note: {i.notes}</p> : null}
           </li>
         ))}

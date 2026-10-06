@@ -89,7 +89,7 @@ export async function seedInventory(ctx: SeedContext, sim: Simulation): Promise<
       const ingredientId = id();
       outlet.ingredientIds.set(key, ingredientId);
       const daily = series.get(key) ?? new Map<number, { qty: number; orders: number }>();
-      const avgDaily = Math.max(0.001, [...daily.values()].reduce((s, c) => s + c.qty, 0) / HISTORY_DAYS);
+      const avgDaily = Math.max(0.001, [...daily.entries()].filter(([day]) => day >= 1).reduce((s, [, c]) => s + c.qty, 0) / HISTORY_DAYS);
 
       // preferred & alternative products
       const candidates = ctx.products
@@ -223,6 +223,25 @@ export async function seedInventory(ctx: SeedContext, sim: Simulation): Promise<
         if (!pending && !suppressed && balance <= trigger) {
           pending = buy(day, maxStock - balance + avgDaily * leadDays, false);
         }
+      }
+
+      // today so far: the live service consumes stock as each order is accepted
+      const today = daily.get(0);
+      if (today && today.qty > 0) {
+        if (today.qty > balance) {
+          const top = buy(0, today.qty - balance + avgDaily * 0.5, true);
+          top.arrivalAt = new Date(Math.min(top.arrivalAt.getTime(), ctx.now.getTime() - 30 * 60_000));
+          purchases.push(top);
+          receive(top, 'Emergency local purchase', null, null);
+        }
+        consume(today.qty);
+        movementRows.push({
+          tenantId: outlet.tenantId, outletId: outlet.id, ingredientId, type: 'CONSUMPTION', quantity: -r3(today.qty), unitCost: r2(wac * 100) / 100,
+          totalCost: r2(today.qty * wac), balanceAfter: r3(balance), referenceType: 'DAILY_ROLLUP', reason: "Order consumption (today's orders)", createdAt: new Date(ctx.now.getTime() - 60_000),
+        });
+        consumptionRows.push({
+          tenantId: outlet.tenantId, outletId: outlet.id, ingredientId, date: istDay(istMidnight(0, ctx.now)), consumedQty: r3(today.qty), wastedQty: 0, ordersCount: today.orders,
+        });
       }
 
       const inFlight = !!pending;
@@ -573,7 +592,10 @@ async function seedProcurementState(
     const taxTotal = r2(lines.reduce((s, l) => s + l.tax, 0));
     const deliveryCharge = 0;
     const total = r2(subtotal + taxTotal);
-    const limit = autoApproveLimit('spicegarden');
+    // the demo PO exists to show owner approval: Spice Garden approves anything above a
+    // round figure below tonight's order (at most the usual limit)
+    const limit = Math.min(autoApproveLimit('spicegarden'), Math.max(250, Math.floor((total - 1) / 250) * 250));
+    await ctx.prisma.procurementSettings.update({ where: { tenantId: tenant.id }, data: { autoApproveBelow: limit } });
     const status = total > limit ? 'PENDING_APPROVAL' : 'APPROVED';
     const po = await ctx.prisma.purchaseOrder.create({
       data: {

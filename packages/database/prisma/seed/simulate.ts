@@ -5,7 +5,7 @@ import { addMinutes, atIst, id, istIsoWeekday, istMidnight, r2, Rng } from './li
 
 export const HISTORY_DAYS = 90;
 /** Orders older than this are only kept as consumption roll-ups (archived). */
-export const ORDER_DAYS = 30;
+export const ORDER_DAYS = 60;
 
 type Channel = 'APP' | 'WEB' | 'QR' | 'POS';
 type OrderType = 'DELIVERY' | 'TAKEAWAY' | 'DINE_IN';
@@ -125,7 +125,8 @@ export function simulate(ctx: SeedContext): Simulation {
     reach.set(o.id, near.length >= 4 ? near : ctx.customers);
   }
 
-  for (let daysAgo = HISTORY_DAYS; daysAgo >= 1; daysAgo--) {
+  // day 0 is today up to the seed time; orders still in progress are added separately as live orders
+  for (let daysAgo = HISTORY_DAYS; daysAgo >= 0; daysAgo--) {
     const dayStart = istMidnight(daysAgo, ctx.now);
     const ymd = istYmd(dayStart);
     const weekday = istIsoWeekday(dayStart);
@@ -144,7 +145,10 @@ export function simulate(ctx: SeedContext): Simulation {
       for (let k = 0; k < n; k++) {
         const hour = rng.weighted(hours.map((h) => h[0]), hours.map((h) => h[1]));
         const placedAt = atIst(dayStart, hour, rng.int(0, 59));
-        dayOrders.push(buildOrder(ctx, rng, outlet, daysAgo, placedAt, reach.get(outlet.id)!, ordersByCustomer));
+        const o = buildOrder(ctx, rng, outlet, daysAgo, placedAt, reach.get(outlet.id)!, ordersByCustomer);
+        const finishedAt = o.completedAt ?? o.deliveredAt ?? o.cancelledAt;
+        if (daysAgo === 0 && (!finishedAt || finishedAt.getTime() > ctx.now.getTime() - 2 * 60_000)) continue;
+        dayOrders.push(o);
       }
     }
 

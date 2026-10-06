@@ -38,7 +38,10 @@ export function OutletProvider({ children }: { children: React.ReactNode }) {
       /* ignore */
     }
   }, []);
-  const value = React.useMemo(() => ({ outlets, outlet, outletId: outlet?.id ?? null, setOutletId, loading: isLoading }), [outlets, outlet, setOutletId, isLoading]);
+  const value = React.useMemo(
+    () => ({ outlets, outlet, outletId: outlet?.id ?? null, setOutletId, loading: isLoading }),
+    [outlets, outlet, setOutletId, isLoading],
+  );
   return <OutletContext.Provider value={value}>{children}</OutletContext.Provider>;
 }
 
@@ -55,7 +58,11 @@ export function OutletPicker() {
     <label className="flex items-center gap-2 text-sm">
       <Store className="size-4 text-muted-foreground" aria-hidden />
       <span className="sr-only">Outlet</span>
-      <Select value={outletId ?? ''} onChange={(e) => setOutletId(e.target.value)} className="h-8 w-auto max-w-56">
+      <Select
+        value={outletId ?? ''}
+        onChange={(e) => setOutletId(e.target.value)}
+        className="h-8 w-auto max-w-56"
+      >
         {outlets.map((o) => (
           <option key={o.id} value={o.id}>
             {o.name}

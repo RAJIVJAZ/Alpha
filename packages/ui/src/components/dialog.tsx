@@ -13,7 +13,11 @@ const Overlay = ({ className, ...props }: React.ComponentProps<typeof DialogPrim
   <DialogPrimitive.Overlay className={cn('fixed inset-0 z-50 bg-black/50', className)} {...props} />
 );
 
-export function DialogContent({ className, children, ...props }: React.ComponentProps<typeof DialogPrimitive.Content>) {
+export function DialogContent({
+  className,
+  children,
+  ...props
+}: React.ComponentProps<typeof DialogPrimitive.Content>) {
   return (
     <DialogPrimitive.Portal>
       <Overlay />
@@ -34,19 +38,41 @@ export function DialogContent({ className, children, ...props }: React.Component
   );
 }
 
-export const DialogHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => <div className={cn('flex flex-col gap-1.5 pr-6', className)} {...props} />;
+export const DialogHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
+  <div className={cn('flex flex-col gap-1.5 pr-6', className)} {...props} />
+);
 export const DialogFooter = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div className={cn('flex flex-col-reverse gap-2 sm:flex-row sm:justify-end', className)} {...props} />
+  <div
+    className={cn('flex flex-col-reverse gap-2 sm:flex-row sm:justify-end', className)}
+    {...props}
+  />
 );
-export const DialogTitle = ({ className, ...props }: React.ComponentProps<typeof DialogPrimitive.Title>) => (
-  <DialogPrimitive.Title className={cn('text-lg font-semibold leading-none', className)} {...props} />
+export const DialogTitle = ({
+  className,
+  ...props
+}: React.ComponentProps<typeof DialogPrimitive.Title>) => (
+  <DialogPrimitive.Title
+    className={cn('text-lg font-semibold leading-none', className)}
+    {...props}
+  />
 );
-export const DialogDescription = ({ className, ...props }: React.ComponentProps<typeof DialogPrimitive.Description>) => (
-  <DialogPrimitive.Description className={cn('text-sm text-muted-foreground', className)} {...props} />
+export const DialogDescription = ({
+  className,
+  ...props
+}: React.ComponentProps<typeof DialogPrimitive.Description>) => (
+  <DialogPrimitive.Description
+    className={cn('text-sm text-muted-foreground', className)}
+    {...props}
+  />
 );
 
 /** Side panel (mobile navigation, detail drawers). */
-export function SheetContent({ side = 'left', className, children, ...props }: React.ComponentProps<typeof DialogPrimitive.Content> & { side?: 'left' | 'right' }) {
+export function SheetContent({
+  side = 'left',
+  className,
+  children,
+  ...props
+}: React.ComponentProps<typeof DialogPrimitive.Content> & { side?: 'left' | 'right' }) {
   return (
     <DialogPrimitive.Portal>
       <Overlay />
@@ -99,14 +125,18 @@ export function ConfirmDialog({
         </DialogHeader>
         {children}
         <DialogFooter>
-          <DialogClose className="inline-flex h-9 items-center justify-center rounded-md border border-input bg-card px-4 text-sm font-medium hover:bg-muted">Cancel</DialogClose>
+          <DialogClose className="inline-flex h-9 items-center justify-center rounded-md border border-input bg-card px-4 text-sm font-medium hover:bg-muted">
+            Cancel
+          </DialogClose>
           <button
             type="button"
             onClick={onConfirm}
             disabled={loading}
             className={cn(
               'inline-flex h-9 items-center justify-center rounded-md px-4 text-sm font-medium shadow-sm disabled:opacity-50',
-              destructive ? 'bg-destructive text-destructive-foreground' : 'bg-primary text-primary-foreground',
+              destructive
+                ? 'bg-destructive text-destructive-foreground'
+                : 'bg-primary text-primary-foreground',
             )}
           >
             {loading ? 'Working…' : confirmLabel}

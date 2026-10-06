@@ -11,7 +11,14 @@ import { cn } from '../lib/utils';
 import { humanize } from '../lib/format';
 import { Button } from './button';
 import { SheetContent } from './dialog';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from './menu';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from './menu';
 import { Avatar } from './misc';
 import { ThemeToggle } from './theme';
 
@@ -33,18 +40,32 @@ async function signOut() {
 }
 
 async function switchTenant(tenantId: string) {
-  const res = await fetch('/api/auth/switch-tenant', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ tenantId }), credentials: 'same-origin' });
+  const res = await fetch('/api/auth/switch-tenant', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ tenantId }),
+    credentials: 'same-origin',
+  });
   if (res.ok) window.location.assign('/');
 }
 
 function NavList({ nav, onNavigate }: { nav: NavSection[]; onNavigate?: () => void }) {
   const pathname = usePathname();
-  const active = (item: NavItem) => (item.href === '/' ? pathname === '/' : item.prefix === false ? pathname === item.href : pathname === item.href || pathname.startsWith(`${item.href}/`));
+  const active = (item: NavItem) =>
+    item.href === '/'
+      ? pathname === '/'
+      : item.prefix === false
+        ? pathname === item.href
+        : pathname === item.href || pathname.startsWith(`${item.href}/`);
   return (
     <nav aria-label="Main" className="flex flex-col gap-5">
       {nav.map((section, i) => (
         <div key={section.title ?? i} className="flex flex-col gap-0.5">
-          {section.title ? <p className="px-3 pb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">{section.title}</p> : null}
+          {section.title ? (
+            <p className="px-3 pb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              {section.title}
+            </p>
+          ) : null}
           {section.items.map((item) => {
             const isActive = active(item);
             const Icon = item.icon;
@@ -56,7 +77,9 @@ function NavList({ nav, onNavigate }: { nav: NavSection[]; onNavigate?: () => vo
                 aria-current={isActive ? 'page' : undefined}
                 className={cn(
                   'flex items-center gap-2.5 rounded-md px-3 py-2 text-sm transition-colors [&_svg]:size-4 [&_svg]:shrink-0',
-                  isActive ? 'bg-accent font-medium text-accent-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                  isActive
+                    ? 'bg-accent font-medium text-accent-foreground'
+                    : 'text-muted-foreground hover:bg-muted hover:text-foreground',
                 )}
               >
                 {Icon ? <Icon aria-hidden /> : null}
@@ -73,7 +96,10 @@ function NavList({ nav, onNavigate }: { nav: NavSection[]; onNavigate?: () => vo
 function Brand({ name, subtitle }: { name: string; subtitle?: string }) {
   return (
     <Link href="/" className="flex items-center gap-2.5 px-3">
-      <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-sm font-bold text-primary-foreground" aria-hidden>
+      <span
+        className="flex size-8 items-center justify-center rounded-lg bg-primary text-sm font-bold text-primary-foreground"
+        aria-hidden
+      >
         FG
       </span>
       <span className="flex flex-col leading-tight">
@@ -88,7 +114,19 @@ function Brand({ name, subtitle }: { name: string; subtitle?: string }) {
  * Dashboard frame shared by the merchant, supplier, vendor, rider and admin
  * apps: sidebar navigation (sheet on mobile), tenant switcher and user menu.
  */
-export function AppShell({ product, subtitle, nav, children, headerActions }: { product: string; subtitle?: string; nav: NavSection[]; children: React.ReactNode; headerActions?: React.ReactNode }) {
+export function AppShell({
+  product,
+  subtitle,
+  nav,
+  children,
+  headerActions,
+}: {
+  product: string;
+  subtitle?: string;
+  nav: NavSection[];
+  children: React.ReactNode;
+  headerActions?: React.ReactNode;
+}) {
   const [open, setOpen] = React.useState(false);
   const { data: session } = useSession();
   const active = session?.memberships.find((m) => m.tenantId === session.activeTenantId);
@@ -102,7 +140,12 @@ export function AppShell({ product, subtitle, nav, children, headerActions }: { 
         <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b bg-background/90 px-4 backdrop-blur sm:px-6">
           <DialogPrimitive.Root open={open} onOpenChange={setOpen}>
             <DialogPrimitive.Trigger asChild>
-              <Button variant="ghost" size="icon" className="lg:hidden" aria-label="Open navigation">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="lg:hidden"
+                aria-label="Open navigation"
+              >
                 <Menu />
               </Button>
             </DialogPrimitive.Trigger>
@@ -125,13 +168,20 @@ export function AppShell({ product, subtitle, nav, children, headerActions }: { 
           <ThemeToggle />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" aria-label="Account menu" className="rounded-full">
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="Account menu"
+                className="rounded-full"
+              >
                 <Avatar name={session?.name ?? session?.phone ?? 'User'} />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-64">
               <DropdownMenuLabel>
-                <span className="block truncate font-medium text-foreground">{session?.name ?? 'Signed in'}</span>
+                <span className="block truncate font-medium text-foreground">
+                  {session?.name ?? 'Signed in'}
+                </span>
                 <span className="block truncate">{session?.email ?? session?.phone}</span>
               </DropdownMenuLabel>
               {session && session.memberships.length > 1 ? (
@@ -139,8 +189,15 @@ export function AppShell({ product, subtitle, nav, children, headerActions }: { 
                   <DropdownMenuSeparator />
                   <DropdownMenuLabel>Switch business</DropdownMenuLabel>
                   {session.memberships.map((m) => (
-                    <DropdownMenuItem key={m.tenantId} onSelect={() => void switchTenant(m.tenantId)}>
-                      {m.tenantId === session.activeTenantId ? <Check /> : <span className="size-4" />}
+                    <DropdownMenuItem
+                      key={m.tenantId}
+                      onSelect={() => void switchTenant(m.tenantId)}
+                    >
+                      {m.tenantId === session.activeTenantId ? (
+                        <Check />
+                      ) : (
+                        <span className="size-4" />
+                      )}
                       <span className="truncate">{m.tenantName}</span>
                     </DropdownMenuItem>
                   ))}

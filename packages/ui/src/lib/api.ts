@@ -56,12 +56,24 @@ export async function apiFetch<T>(path: string, req: ApiRequest = {}): Promise<T
   } catch {
     json = { message: text };
   }
-  if (res.status === 401 && typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
-    window.location.assign(`/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`);
+  if (
+    res.status === 401 &&
+    typeof window !== 'undefined' &&
+    !window.location.pathname.startsWith('/login')
+  ) {
+    window.location.assign(
+      `/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`,
+    );
   }
   if (!res.ok) {
-    const body = (json ?? {}) as { code?: string; message?: string | string[]; details?: { errors?: string[] } };
-    const message = Array.isArray(body.message) ? body.message.join(', ') : body.details?.errors?.join(', ') ?? body.message ?? `Request failed (${res.status})`;
+    const body = (json ?? {}) as {
+      code?: string;
+      message?: string | string[];
+      details?: { errors?: string[] };
+    };
+    const message = Array.isArray(body.message)
+      ? body.message.join(', ')
+      : (body.details?.errors?.join(', ') ?? body.message ?? `Request failed (${res.status})`);
     throw new ApiError(res.status, body.code, message, body.details);
   }
   return json as T;
@@ -69,13 +81,18 @@ export async function apiFetch<T>(path: string, req: ApiRequest = {}): Promise<T
 
 export const api = {
   get: <T>(path: string, query?: Query) => apiFetch<T>(path, { query }),
-  post: <T>(path: string, body?: unknown, opts: Omit<ApiRequest, 'method' | 'body'> = {}) => apiFetch<T>(path, { ...opts, method: 'POST', body: body ?? {} }),
+  post: <T>(path: string, body?: unknown, opts: Omit<ApiRequest, 'method' | 'body'> = {}) =>
+    apiFetch<T>(path, { ...opts, method: 'POST', body: body ?? {} }),
   put: <T>(path: string, body?: unknown) => apiFetch<T>(path, { method: 'PUT', body: body ?? {} }),
-  patch: <T>(path: string, body?: unknown) => apiFetch<T>(path, { method: 'PATCH', body: body ?? {} }),
+  patch: <T>(path: string, body?: unknown) =>
+    apiFetch<T>(path, { method: 'PATCH', body: body ?? {} }),
   delete: <T>(path: string) => apiFetch<T>(path, { method: 'DELETE' }),
 };
 
-export const newIdempotencyKey = () => (typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`);
+export const newIdempotencyKey = () =>
+  typeof crypto !== 'undefined' && 'randomUUID' in crypto
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random()}`;
 
 /** Paginated list envelope used by the services. */
 export interface Paged<T> {

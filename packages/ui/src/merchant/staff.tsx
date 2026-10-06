@@ -4,7 +4,14 @@ import * as React from 'react';
 import { UserPlus } from 'lucide-react';
 import { Button } from '../components/button';
 import { DataTable, type Column } from '../components/data-table';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../components/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '../components/dialog';
 import { Field, Input, Select } from '../components/form';
 import { PageHeader } from '../components/layout';
 import { Avatar } from '../components/misc';
@@ -19,7 +26,13 @@ interface Member {
   status: string;
   title: string | null;
   outletIds: string[];
-  user: { id: string; name: string | null; phone: string | null; email: string | null; lastLoginAt: string | null };
+  user: {
+    id: string;
+    name: string | null;
+    phone: string | null;
+    email: string | null;
+    lastLoginAt: string | null;
+  };
 }
 
 const ROLES = ['MANAGER', 'CHEF', 'CASHIER', 'STAFF', 'ACCOUNTANT', 'PROCUREMENT_MANAGER'] as const;
@@ -37,7 +50,10 @@ const ROLE_HELP: Record<string, string> = {
 export function StaffManager() {
   const members = useApi<Member[]>('tenants/current/members');
   const [invite, setInvite] = React.useState(false);
-  const update = useApiMutation((v: { id: string; body: object }) => api.patch(`tenants/current/members/${v.id}`, v.body), { invalidate: ['tenants/current/members'], success: 'Staff updated' });
+  const update = useApiMutation(
+    (v: { id: string; body: object }) => api.patch(`tenants/current/members/${v.id}`, v.body),
+    { invalidate: ['tenants/current/members'], success: 'Staff updated' },
+  );
   const columns: Column<Member>[] = [
     {
       key: 'name',
@@ -60,7 +76,12 @@ export function StaffManager() {
         m.role === 'OWNER' ? (
           humanize(m.role)
         ) : (
-          <Select aria-label={`Role of ${m.user.name}`} className="h-8 w-48" value={m.role} onChange={(e) => update.mutate({ id: m.id, body: { role: e.target.value } })}>
+          <Select
+            aria-label={`Role of ${m.user.name}`}
+            className="h-8 w-48"
+            value={m.role}
+            onChange={(e) => update.mutate({ id: m.id, body: { role: e.target.value } })}
+          >
             {ROLES.map((r) => (
               <option key={r} value={r}>
                 {humanize(r)}
@@ -69,7 +90,11 @@ export function StaffManager() {
           </Select>
         ),
     },
-    { key: 'access', header: 'Access', cell: (m) => <span className="text-sm text-muted-foreground">{ROLE_HELP[m.role]}</span> },
+    {
+      key: 'access',
+      header: 'Access',
+      cell: (m) => <span className="text-sm text-muted-foreground">{ROLE_HELP[m.role]}</span>,
+    },
     { key: 'status', header: 'Status', cell: (m) => <StatusBadge status={m.status} /> },
     { key: 'seen', header: 'Last active', cell: (m) => formatRelative(m.user.lastLoginAt) },
     {
@@ -78,11 +103,19 @@ export function StaffManager() {
       align: 'right',
       cell: (m) =>
         m.role === 'OWNER' ? null : m.status === 'ACTIVE' ? (
-          <Button size="sm" variant="ghost" onClick={() => update.mutate({ id: m.id, body: { status: 'REVOKED' } })}>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => update.mutate({ id: m.id, body: { status: 'REVOKED' } })}
+          >
             Revoke
           </Button>
         ) : (
-          <Button size="sm" variant="ghost" onClick={() => update.mutate({ id: m.id, body: { status: 'ACTIVE' } })}>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => update.mutate({ id: m.id, body: { status: 'ACTIVE' } })}
+          >
             Restore
           </Button>
         ),
@@ -99,7 +132,13 @@ export function StaffManager() {
           </Button>
         }
       />
-      <DataTable columns={columns} rows={members.data} getRowId={(m) => m.id} loading={members.isLoading} fetching={members.isFetching} />
+      <DataTable
+        columns={columns}
+        rows={members.data}
+        getRowId={(m) => m.id}
+        loading={members.isLoading}
+        fetching={members.isFetching}
+      />
       <InviteDialog open={invite} onClose={() => setInvite(false)} />
     </>
   );
@@ -107,11 +146,14 @@ export function StaffManager() {
 
 function InviteDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [form, setForm] = React.useState({ phone: '', name: '', role: 'CHEF', title: '' });
-  const send = useApiMutation(() => api.post('tenants/current/members', { ...form, title: form.title || undefined }), {
-    invalidate: ['tenants/current/members'],
-    success: 'Invitation sent',
-    onSuccess: () => (setForm({ phone: '', name: '', role: 'CHEF', title: '' }), onClose()),
-  });
+  const send = useApiMutation(
+    () => api.post('tenants/current/members', { ...form, title: form.title || undefined }),
+    {
+      invalidate: ['tenants/current/members'],
+      success: 'Invitation sent',
+      onSuccess: () => (setForm({ phone: '', name: '', role: 'CHEF', title: '' }), onClose()),
+    },
+  );
   return (
     <Dialog open={open} onOpenChange={(o) => (!o ? onClose() : undefined)}>
       <DialogContent>
@@ -121,7 +163,12 @@ function InviteDialog({ open, onClose }: { open: boolean; onClose: () => void })
         </DialogHeader>
         <form className="grid gap-4" onSubmit={(e) => (e.preventDefault(), send.mutate())}>
           <Field label="Mobile number">
-            <Input type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} required />
+            <Input
+              type="tel"
+              value={form.phone}
+              onChange={(e) => setForm({ ...form, phone: e.target.value })}
+              required
+            />
           </Field>
           <Field label="Name">
             <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />

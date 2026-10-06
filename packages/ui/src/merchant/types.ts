@@ -35,7 +35,15 @@ export interface MerchantOrder {
   estimatedReadyAt: string | null;
   specialInstructions: string | null;
   createdAt: string;
-  items?: { id: string; name: string; quantity: number; variant: string | null; addons: { name: string }[]; totalPrice: Dec; notes: string | null }[];
+  items?: {
+    id: string;
+    name: string;
+    quantity: number;
+    variant: string | null;
+    addons: { name: string }[];
+    totalPrice: Dec;
+    notes: string | null;
+  }[];
 }
 
 export interface KitchenTicket {
@@ -48,7 +56,13 @@ export interface KitchenTicket {
   orderType: string;
   createdAt: string;
   elapsedSeconds: number;
-  items: { name: string; quantity: number; variant: string | null; addons: string[]; notes: string | null }[];
+  items: {
+    name: string;
+    quantity: number;
+    variant: string | null;
+    addons: string[];
+    notes: string | null;
+  }[];
 }
 
 export interface MenuItem {
@@ -91,7 +105,14 @@ export interface InventorySummary {
   lowStock: number;
   outOfStock: number;
   categories: { category: string; items: number; value: number; low: number; out: number }[];
-  expiringSoon: { batchId: string; ingredient: string; unit: string; remainingQty: Dec; expiresAt: string; value: number }[];
+  expiringSoon: {
+    batchId: string;
+    ingredient: string;
+    unit: string;
+    remainingQty: Dec;
+    expiresAt: string;
+    value: number;
+  }[];
 }
 
 export interface StockMovement {
@@ -174,10 +195,37 @@ export interface PurchaseOrder {
   expectedDeliveryAt: string | null;
   notes: string | null;
   supplierNotes: string | null;
-  trackingInfo: { vehicleNumber?: string; driverName?: string; driverPhone?: string; lat?: number; lng?: number; eta?: string } | null;
+  trackingInfo: {
+    vehicleNumber?: string;
+    driverName?: string;
+    driverPhone?: string;
+    lat?: number;
+    lng?: number;
+    eta?: string;
+  } | null;
   createdAt: string;
-  items: { id: string; ingredientId: string | null; productId: string | null; name: string; quantity: Dec; unit: string; unitPrice: Dec; gstRate: Dec; lineTotal: Dec; confirmedQty: Dec | null; receivedQty: Dec; baseQtyPerPack: Dec; ingredientUnit: string | null }[];
-  events?: { id: string; status: string; note: string | null; actorType: string | null; createdAt: string }[];
+  items: {
+    id: string;
+    ingredientId: string | null;
+    productId: string | null;
+    name: string;
+    quantity: Dec;
+    unit: string;
+    unitPrice: Dec;
+    gstRate: Dec;
+    lineTotal: Dec;
+    confirmedQty: Dec | null;
+    receivedQty: Dec;
+    baseQtyPerPack: Dec;
+    ingredientUnit: string | null;
+  }[];
+  events?: {
+    id: string;
+    status: string;
+    note: string | null;
+    actorType: string | null;
+    createdAt: string;
+  }[];
   approvals?: { id: string; decision: string; comment: string | null; decidedAt: string }[];
 }
 
@@ -201,7 +249,15 @@ export interface Settlement {
 export interface SalesReport {
   from: string;
   to: string;
-  kpis: { orders: number; gmv: number; netSales: number; averageOrderValue: number; cancellationRatePct: number; newCustomers: number; repeatCustomers: number };
+  kpis: {
+    orders: number;
+    gmv: number;
+    netSales: number;
+    averageOrderValue: number;
+    cancellationRatePct: number;
+    newCustomers: number;
+    repeatCustomers: number;
+  };
   daily: { date: string; orders: number; gmv: number; netSales: number; cancelled: number }[];
   byChannel: { channel: string; orders: number; gmv: number }[];
   byPaymentMethod: { method: string; orders: number; gmv: number }[];
@@ -209,11 +265,26 @@ export interface SalesReport {
 }
 
 export interface ProfitReport {
-  totals: { orders: number; gmv: number; netSales: number; discounts: number; commission: number; foodCost: number; grossProfit: number };
+  totals: {
+    orders: number;
+    gmv: number;
+    netSales: number;
+    discounts: number;
+    commission: number;
+    foodCost: number;
+    grossProfit: number;
+  };
   marginPct: number;
   foodCostPct: number;
   commissionPct: number;
-  daily: { date: string; orders: number; netSales: number; commission: number; foodCost: number; grossProfit: number }[];
+  daily: {
+    date: string;
+    orders: number;
+    netSales: number;
+    commission: number;
+    foodCost: number;
+    grossProfit: number;
+  }[];
 }
 
 export interface ProductionPlanItem {
@@ -232,12 +303,28 @@ export interface ProductionPlan {
   notes: string | null;
   createdAt: string;
   items: ProductionPlanItem[];
-  requirements?: { ingredientId: string; name: string; unit: string; category: string; currentStock: number; required: number; shortage: number }[];
+  requirements?: {
+    ingredientId: string;
+    name: string;
+    unit: string;
+    category: string;
+    currentStock: number;
+    required: number;
+    shortage: number;
+  }[];
 }
 
 export interface CostingReport {
   outletId: string;
-  items: { menuItemId: string; name: string; sellingPrice: number; foodCost: number | null; foodCostPct: number | null; marginPct: number | null; flag: 'OK' | 'HIGH_COST' | 'NO_RECIPE' | string }[];
+  items: {
+    menuItemId: string;
+    name: string;
+    sellingPrice: number;
+    foodCost: number | null;
+    foodCostPct: number | null;
+    marginPct: number | null;
+    flag: 'OK' | 'HIGH_COST' | 'NO_RECIPE' | string;
+  }[];
   averageFoodCostPct: number | null;
   highCostItems: number;
   missingRecipes: number;
@@ -246,7 +333,14 @@ export interface RecipeCost {
   menuItemId: string;
   name: string;
   perPortion: number;
-  lines: { ingredientId: string; name: string; quantity: number; unit: string; cost: number; sharePct: number }[];
+  lines: {
+    ingredientId: string;
+    name: string;
+    quantity: number;
+    unit: string;
+    cost: number;
+    sharePct: number;
+  }[];
 }
 export interface PricingSuggestion {
   id: string;

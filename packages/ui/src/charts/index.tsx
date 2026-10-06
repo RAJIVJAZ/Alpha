@@ -12,7 +12,19 @@
  *   view toggle on every chart (light-mode relief rule for low-contrast slots).
  */
 import * as React from 'react';
-import { Area, AreaChart, Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import {
+  Area,
+  AreaChart,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
 import { formatNumber } from '../lib/format';
 import { ChartFrame } from './frame';
 
@@ -34,13 +46,23 @@ const color = (s: Series, i: number) => `var(--chart-${Math.min(8, s.slot ?? i +
 const AXIS = { fill: 'var(--chart-axis)', fontSize: 12 };
 const defaultFmt: Fmt = (v) => formatNumber(v, { compact: true });
 
-function TooltipBox({ title, rows }: { title: React.ReactNode; rows: { key: string; label: string; value: string; color: string; shape: 'line' | 'rect' }[] }) {
+function TooltipBox({
+  title,
+  rows,
+}: {
+  title: React.ReactNode;
+  rows: { key: string; label: string; value: string; color: string; shape: 'line' | 'rect' }[];
+}) {
   return (
     <div className="min-w-40 rounded-lg border bg-popover px-3 py-2 text-sm shadow-md">
       <p className="mb-1 text-xs text-muted-foreground">{title}</p>
       {rows.map((r) => (
         <div key={r.key} className="flex items-center gap-2 py-0.5">
-          <span aria-hidden className={r.shape === 'line' ? 'h-0.5 w-3 rounded' : 'size-2.5 rounded-sm'} style={{ background: r.color }} />
+          <span
+            aria-hidden
+            className={r.shape === 'line' ? 'h-0.5 w-3 rounded' : 'size-2.5 rounded-sm'}
+            style={{ background: r.color }}
+          />
           <span className="font-semibold tabular">{r.value}</span>
           <span className="text-muted-foreground">{r.label}</span>
         </div>
@@ -55,7 +77,11 @@ function Legend({ series, shape }: { series: Series[]; shape: 'line' | 'rect' })
     <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
       {series.map((s, i) => (
         <li key={s.key} className="flex items-center gap-1.5">
-          <span aria-hidden className={shape === 'line' ? 'h-0.5 w-3.5 rounded' : 'size-2.5 rounded-sm'} style={{ background: color(s, i) }} />
+          <span
+            aria-hidden
+            className={shape === 'line' ? 'h-0.5 w-3.5 rounded' : 'size-2.5 rounded-sm'}
+            style={{ background: color(s, i) }}
+          />
           {s.label}
         </li>
       ))}
@@ -63,7 +89,21 @@ function Legend({ series, shape }: { series: Series[]; shape: 'line' | 'rect' })
   );
 }
 
-function DataTableView({ data, xKey, xLabel, series, valueFormat, xFormat }: { data: Datum[]; xKey: string; xLabel: string; series: Series[]; valueFormat: Fmt; xFormat: (v: string | number) => string }) {
+function DataTableView({
+  data,
+  xKey,
+  xLabel,
+  series,
+  valueFormat,
+  xFormat,
+}: {
+  data: Datum[];
+  xKey: string;
+  xLabel: string;
+  series: Series[];
+  valueFormat: Fmt;
+  xFormat: (v: string | number) => string;
+}) {
   return (
     <div className="max-h-80 overflow-auto">
       <table className="w-full text-sm">
@@ -83,7 +123,9 @@ function DataTableView({ data, xKey, xLabel, series, valueFormat, xFormat }: { d
               <td className="px-2 py-1.5">{xFormat(d[xKey] as string | number)}</td>
               {series.map((s) => (
                 <td key={s.key} className="px-2 py-1.5 text-right tabular">
-                  {d[s.key] === null || d[s.key] === undefined ? '—' : valueFormat(Number(d[s.key]))}
+                  {d[s.key] === null || d[s.key] === undefined
+                    ? '—'
+                    : valueFormat(Number(d[s.key]))}
                 </td>
               ))}
             </tr>
@@ -116,12 +158,40 @@ export function TrendChart({
   height = 260,
   integer = false,
   ...p
-}: CommonProps & { xKey: string; xLabel?: string; xFormat?: (v: string | number) => string; kind?: 'line' | 'area'; integer?: boolean }) {
+}: CommonProps & {
+  xKey: string;
+  xLabel?: string;
+  xFormat?: (v: string | number) => string;
+  kind?: 'line' | 'area';
+  integer?: boolean;
+}) {
   const data = p.data ?? [];
   const endLabels = p.series.length > 1 && p.series.length <= 4;
   // a series that stops early (actuals before a forecast) is labelled at its own last point
-  const lastIndex = Object.fromEntries(p.series.map((s) => [s.key, data.reduce((last, d, i) => (d[s.key] === null || d[s.key] === undefined ? last : i), -1)]));
+  const lastIndex = Object.fromEntries(
+    p.series.map((s) => [
+      s.key,
+      data.reduce((last, d, i) => (d[s.key] === null || d[s.key] === undefined ? last : i), -1),
+    ]),
+  );
   const Chart = kind === 'area' ? AreaChart : LineChart;
+  // room for the longest end label (12px text ≈ 7px per character)
+  const labelRoom = Math.max(...p.series.map((s) => s.label.length)) * 7 + 16;
+  // end labels render series by series; nudge each clear of the ones already placed
+  // (memoised per series so re-renders on hover don't move them again)
+  const placed = new Map<string, { y: number; at: number }>();
+  const placeLabel = (key: string, y: number) => {
+    const prev = placed.get(key);
+    if (prev && prev.y === y) return prev.at;
+    const others = [...placed.entries()].filter(([k]) => k !== key).map(([, v]) => v.at);
+    let at = y;
+    for (let guard = 0; guard < 8 && others.some((o) => Math.abs(o - at) < 14); guard++) {
+      const clash = others.find((o) => Math.abs(o - at) < 14)!;
+      at = at <= clash ? clash - 14 : clash + 14;
+    }
+    placed.set(key, { y, at });
+    return at;
+  };
   return (
     <ChartFrame
       title={p.title}
@@ -130,14 +200,37 @@ export function TrendChart({
       actions={p.actions}
       className={p.className}
       legend={<Legend series={p.series} shape={kind === 'area' ? 'rect' : 'line'} />}
-      table={<DataTableView data={data} xKey={xKey} xLabel={xLabel} series={p.series} valueFormat={valueFormat} xFormat={xFormat} />}
+      table={
+        <DataTableView
+          data={data}
+          xKey={xKey}
+          xLabel={xLabel}
+          series={p.series}
+          valueFormat={valueFormat}
+          xFormat={xFormat}
+        />
+      }
     >
       <div style={{ height }}>
         <ResponsiveContainer width="100%" height="100%">
-          <Chart data={data} margin={{ top: 8, right: endLabels ? 72 : 12, bottom: 0, left: 0 }}>
+          <Chart data={data} margin={{ top: 8, right: endLabels ? labelRoom : 12, bottom: 0, left: 0 }}>
             <CartesianGrid vertical={false} stroke="var(--chart-grid)" />
-            <XAxis dataKey={xKey} tick={AXIS} tickLine={false} axisLine={{ stroke: 'var(--chart-baseline)' }} tickFormatter={xFormat} minTickGap={24} />
-            <YAxis tick={AXIS} tickLine={false} axisLine={false} width={56} tickFormatter={valueFormat} allowDecimals={!integer} />
+            <XAxis
+              dataKey={xKey}
+              tick={AXIS}
+              tickLine={false}
+              axisLine={{ stroke: 'var(--chart-baseline)' }}
+              tickFormatter={xFormat}
+              minTickGap={24}
+            />
+            <YAxis
+              tick={AXIS}
+              tickLine={false}
+              axisLine={false}
+              width={56}
+              tickFormatter={valueFormat}
+              allowDecimals={!integer}
+            />
             <Tooltip
               cursor={{ stroke: 'var(--chart-baseline)', strokeWidth: 1 }}
               content={({ active, payload, label }) =>
@@ -146,7 +239,13 @@ export function TrendChart({
                     title={xFormat(label as string | number)}
                     rows={p.series.map((s, i) => {
                       const v = payload.find((x) => x.dataKey === s.key)?.value;
-                      return { key: s.key, label: s.label, value: v === undefined || v === null ? '—' : valueFormat(Number(v)), color: color(s, i), shape: kind === 'area' ? 'rect' : 'line' };
+                      return {
+                        key: s.key,
+                        label: s.label,
+                        value: v === undefined || v === null ? '—' : valueFormat(Number(v)),
+                        color: color(s, i),
+                        shape: kind === 'area' ? 'rect' : 'line',
+                      };
                     })}
                   />
                 ) : null
@@ -154,7 +253,18 @@ export function TrendChart({
             />
             {p.series.map((s, i) =>
               kind === 'area' ? (
-                <Area key={s.key} type="monotone" dataKey={s.key} name={s.label} stroke={color(s, i)} strokeWidth={2} fill={color(s, i)} fillOpacity={0.1} activeDot={{ r: 4, stroke: 'var(--chart-surface)', strokeWidth: 2 }} isAnimationActive={false} />
+                <Area
+                  key={s.key}
+                  type="monotone"
+                  dataKey={s.key}
+                  name={s.label}
+                  stroke={color(s, i)}
+                  strokeWidth={2}
+                  fill={color(s, i)}
+                  fillOpacity={0.1}
+                  activeDot={{ r: 4, stroke: 'var(--chart-surface)', strokeWidth: 2 }}
+                  isAnimationActive={false}
+                />
               ) : (
                 <Line
                   key={s.key}
@@ -174,7 +284,14 @@ export function TrendChart({
                     endLabels
                       ? (props: { index?: number; x?: number | string; y?: number | string }) =>
                           props.index === lastIndex[s.key] ? (
-                            <text key={`${s.key}-end`} x={Number(props.x) + 8} y={Number(props.y)} dy={4} fontSize={12} fill="var(--chart-text)">
+                            <text
+                              key={`${s.key}-end`}
+                              x={Number(props.x) + 8}
+                              y={placeLabel(s.key, Number(props.y))}
+                              dy={4}
+                              fontSize={12}
+                              fill="var(--chart-text)"
+                            >
                               {s.label}
                             </text>
                           ) : (
@@ -203,7 +320,8 @@ export function CategoryBarChart({
 }: CommonProps & { categoryKey: string; categoryLabel?: string; layout?: 'columns' | 'bars' }) {
   const data = p.data ?? [];
   const horizontal = layout === 'bars';
-  const h = height ?? (horizontal ? Math.max(160, data.length * (p.series.length * 26 + 14) + 40) : 260);
+  const h =
+    height ?? (horizontal ? Math.max(160, data.length * (p.series.length * 26 + 14) + 40) : 260);
   return (
     <ChartFrame
       title={p.title}
@@ -212,21 +330,67 @@ export function CategoryBarChart({
       actions={p.actions}
       className={p.className}
       legend={<Legend series={p.series} shape="rect" />}
-      table={<DataTableView data={data} xKey={categoryKey} xLabel={categoryLabel} series={p.series} valueFormat={valueFormat} xFormat={(v) => String(v)} />}
+      table={
+        <DataTableView
+          data={data}
+          xKey={categoryKey}
+          xLabel={categoryLabel}
+          series={p.series}
+          valueFormat={valueFormat}
+          xFormat={(v) => String(v)}
+        />
+      }
     >
       <div style={{ height: h }}>
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} layout={horizontal ? 'vertical' : 'horizontal'} barGap={2} barCategoryGap="24%" margin={{ top: 8, right: 16, bottom: 0, left: 0 }}>
-            <CartesianGrid vertical={horizontal} horizontal={!horizontal} stroke="var(--chart-grid)" />
+          <BarChart
+            data={data}
+            layout={horizontal ? 'vertical' : 'horizontal'}
+            barGap={2}
+            barCategoryGap="24%"
+            margin={{ top: 8, right: 16, bottom: 0, left: 0 }}
+          >
+            <CartesianGrid
+              vertical={horizontal}
+              horizontal={!horizontal}
+              stroke="var(--chart-grid)"
+            />
             {horizontal ? (
               <>
-                <XAxis type="number" tick={AXIS} tickLine={false} axisLine={false} tickFormatter={valueFormat} />
-                <YAxis type="category" dataKey={categoryKey} tick={AXIS} tickLine={false} axisLine={{ stroke: 'var(--chart-baseline)' }} width={140} />
+                <XAxis
+                  type="number"
+                  tick={AXIS}
+                  tickLine={false}
+                  axisLine={false}
+                  tickFormatter={valueFormat}
+                />
+                <YAxis
+                  type="category"
+                  dataKey={categoryKey}
+                  tick={AXIS}
+                  tickLine={false}
+                  axisLine={{ stroke: 'var(--chart-baseline)' }}
+                  width={140}
+                />
               </>
             ) : (
               <>
-                <XAxis dataKey={categoryKey} tick={AXIS} tickLine={false} axisLine={{ stroke: 'var(--chart-baseline)' }} interval={0} minTickGap={4} />
-                <YAxis tick={AXIS} tickLine={false} axisLine={false} width={56} tickFormatter={valueFormat} allowDecimals={false} />
+                <XAxis
+                  dataKey={categoryKey}
+                  tick={AXIS}
+                  tickLine={false}
+                  axisLine={{ stroke: 'var(--chart-baseline)' }}
+                  interval={0}
+                  minTickGap={4}
+                />
+                <YAxis
+                  tick={AXIS}
+                  tickLine={false}
+                  axisLine={false}
+                  width={56}
+                  tickFormatter={valueFormat}
+                  allowDecimals={false}
+                />
               </>
             )}
             <Tooltip
@@ -237,7 +401,13 @@ export function CategoryBarChart({
                     title={String(label)}
                     rows={p.series.map((s, i) => {
                       const v = payload.find((x) => x.dataKey === s.key)?.value;
-                      return { key: s.key, label: s.label, value: v === undefined || v === null ? '—' : valueFormat(Number(v)), color: color(s, i), shape: 'rect' };
+                      return {
+                        key: s.key,
+                        label: s.label,
+                        value: v === undefined || v === null ? '—' : valueFormat(Number(v)),
+                        color: color(s, i),
+                        shape: 'rect',
+                      };
                     })}
                   />
                 ) : null
@@ -265,16 +435,39 @@ export function CategoryBarChart({
 export { WeekHourHeatmap } from './heatmap';
 
 /** Same-ramp meter: fill carries severity, track is a lighter step of the fill. */
-export function Meter({ value, max, label, tone = 'normal' }: { value: number; max: number; label: string; tone?: 'normal' | 'warning' | 'critical' }) {
+export function Meter({
+  value,
+  max,
+  label,
+  tone = 'normal',
+}: {
+  value: number;
+  max: number;
+  label: string;
+  tone?: 'normal' | 'warning' | 'critical';
+}) {
   const pct = max > 0 ? Math.max(0, Math.min(100, (value / max) * 100)) : 0;
-  const fill = tone === 'critical' ? 'var(--status-critical)' : tone === 'warning' ? 'var(--status-warning)' : 'var(--chart-1)';
+  const fill =
+    tone === 'critical'
+      ? 'var(--status-critical)'
+      : tone === 'warning'
+        ? 'var(--status-warning)'
+        : 'var(--chart-1)';
   return (
     <div className="grid gap-1">
       <div className="flex justify-between text-xs text-muted-foreground">
         <span>{label}</span>
         <span className="tabular">{pct.toFixed(0)}%</span>
       </div>
-      <div className="h-2 overflow-hidden rounded-full" style={{ background: `color-mix(in oklab, ${fill} 18%, transparent)` }} role="meter" aria-valuemin={0} aria-valuemax={max} aria-valuenow={value} aria-label={label}>
+      <div
+        className="h-2 overflow-hidden rounded-full"
+        style={{ background: `color-mix(in oklab, ${fill} 18%, transparent)` }}
+        role="meter"
+        aria-valuemin={0}
+        aria-valuemax={max}
+        aria-valuenow={value}
+        aria-label={label}
+      >
         <div className="h-full rounded-full" style={{ width: `${pct}%`, background: fill }} />
       </div>
     </div>
