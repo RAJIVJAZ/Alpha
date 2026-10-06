@@ -165,6 +165,8 @@ export interface DeliveryEvent {
   outletId: string;
   customerId: string | null;
   riderId: string | null;
+  /** identity user id of the rider (wallet owner). */
+  riderUserId?: string | null;
   riderName?: string | null;
   riderPhone?: string | null;
   status: string;
@@ -252,6 +254,12 @@ export interface B2bOrderEvent {
   sellerTenantId: string;
   sourcePurchaseOrderId: string | null;
   status: B2bOrderStatus;
+  subtotal?: Money;
+  discount?: Money;
+  taxTotal?: Money;
+  deliveryCharge?: Money;
+  isInterState?: boolean;
+  paymentTerms?: string;
   total: Money;
   note?: string | null;
   expectedDeliveryAt?: string | null;
