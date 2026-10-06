@@ -2,7 +2,7 @@ import { Controller, Get, Param, Query } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Internal } from '@foodgrid/auth/nest';
 import { PrismaService } from '@foodgrid/database/nest';
-import { conflict, notFound } from '@foodgrid/utils';
+import { conflict, istDayStart, notFound } from '@foodgrid/utils';
 
 export interface Payable {
   referenceId: string;
@@ -91,7 +91,9 @@ export class InternalController {
   async itemSales(@Param('id') id: string, @Query('days') days = '28') {
     const span = Math.min(180, Math.max(7, Number(days) || 28));
     if (!(await this.prisma.outlet.count({ where: { id } }))) throw notFound('Outlet', id);
-    const since = new Date(Date.now() - span * 86_400_000);
+    // complete IST days only: today's sales so far would read as a slow day
+    const until = istDayStart();
+    const since = new Date(until.getTime() - span * 86_400_000);
     // timestamps are stored as UTC "timestamp without time zone": convert UTC -> IST before taking the date
     const rows = await this.prisma.$queryRaw<{ menuItemId: string; name: string; date: Date; quantity: bigint; avgPrice: unknown }[]>`
       SELECT oi."menuItemId", MAX(oi.name) AS name,
@@ -103,6 +105,7 @@ export class InternalController {
       WHERE o."outletId" = ${id}
         AND o.status NOT IN ('CANCELLED', 'REJECTED', 'PENDING_PAYMENT')
         AND COALESCE(o."placedAt", o."createdAt") >= ${since}
+        AND COALESCE(o."placedAt", o."createdAt") < ${until}
       GROUP BY 1, 3
       ORDER BY 3`;
     return rows.map((r) => ({

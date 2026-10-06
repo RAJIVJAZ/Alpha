@@ -184,6 +184,13 @@ describe('order-service checkout & lifecycle (e2e)', () => {
         items: { create: { menuItemId: menu.paneer, name: 'Paneer Tikka', quantity: 2, unitPrice: 300, totalPrice: 600, gstRate: 5, taxAmount: 30 } },
       },
     });
+    // today's sales so far are left out (a partial day would drag the forecast down)
+    await prisma.order.create({
+      data: {
+        orderNumber: 'ORD-T-2', tenantId: TENANT, outletId: 'outlet_1', status: 'COMPLETED', channel: 'POS', type: 'TAKEAWAY', subtotal: 300, total: 315, placedAt: new Date(), createdAt: new Date(),
+        items: { create: { menuItemId: menu.paneer, name: 'Paneer Tikka', quantity: 1, unitPrice: 300, totalPrice: 300, gstRate: 5, taxAmount: 15 } },
+      },
+    });
     const res = await api().get('/api/v1/internal/outlets/outlet_1/item-sales').query({ days: 7 }).set('x-service-token', issueServiceToken('inventory-service')).expect(200);
     expect(res.body).toEqual([{ menuItemId: menu.paneer, name: 'Paneer Tikka', date: istDay, quantity: 2, avgPrice: 300 }]);
   });

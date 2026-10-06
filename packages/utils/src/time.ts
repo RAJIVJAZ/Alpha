@@ -21,6 +21,11 @@ export function istDate(date: Date = new Date()): string {
   return `${p.year}-${String(p.month).padStart(2, '0')}-${String(p.day).padStart(2, '0')}`;
 }
 
+/** Instant at which the IST calendar day containing `date` began (00:00 IST). */
+export function istDayStart(date: Date = new Date()): Date {
+  return new Date(Date.parse(`${istDate(date)}T00:00:00.000Z`) - IST_OFFSET_MS);
+}
+
 /** Instant at which the IST calendar month containing `date` began (e.g. 1 Oct 00:00 IST = 30 Sep 18:30 UTC). */
 export function istMonthStart(date: Date = new Date()): Date {
   const p = istParts(date);

@@ -51,7 +51,7 @@ export class ForecastsService {
       currentStock: ing.currentStock,
       tenantId: ing.tenantId,
     });
-    // series ends today; forecast starts tomorrow
+    // the series ends yesterday, so the first point is today; only tomorrow onwards is kept
     const today = dateOnly(istDate());
     await this.prisma.$transaction(
       result.points.map((p) =>
