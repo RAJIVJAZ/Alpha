@@ -80,9 +80,17 @@ export class AuthController {
   @ApiBearerAuth()
   @Post('switch-tenant')
   @HttpCode(200)
-  @ApiOperation({ summary: 'Select the active business (tenant) for merchant dashboards' })
-  switchTenant(@CurrentUser() user: AccessTokenClaims, @Body() dto: SwitchTenantDto) {
-    return this.sessions.switchTenant(user, dto.tenantId);
+  @ApiOperation({
+    summary: 'Select the active business (tenant) for merchant dashboards',
+    description: 'Returns the login shape; the refresh token is rotated within the same session.',
+  })
+  switchTenant(
+    @CurrentUser() user: AccessTokenClaims,
+    @Body() dto: SwitchTenantDto,
+    @Req() req: Request,
+    @Ip() ip: string,
+  ) {
+    return this.sessions.switchTenant(user, dto.tenantId, metaFrom(req, ip));
   }
 
   @ApiBearerAuth()

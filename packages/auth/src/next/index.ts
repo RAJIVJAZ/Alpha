@@ -104,26 +104,74 @@ async function forward(path: string, body: unknown, extraHeaders: Record<string,
 
 const json = (status: number, body: unknown) => NextResponse.json(body, { status });
 
+type SessionBody = { tokens?: AuthTokens; user?: unknown; isNewUser?: boolean };
+
+const claimsOf = (accessToken: string) =>
+  JSON.parse(
+    Buffer.from(accessToken.split('.')[1]!, 'base64url').toString('utf8'),
+  ) as AccessTokenClaims;
+
+const bearer = (token: string) => ({ authorization: `Bearer ${token}` });
+
 /** Login (OTP / password), logout, tenant switching and session lookup for one app. */
 export function createAuthRoutes(opts: AuthRoutesOptions = {}) {
+  const verdictFor = (tokens: AuthTokens) => opts.authorize?.(claimsOf(tokens.accessToken)) ?? true;
+  const denied = (message: string) =>
+    json(403, { statusCode: 403, code: 'APP_ACCESS_DENIED', message });
+
   async function finishLogin(res: Response) {
-    const body = (await res.json().catch(() => ({}))) as {
-      tokens?: AuthTokens;
-      user?: unknown;
-      isNewUser?: boolean;
-    };
+    const body = (await res.json().catch(() => ({}))) as SessionBody;
     if (!res.ok || !body.tokens) return json(res.status, body);
-    const claims = JSON.parse(
-      Buffer.from(body.tokens.accessToken.split('.')[1]!, 'base64url').toString('utf8'),
-    ) as AccessTokenClaims;
-    const verdict = opts.authorize?.(claims) ?? true;
+    const verdict = verdictFor(body.tokens);
     if (verdict !== true) {
       // do not leave a live session behind for an account this app refuses
       await forward('auth/logout', { refreshToken: body.tokens.refreshToken }).catch(() => null);
-      return json(403, { statusCode: 403, code: 'APP_ACCESS_DENIED', message: verdict });
+      return denied(verdict);
     }
     writeSessionCookies(await cookies(), body.tokens);
     return json(200, { user: body.user, isNewUser: body.isNewUser ?? false });
+  }
+
+  async function switchTenant(tenantId: unknown) {
+    const jar = await cookies();
+    let token = jar.get(ACCESS_COOKIE)?.value;
+    const refreshToken = jar.get(REFRESH_COOKIE)?.value;
+    // /api/auth/* skips the middleware, so renew an expired access token here
+    if ((!token || isExpired(token)) && refreshToken) {
+      const renewed = await refreshTokens(refreshToken, await clientMeta());
+      if (renewed) writeSessionCookies(jar, renewed);
+      token = renewed?.accessToken;
+    }
+    if (!token)
+      return json(401, { statusCode: 401, code: 'UNAUTHENTICATED', message: 'Not signed in' });
+
+    const res = await forward('auth/switch-tenant', { tenantId: tenantId ?? null }, bearer(token));
+    const body = (await res.json().catch(() => ({}))) as SessionBody;
+    if (!res.ok || !body.tokens) return json(res.status, body);
+    const verdict = verdictFor(body.tokens);
+    if (verdict === true) {
+      writeSessionCookies(jar, body.tokens);
+      return json(200, { user: body.user });
+    }
+
+    // The switch rotated the session, so the refresh cookie is already stale:
+    // switch back to where the user was and keep them signed in there.
+    const back = await forward(
+      'auth/switch-tenant',
+      { tenantId: claimsOf(token).tenantId ?? null },
+      bearer(body.tokens.accessToken),
+    ).catch(() => null);
+    const restored = back?.ok
+      ? ((await back.json().catch(() => ({}))) as SessionBody).tokens
+      : undefined;
+    if (restored && verdictFor(restored) === true) {
+      writeSessionCookies(jar, restored);
+    } else {
+      const live = restored?.refreshToken ?? body.tokens.refreshToken;
+      await forward('auth/logout', { refreshToken: live }).catch(() => null);
+      clearSessionCookies(jar);
+    }
+    return denied(verdict);
   }
 
   async function POST(req: NextRequest, ctx: { params: Promise<{ action: string }> }) {
@@ -155,15 +203,8 @@ export function createAuthRoutes(opts: AuthRoutesOptions = {}) {
         clearSessionCookies(jar);
         return new NextResponse(null, { status: 204 });
       }
-      case 'switch-tenant': {
-        const token = jar.get(ACCESS_COOKIE)?.value;
-        const res = await forward(
-          'auth/switch-tenant',
-          { tenantId: input.tenantId ?? null },
-          token ? { authorization: `Bearer ${token}` } : {},
-        );
-        return finishLogin(res);
-      }
+      case 'switch-tenant':
+        return switchTenant(input.tenantId);
       default:
         return json(404, { statusCode: 404, code: 'NOT_FOUND', message: 'Unknown auth action' });
     }

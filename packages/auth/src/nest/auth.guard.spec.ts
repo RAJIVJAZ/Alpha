@@ -134,6 +134,41 @@ describe('AuthGuard', () => {
     await expect(guard.canActivate(owner.ctx)).resolves.toBe(true);
   });
 
+  it('explains a missing permission in plain words and lists only what is missing', async () => {
+    const chef = ctxWith(
+      { [PERMISSIONS_KEY]: [Permissions.OrdersRead, Permissions.OrdersManage] },
+      bearer({
+        sub: 'u',
+        roles: [],
+        sid: 's',
+        tenantId: 't',
+        tenantType: 'RESTAURANT',
+        tenantRole: 'CHEF',
+      }),
+    );
+    const err = await guard.canActivate(chef.ctx).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ForbiddenException);
+    expect((err as ForbiddenException).getResponse()).toEqual({
+      message: "Your role can't manage orders. Ask the business owner for access.",
+      code: 'PERMISSION_DENIED',
+      details: ['orders:manage'],
+    });
+  });
+
+  it('names the audience of role-restricted routes', async () => {
+    const customer = ctxWith(
+      { [ROLES_KEY]: ['RIDER'] },
+      bearer({ sub: 'u', roles: ['CUSTOMER'], sid: 's' }),
+    );
+    const err = await guard.canActivate(customer.ctx).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ForbiddenException);
+    expect((err as ForbiddenException).getResponse()).toEqual({
+      message: 'This is only available to riders.',
+      code: 'FORBIDDEN',
+      details: ['RIDER'],
+    });
+  });
+
   it('accepts only service tokens on internal routes', async () => {
     const user = ctxWith(
       { [IS_INTERNAL_KEY]: true },

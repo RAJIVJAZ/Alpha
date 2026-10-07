@@ -4,7 +4,7 @@ import Redis from 'ioredis';
 import { AccessTokenService, randomToken, sha256 } from '@foodgrid/auth';
 import { PrismaService } from '@foodgrid/database/nest';
 import type { TenantMember, Tenant, User } from '@foodgrid/database';
-import type { AccessTokenClaims, AuthTokens, SessionUser } from '@foodgrid/types';
+import type { AccessTokenClaims, AuthTokens, SessionResponse, SessionUser } from '@foodgrid/types';
 import { AppError } from '@foodgrid/utils';
 import { REDIS, revokedSessionKey } from '@foodgrid/utils/server';
 
@@ -127,7 +127,7 @@ export class SessionService {
   }
 
   /** Rotates a refresh token. Detects reuse of rotated tokens and kills the family. */
-  async refresh(rawToken: string, meta: ClientMeta) {
+  async refresh(rawToken: string, meta: ClientMeta): Promise<SessionResponse> {
     const current = await this.prisma.refreshToken.findUnique({
       where: { tokenHash: sha256(rawToken) },
       include: { user: true },
@@ -154,9 +154,18 @@ export class SessionService {
     }
 
     const memberships = await this.memberships(current.userId);
-    const active = current.tenantId
-      ? memberships.find((m) => m.tenantId === current.tenantId)
-      : undefined;
+    // A token replayed inside the grace window may predate a tenant switch; the
+    // family's newest token always carries the current selection.
+    const tenantId = current.revokedAt
+      ? ((
+          await this.prisma.refreshToken.findFirst({
+            where: { familyId: current.familyId },
+            orderBy: { createdAt: 'desc' },
+            select: { tenantId: true },
+          })
+        )?.tenantId ?? null)
+      : current.tenantId;
+    const active = tenantId ? memberships.find((m) => m.tenantId === tenantId) : undefined;
 
     const nextRaw = randomToken(48);
     await this.prisma.$transaction(async (tx) => {
@@ -189,25 +198,69 @@ export class SessionService {
     return { tokens, user: this.toSessionUser(current.user, memberships, active?.tenantId) };
   }
 
-  /** Re-issues the access token with a different (or no) active tenant. */
-  async switchTenant(claims: AccessTokenClaims, tenantId: string | null | undefined) {
+  /**
+   * Selects a different (or no) active tenant for the caller's session. The
+   * family is rotated exactly like refresh(), so the reply has the login shape
+   * and later refreshes keep the new tenant.
+   */
+  async switchTenant(
+    claims: AccessTokenClaims,
+    tenantId: string | null | undefined,
+    meta: ClientMeta,
+  ): Promise<SessionResponse> {
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: claims.sub } });
+    if (user.status !== 'ACTIVE') {
+      await this.revokeFamily(claims.sid, 'account-inactive');
+      throw new AppError('ACCOUNT_BLOCKED', 'This account is not active', 403);
+    }
     const memberships = await this.memberships(user.id);
     let active: MembershipWithTenant | undefined;
     if (tenantId) {
       active = memberships.find((m) => m.tenantId === tenantId);
       if (!active) throw new AppError('NOT_A_MEMBER', 'You are not a member of this business', 403);
     }
-    await this.prisma.refreshToken.updateMany({
-      where: { familyId: claims.sid, revokedAt: null },
-      data: { tenantId: active?.tenantId ?? null },
+
+    const nextRaw = randomToken(48);
+    await this.prisma.$transaction(async (tx) => {
+      // Only the access token is presented, so every live token of its family is
+      // rotated; the grace window in refresh() still covers in-flight requests.
+      const live = await tx.refreshToken.findMany({
+        where: {
+          familyId: claims.sid,
+          userId: user.id,
+          revokedAt: null,
+          expiresAt: { gt: new Date() },
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+      const current = live[0];
+      if (!current)
+        throw new AppError('SESSION_EXPIRED', 'Session expired, please log in again', 401);
+      const next = await tx.refreshToken.create({
+        data: {
+          userId: user.id,
+          familyId: claims.sid,
+          tokenHash: sha256(nextRaw),
+          tenantId: active?.tenantId ?? null,
+          deviceId: meta.deviceId ?? current.deviceId,
+          userAgent: (meta.userAgent ?? current.userAgent)?.slice(0, 500),
+          ip: meta.ip ?? current.ip,
+          expiresAt: current.expiresAt,
+        },
+      });
+      await tx.refreshToken.updateMany({
+        where: { id: { in: live.map((t) => t.id) }, revokedAt: null },
+        data: { revokedAt: new Date(), revokedReason: 'rotated', replacedById: next.id },
+      });
     });
-    return {
+
+    const tokens: AuthTokens = {
       accessToken: this.tokens.sign(this.buildClaims(user, claims.sid, active)),
+      refreshToken: nextRaw,
       expiresIn: this.tokens.ttlSeconds,
-      tokenType: 'Bearer' as const,
-      user: this.toSessionUser(user, memberships, active?.tenantId),
+      tokenType: 'Bearer',
     };
+    return { tokens, user: this.toSessionUser(user, memberships, active?.tenantId) };
   }
 
   async revokeFamily(familyId: string, reason: string) {

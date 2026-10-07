@@ -60,8 +60,12 @@ export interface SessionUser {
   activeTenantId?: string;
 }
 
-export interface LoginResponse {
+/** Returned by refresh and switch-tenant; both rotate the refresh token. */
+export interface SessionResponse {
   user: SessionUser;
   tokens: AuthTokens;
+}
+
+export interface LoginResponse extends SessionResponse {
   isNewUser: boolean;
 }

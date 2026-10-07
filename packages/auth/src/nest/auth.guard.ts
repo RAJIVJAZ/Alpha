@@ -9,7 +9,12 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import type { PlatformRole, TenantType } from '@foodgrid/types';
-import { hasPermission, Permission } from '../permissions';
+import {
+  Permission,
+  permissionDeniedMessage,
+  permissionsFor,
+  roleRequiredMessage,
+} from '../permissions';
 import { AccessTokenService, extractBearer, TokenError, verifyServiceToken } from '../tokens';
 import {
   ALLOW_SERVICE_KEY,
@@ -103,7 +108,11 @@ export class AuthGuard implements CanActivate {
 
     const roles = this.meta<PlatformRole[]>(ROLES_KEY, ctx);
     if (roles?.length && !isAdmin && !roles.some((r) => user.roles?.includes(r))) {
-      throw new ForbiddenException('Insufficient role');
+      throw new ForbiddenException({
+        message: roleRequiredMessage(roles),
+        code: 'FORBIDDEN',
+        details: roles,
+      });
     }
 
     const tenantTypes = this.meta<TenantType[]>(TENANT_TYPES_KEY, ctx);
@@ -122,12 +131,17 @@ export class AuthGuard implements CanActivate {
     }
 
     const permissions = this.meta<Permission[]>(PERMISSIONS_KEY, ctx);
-    if (permissions?.length && !hasPermission(user, ...permissions)) {
-      throw new ForbiddenException({
-        message: 'Missing permission',
-        code: 'PERMISSION_DENIED',
-        details: permissions,
-      });
+    if (permissions?.length) {
+      const granted = permissionsFor(user);
+      const missing = permissions.filter((p) => !granted.has(p));
+      if (missing.length) {
+        // clients key off code + details; the message is shown to people as-is
+        throw new ForbiddenException({
+          message: permissionDeniedMessage(missing),
+          code: 'PERMISSION_DENIED',
+          details: missing,
+        });
+      }
     }
     return true;
   }

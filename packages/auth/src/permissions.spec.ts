@@ -1,4 +1,11 @@
-import { canAccessOutlet, hasPermission, isPlatformStaff, Permissions as P } from './permissions';
+import {
+  canAccessOutlet,
+  hasPermission,
+  isPlatformStaff,
+  permissionDeniedMessage,
+  Permissions as P,
+  roleRequiredMessage,
+} from './permissions';
 
 describe('permissions matrix', () => {
   it('only owners approve purchase orders', () => {
@@ -44,5 +51,23 @@ describe('permissions matrix', () => {
     expect(canAccessOutlet({ outletIds: [] }, 'o1')).toBe(true);
     expect(canAccessOutlet({ outletIds: ['o1'] }, 'o1')).toBe(true);
     expect(canAccessOutlet({ outletIds: ['o2'] }, 'o1')).toBe(false);
+  });
+
+  it('builds plain-language 403 messages', () => {
+    expect(permissionDeniedMessage([P.OrdersManage])).toBe(
+      "Your role can't manage orders. Ask the business owner for access.",
+    );
+    expect(permissionDeniedMessage([P.ReportsRead, P.FinanceRead, P.MenuManage])).toBe(
+      "Your role can't view sales reports, view finances or edit the menu. Ask the business owner for access.",
+    );
+    expect(permissionDeniedMessage([P.PlatformFinance])).toBe(
+      "Your role can't access platform finance. Ask a FoodGrid admin for access.",
+    );
+    expect(permissionDeniedMessage(['unknown:thing'])).toBe(
+      "Your role can't do this. Ask the business owner for access.",
+    );
+    expect(roleRequiredMessage(['ADMIN', 'OPS'])).toBe(
+      'This is only available to FoodGrid admins or FoodGrid operations.',
+    );
   });
 });

@@ -135,6 +135,74 @@ export function hasPermission(
 export const isPlatformStaff = (claims: Pick<AccessTokenClaims, 'roles'>) =>
   (claims.roles ?? []).some((r) => STAFF_PLATFORM_ROLES.includes(r));
 
+/** What each permission lets someone do, phrased to follow "Your role can't …". */
+export const PERMISSION_PHRASES: Record<Permission, string> = {
+  'orders:read': 'view orders',
+  'orders:manage': 'manage orders',
+  'kds:operate': 'use the kitchen display',
+  'pos:operate': 'bill at the counter',
+  'menu:manage': 'edit the menu',
+  'outlet:manage': 'manage outlets',
+  'staff:manage': 'manage staff',
+  'inventory:read': 'view stock',
+  'inventory:manage': 'update stock',
+  'recipes:manage': 'edit recipes',
+  'production:manage': 'plan kitchen production',
+  'procurement:read': 'view purchasing',
+  'procurement:manage': 'raise purchase orders',
+  'procurement:approve': 'approve purchase orders',
+  'reports:read': 'view sales reports',
+  'finance:read': 'view finances',
+  'promotions:manage': 'manage offers and coupons',
+  'ads:manage': 'manage ads',
+  'settings:manage': 'change business settings',
+  'catalog:manage': 'edit the product catalog',
+  'pricing:manage': 'change prices',
+  'sales-orders:manage': 'manage sales orders',
+  'logistics:manage': 'manage dispatch and logistics',
+  'dealers:manage': 'manage dealers',
+  'platform:users:read': 'view user accounts',
+  'platform:users:manage': 'manage user accounts',
+  'platform:approvals': 'review approvals',
+  'platform:finance': 'access platform finance',
+  'platform:analytics': 'view platform analytics',
+  'platform:content': 'edit app content',
+  'platform:notifications': 'send campaigns',
+  'platform:riders': 'manage riders',
+  'platform:fraud': 'review fraud alerts',
+  'platform:config': 'change platform settings',
+};
+
+const PLATFORM_ROLE_AUDIENCE: Record<PlatformRole, string> = {
+  CUSTOMER: 'customers',
+  RIDER: 'riders',
+  ADMIN: 'FoodGrid admins',
+  SUPPORT: 'FoodGrid support',
+  FINANCE: 'FoodGrid finance',
+  OPS: 'FoodGrid operations',
+};
+
+/** "a", "a or b", "a, b or c" */
+const orList = (items: string[]) =>
+  items.length < 2 ? (items[0] ?? '') : `${items.slice(0, -1).join(', ')} or ${items.at(-1)}`;
+
+/** 403 message for missing permissions: "Your role can't manage orders. Ask …" */
+export function permissionDeniedMessage(missing: readonly string[]): string {
+  const phrases = [
+    ...new Set(missing.map((p) => PERMISSION_PHRASES[p as Permission] ?? 'do this')),
+  ];
+  const who = missing.every((p) => p.startsWith('platform:'))
+    ? 'a FoodGrid admin'
+    : 'the business owner';
+  return `Your role can't ${orList(phrases)}. Ask ${who} for access.`;
+}
+
+/** 403 message for routes reserved to platform roles: "This is only available to riders." */
+export function roleRequiredMessage(roles: readonly PlatformRole[]): string {
+  const audience = [...new Set(roles.map((r) => PLATFORM_ROLE_AUDIENCE[r] ?? r))];
+  return `This is only available to ${orList(audience)}.`;
+}
+
 /** Which merchant dashboard each tenant type uses. */
 export const TENANT_APP: Record<TenantType, string> = {
   PLATFORM: 'admin-web',
