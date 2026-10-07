@@ -159,6 +159,7 @@
     },
     "/api/v1/auth/switch-tenant": {
       "post": {
+        "description": "Returns the login shape; the refresh token is rotated within the same session.",
         "operationId": "Auth_switchTenant",
         "parameters": [],
         "requestBody": {

@@ -223,7 +223,7 @@ Outlets, menus, search, cart, checkout, order lifecycle, KDS, POS, QR ordering, 
 | DELETE | `/api/v1/cart` | bearer |  |
 | GET | `/api/v1/cart` | bearer | Current cart (re-priced from the live menu) |
 | DELETE | `/api/v1/cart/coupon` | bearer |  |
-| POST | `/api/v1/cart/coupon` | bearer |  |
+| POST | `/api/v1/cart/coupon` | bearer | Apply a coupon code to the cart |
 | POST | `/api/v1/cart/items` | bearer | Add an item (409 CART_OUTLET_MISMATCH when switching outlets) |
 | DELETE | `/api/v1/cart/items/{lineId}` | bearer |  |
 | PATCH | `/api/v1/cart/items/{lineId}` | bearer |  |
@@ -266,7 +266,7 @@ Outlets, menus, search, cart, checkout, order lifecycle, KDS, POS, QR ordering, 
 | POST | `/api/v1/merchant/orders/{id}/preparing` | bearer |  |
 | POST | `/api/v1/merchant/orders/{id}/ready` | bearer |  |
 | POST | `/api/v1/merchant/orders/{id}/reject` | bearer |  |
-| GET | `/api/v1/merchant/outlets` | bearer |  |
+| GET | `/api/v1/merchant/outlets` | bearer | Outlets you work at |
 | POST | `/api/v1/merchant/outlets` | bearer |  |
 | PATCH | `/api/v1/merchant/outlets/{id}` | bearer |  |
 | POST | `/api/v1/merchant/outlets/{id}/availability` | bearer | Open / close for orders |

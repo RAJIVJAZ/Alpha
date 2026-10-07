@@ -134,6 +134,7 @@
     },
     "/api/v1/cart/coupon": {
       "post": {
+        "description": "The code is checked against this cart before it is stored. When it cannot be used the response is 422 with a readable `message` and a specific `code`: COUPON_INVALID (unknown), COUPON_INACTIVE, COUPON_NOT_STARTED, COUPON_EXPIRED, COUPON_NOT_APPLICABLE, COUPON_EXHAUSTED, COUPON_USED, COUPON_FIRST_ORDER, COUPON_MEMBERS_ONLY or COUPON_MIN_ORDER. Quotes re-check the stored code, since the cart can change afterwards.",
         "operationId": "Cart_applyCoupon",
         "parameters": [],
         "requestBody": {
@@ -156,6 +157,7 @@
             "bearer": []
           }
         ],
+        "summary": "Apply a coupon code to the cart",
         "tags": [
           "cart"
         ]
@@ -1024,6 +1026,7 @@
     },
     "/api/v1/pos/summary": {
       "get": {
+        "description": "Revenue figures, so it needs reports:read (owner, manager, accountant, procurement manager); counter and kitchen roles get 403. All amounts are sales in rupees as two-decimal strings, including the byPaymentMethod and byChannel splits (not order counts).",
         "operationId": "Pos_summary",
         "parameters": [
           {
@@ -1047,7 +1050,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PosSummaryDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -2422,6 +2432,7 @@
     },
     "/api/v1/merchant/outlets": {
       "get": {
+        "description": "Open to every active staff member of the business, whatever their role. Staff assigned to specific outlets only see those.",
         "operationId": "OutletsMerchant_mine",
         "parameters": [],
         "responses": {
@@ -2434,6 +2445,7 @@
             "bearer": []
           }
         ],
+        "summary": "Outlets you work at",
         "tags": [
           "merchant"
         ]
@@ -3394,6 +3406,142 @@
           "items",
           "paymentMethod",
           "orderType"
+        ]
+      },
+      "PosHourDto": {
+        "type": "object",
+        "properties": {
+          "hour": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 23,
+            "description": "Hour of the IST business day"
+          },
+          "orders": {
+            "type": "number",
+            "description": "Orders placed in that hour"
+          },
+          "sales": {
+            "type": "string",
+            "example": "1240.00",
+            "description": "Sales in that hour. Rupees as a decimal string with two decimals"
+          }
+        },
+        "required": [
+          "hour",
+          "orders",
+          "sales"
+        ]
+      },
+      "PosTopItemDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "quantity": {
+            "type": "number",
+            "description": "Units sold"
+          },
+          "sales": {
+            "type": "string",
+            "example": "2400.00",
+            "description": "Item sales before discounts. Rupees as a decimal string with two decimals"
+          }
+        },
+        "required": [
+          "name",
+          "quantity",
+          "sales"
+        ]
+      },
+      "PosSummaryDto": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "example": "2026-10-06",
+            "description": "IST business day"
+          },
+          "orders": {
+            "type": "number",
+            "description": "Orders counted in the sales (cancelled and rejected excluded)"
+          },
+          "cancelled": {
+            "type": "number",
+            "description": "Cancelled or rejected orders that day"
+          },
+          "grossSales": {
+            "type": "string",
+            "example": "18450.00",
+            "description": "Order totals incl. GST. Rupees as a decimal string with two decimals"
+          },
+          "taxCollected": {
+            "type": "string",
+            "example": "880.00",
+            "description": "GST collected. Rupees as a decimal string with two decimals"
+          },
+          "discounts": {
+            "type": "string",
+            "example": "350.00",
+            "description": "Coupon and manual discounts. Rupees as a decimal string with two decimals"
+          },
+          "averageTicket": {
+            "type": "string",
+            "example": "410.00",
+            "description": "grossSales / orders. Rupees as a decimal string with two decimals"
+          },
+          "byPaymentMethod": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "example": {
+              "UPI": "9800.00",
+              "CASH": "6150.00",
+              "CARD": "2500.00"
+            },
+            "description": "Sales amount per payment method (UNPAID when none), not order counts. Rupees as a decimal string with two decimals"
+          },
+          "byChannel": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "example": {
+              "POS": "12000.00",
+              "APP": "5200.00",
+              "QR": "1250.00"
+            },
+            "description": "Sales amount per order channel, not order counts. Rupees as a decimal string with two decimals"
+          },
+          "hourly": {
+            "description": "All 24 hours of the IST day",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PosHourDto"
+            }
+          },
+          "topItems": {
+            "description": "Ten best sellers by units",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PosTopItemDto"
+            }
+          }
+        },
+        "required": [
+          "date",
+          "orders",
+          "cancelled",
+          "grossSales",
+          "taxCollected",
+          "discounts",
+          "averageTicket",
+          "byPaymentMethod",
+          "byChannel",
+          "hourly",
+          "topItems"
         ]
       },
       "QrOrderDto": {
