@@ -3,7 +3,7 @@ import { PrismaService } from '@foodgrid/database/nest';
 import type { Prisma } from '@foodgrid/database';
 import type { AccessTokenClaims } from '@foodgrid/types';
 import { badRequest, notFound } from '@foodgrid/utils';
-import { checkCouponEligibility } from '../domain/coupons';
+import { checkCouponEligibility, toCouponRecord } from '../domain/coupons';
 import { CouponDto, PlatformCouponDto, UpdateCouponDto } from './dto/coupon.dto';
 
 @Injectable()
@@ -102,12 +102,7 @@ export class CouponsService {
     return coupons
       .map((c) => {
         const check = checkCouponEligibility(
-          {
-            ...c,
-            value: Number(c.value),
-            maxDiscount: c.maxDiscount ? Number(c.maxDiscount) : null,
-            minOrderValue: Number(c.minOrderValue),
-          },
+          toCouponRecord(c),
           // platform offers carry no outlet restriction worth checking without an outlet
           {
             now,

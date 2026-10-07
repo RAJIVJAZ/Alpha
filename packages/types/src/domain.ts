@@ -29,7 +29,10 @@ export interface OutletCard {
   costForTwo: Money;
   avgPrepTimeMins: number;
   isPureVeg: boolean;
+  /** The merchant's "accepting orders" switch (same meaning as on the outlet detail). */
   isOpen: boolean;
+  /** Can take an order right now: switch on and inside opening hours. Show open/closed from this. */
+  isOpenNow: boolean;
   coverImageUrl: string | null;
   distanceKm?: number;
   etaMins?: number;
@@ -122,6 +125,7 @@ export interface OrderTrackingView {
   rider: { id: string; name: string; phone: string; lat: number | null; lng: number | null } | null;
   outlet: { name: string; lat: number; lng: number };
   drop: AddressSnapshot | null;
+  /** Minutes to arrival; null once delivered, completed, cancelled, rejected or failed. */
   etaMins: number | null;
   deliveryOtp: string | null;
 }

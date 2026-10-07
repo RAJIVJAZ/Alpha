@@ -324,7 +324,7 @@ export function SearchView() {
                       }
                       className={cn(
                         'flex gap-3 rounded-xl border bg-card p-3 hover:bg-muted/50',
-                        !d.outlet.isOpen && 'opacity-60',
+                        !d.outlet.isOpenNow && 'opacity-60',
                       )}
                     >
                       <Thumb src={d.imageUrl} className="size-20" />
@@ -336,7 +336,7 @@ export function SearchView() {
                         <span className="text-sm">{formatMoney(d.price, { whole: true })}</span>
                         <span className="truncate text-xs text-muted-foreground">
                           {d.outlet.name} · {d.outlet.etaMins} min
-                          {d.outlet.isOpen ? '' : ' · closed now'}
+                          {d.outlet.isOpenNow ? '' : ' · closed now'}
                         </span>
                       </span>
                     </Link>

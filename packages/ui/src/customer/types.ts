@@ -15,7 +15,10 @@ export interface OutletSummary {
   costForTwo: Dec;
   avgPrepTimeMins: number;
   isPureVeg: boolean;
+  /** The merchant's "accepting orders" switch. */
   isOpen: boolean;
+  /** Can take an order right now (switch on and inside opening hours): drives open/closed. */
+  isOpenNow: boolean;
   coverImageUrl: string | null;
   distanceKm: number;
   etaMins: number;
@@ -53,7 +56,9 @@ export interface OutletDetail {
   packagingCharge: Dec;
   ratingAvg: number;
   ratingCount: number;
+  /** The merchant's "accepting orders" switch. */
   isOpen: boolean;
+  /** Can take an order right now (switch on and inside opening hours). */
   isOpenNow: boolean;
   openingHours: OpeningHours[] | null;
   fssaiNumber: string | null;
@@ -167,7 +172,7 @@ export interface Quote {
     serviceable: boolean;
     reason?: string;
     distanceKm: number;
-    deliveryFee: number;
+    deliveryFee: Dec;
     etaMins: number;
   } | null;
   coupon: { code: string; valid: boolean; reason?: string | null } | null;

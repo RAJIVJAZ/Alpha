@@ -62,7 +62,7 @@ export class SearchService {
       })
       .sort(
         (a, b) =>
-          Number(b.outlet.isOpen) - Number(a.outlet.isOpen) ||
+          Number(b.outlet.isOpenNow) - Number(a.outlet.isOpenNow) ||
           (a.outlet.distanceKm ?? 0) - (b.outlet.distanceKm ?? 0),
       );
 

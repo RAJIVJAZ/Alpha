@@ -6,7 +6,7 @@ import { conflict, forbidden, normalizePage, notFound, paginate } from '@foodgri
 import { InternalHttpService, resolveIstRange } from '@foodgrid/utils/server';
 import { CartService } from '../cart/cart.service';
 import { outletScope } from '../common/outlet-access';
-import { CUSTOMER_CANCELLABLE } from '../domain/order-state';
+import { CUSTOMER_CANCELLABLE, trackingEtaMins } from '../domain/order-state';
 import { ListOrdersDto, MerchantOrdersQueryDto } from './dto/order.dto';
 import { OrderLifecycleService } from './order-lifecycle.service';
 
@@ -96,9 +96,6 @@ export class OrdersService {
         .get<DeliveryInfo>('delivery', `internal/deliveries/by-order/${id}`, { timeoutMs: 800 })
         .catch(() => null);
     }
-    const etaMins = order.estimatedDeliveryAt
-      ? Math.max(0, Math.round((order.estimatedDeliveryAt.getTime() - Date.now()) / 60_000))
-      : null;
     return {
       orderId: order.id,
       orderNumber: order.orderNumber,
@@ -112,7 +109,7 @@ export class OrdersService {
       rider: delivery?.rider ?? null,
       outlet: { name: order.outlet.name, lat: order.outlet.lat, lng: order.outlet.lng },
       drop: (order.deliveryAddress as OrderTrackingView['drop']) ?? null,
-      etaMins: delivery?.etaMins ?? etaMins,
+      etaMins: trackingEtaMins(order, delivery),
       deliveryOtp: ['PICKED_UP', 'OUT_FOR_DELIVERY'].includes(order.status)
         ? order.deliveryOtp
         : null,

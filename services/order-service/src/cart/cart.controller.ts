@@ -52,8 +52,17 @@ export class CartController {
 
   @Post('coupon')
   @HttpCode(200)
+  @ApiOperation({
+    summary: 'Apply a coupon code to the cart',
+    description:
+      'The code is checked against this cart before it is stored. When it cannot be used the ' +
+      'response is 422 with a readable `message` and a specific `code`: COUPON_INVALID (unknown), ' +
+      'COUPON_INACTIVE, COUPON_NOT_STARTED, COUPON_EXPIRED, COUPON_NOT_APPLICABLE, ' +
+      'COUPON_EXHAUSTED, COUPON_USED, COUPON_FIRST_ORDER, COUPON_MEMBERS_ONLY or COUPON_MIN_ORDER. ' +
+      'Quotes re-check the stored code, since the cart can change afterwards.',
+  })
   async applyCoupon(@CurrentUser('sub') userId: string, @Body() dto: ApplyCouponDto) {
-    await this.cart.setCoupon(userId, dto.code);
+    await this.checkout.applyCoupon(userId, dto.code);
     return this.get(userId);
   }
 

@@ -1,9 +1,9 @@
 import { Body, Controller, Get, HttpCode, Param, Post, Query } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Permissions } from '@foodgrid/auth';
 import { CurrentUser, RequirePermissions, RequireTenant } from '@foodgrid/auth/nest';
 import type { AccessTokenClaims } from '@foodgrid/types';
-import { PosOrderDto, PosSummaryQueryDto } from './dto/pos.dto';
+import { PosOrderDto, PosSummaryDto, PosSummaryQueryDto } from './dto/pos.dto';
 import { PosService } from './pos.service';
 
 @ApiTags('pos')
@@ -28,8 +28,15 @@ export class PosController {
   }
 
   @Get('summary')
-  @RequirePermissions(Permissions.OrdersRead)
-  @ApiOperation({ summary: 'Daily sales: totals, payment split, hourly, top items' })
+  @RequirePermissions(Permissions.ReportsRead)
+  @ApiOperation({
+    summary: 'Daily sales: totals, payment split, hourly, top items',
+    description:
+      'Revenue figures, so it needs reports:read (owner, manager, accountant, procurement ' +
+      'manager); counter and kitchen roles get 403. All amounts are sales in rupees as ' +
+      'two-decimal strings, including the byPaymentMethod and byChannel splits (not order counts).',
+  })
+  @ApiOkResponse({ type: PosSummaryDto })
   summary(@CurrentUser() user: AccessTokenClaims, @Query() q: PosSummaryQueryDto) {
     return this.pos.summary(user, q.outletId, q.date);
   }

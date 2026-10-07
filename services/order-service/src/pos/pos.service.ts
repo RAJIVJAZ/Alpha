@@ -1,11 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@foodgrid/database/nest';
 import type { AccessTokenClaims } from '@foodgrid/types';
-import { istDate, istParts, money, notFound, sumMoney } from '@foodgrid/utils';
+import { istDate, istParts, notFound, sumMoney } from '@foodgrid/utils';
+import { toMoney } from '../common/money';
 import { assertOutletAccess } from '../common/outlet-access';
 import { DirectOrderService } from '../orders/direct-order.service';
 import { OrderLifecycleService } from '../orders/order-lifecycle.service';
-import { PosOrderDto } from './dto/pos.dto';
+import { PosOrderDto, PosSummaryDto } from './dto/pos.dto';
 
 /** Mobile-friendly counter billing for food carts and restaurants. */
 @Injectable()
@@ -88,8 +89,8 @@ export class PosService {
     };
   }
 
-  /** Daily sales tracking (IST business day). */
-  async summary(user: AccessTokenClaims, outletId: string, date?: string) {
+  /** Daily sales tracking (IST business day); every amount is a rupee string, see PosSummaryDto. */
+  async summary(user: AccessTokenClaims, outletId: string, date?: string): Promise<PosSummaryDto> {
     await assertOutletAccess(this.prisma, user, outletId);
     const day = date?.slice(0, 10) ?? istDate();
     const from = new Date(`${day}T00:00:00+05:30`);
@@ -118,18 +119,23 @@ export class PosService {
       }
     }
     const gross = sumMoney(valid.map((o) => o.total.toString()));
+    const amounts = (m: Record<string, number>) =>
+      Object.fromEntries(Object.entries(m).map(([k, v]) => [k, toMoney(v)]));
     return {
       date: day,
       orders: valid.length,
       cancelled: orders.length - valid.length,
-      grossSales: money(gross),
-      taxCollected: money(sumMoney(valid.map((o) => o.taxTotal.toString()))),
-      discounts: money(sumMoney(valid.map((o) => o.couponDiscount.toString()))),
-      averageTicket: money(valid.length ? gross / valid.length : 0),
-      byPaymentMethod: byPayment,
-      byChannel,
-      hourly,
-      topItems: [...items.values()].sort((a, b) => b.quantity - a.quantity).slice(0, 10),
+      grossSales: toMoney(gross),
+      taxCollected: toMoney(sumMoney(valid.map((o) => o.taxTotal.toString()))),
+      discounts: toMoney(sumMoney(valid.map((o) => o.couponDiscount.toString()))),
+      averageTicket: toMoney(valid.length ? gross / valid.length : 0),
+      byPaymentMethod: amounts(byPayment),
+      byChannel: amounts(byChannel),
+      hourly: hourly.map((h) => ({ ...h, sales: toMoney(h.sales) })),
+      topItems: [...items.values()]
+        .sort((a, b) => b.quantity - a.quantity)
+        .slice(0, 10)
+        .map((t) => ({ ...t, sales: toMoney(t.sales) })),
     };
   }
 }

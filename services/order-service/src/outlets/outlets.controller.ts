@@ -50,8 +50,16 @@ export class OutletsPublicController {
 export class OutletsMerchantController {
   constructor(private readonly outlets: OutletsService) {}
 
+  // Deliberately no permission: every staff member needs their outlets to use any dashboard
+  // (a procurement manager has no orders:read). @RequireTenant on the class still requires a
+  // business context, which only active members get, and listMine honours outlet limits.
   @Get()
-  @RequirePermissions(Permissions.OrdersRead)
+  @ApiOperation({
+    summary: 'Outlets you work at',
+    description:
+      'Open to every active staff member of the business, whatever their role. Staff assigned ' +
+      'to specific outlets only see those.',
+  })
   mine(@CurrentUser() user: AccessTokenClaims) {
     return this.outlets.listMine(user);
   }

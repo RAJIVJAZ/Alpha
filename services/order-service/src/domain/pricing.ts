@@ -56,6 +56,11 @@ export interface PricingResult {
   messages: string[];
 }
 
+/** Item total before discounts; coupon minimums are checked against this. */
+export function cartSubtotal(lines: Pick<PricingLine, 'unitPrice' | 'quantity'>[]): number {
+  return sumMoney(lines.map((l) => round2(l.unitPrice * l.quantity)));
+}
+
 /**
  * Consumer order pricing.
  *
@@ -70,7 +75,7 @@ export function computePricing(input: PricingInput): PricingResult {
   const messages: string[] = [];
   const serviceGstRate = input.serviceGstRate ?? 18;
   const lineTotals = input.lines.map((l) => round2(l.unitPrice * l.quantity));
-  const subtotal = sumMoney(lineTotals);
+  const subtotal = cartSubtotal(input.lines);
 
   // ── coupon ────────────────────────────────────────────────────────────────
   let couponDiscount = 0;

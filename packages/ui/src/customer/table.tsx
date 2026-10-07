@@ -141,6 +141,7 @@ export function TableOrderView({ token }: { token: string }) {
   const count = lines.reduce((s, l) => s + l.quantity, 0);
   const subtotal = lines.reduce((s, l) => s + l.unit * l.quantity, 0);
   const open = o.isOpenNow;
+  const opens = o.isOpen ? nextOpening(o.openingHours) : null;
 
   return (
     <div className="mx-auto grid max-w-3xl grid-cols-1 gap-5 pb-28">
@@ -158,8 +159,9 @@ export function TableOrderView({ token }: { token: string }) {
           role="status"
           className="rounded-xl border border-status-warning/40 bg-status-warning/15 px-4 py-3 text-sm"
         >
-          The kitchen is closed right now
-          {nextOpening(o.openingHours) ? ` — ${nextOpening(o.openingHours)!.toLowerCase()}` : ''}.
+          {o.isOpen
+            ? `The kitchen is closed right now${opens ? ` — ${opens.toLowerCase()}` : ''}.`
+            : 'The kitchen is not taking orders right now.'}
         </p>
       ) : null}
       {placed.length ? (

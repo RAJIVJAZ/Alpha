@@ -131,7 +131,11 @@ export function RatingPill({ value, count }: { value: number; count?: number }) 
   );
 }
 
-/** "Opens 11:30 am" from weekly opening hours (IST), or null when unknown. */
+/**
+ * "Opens 11:30 am" from weekly opening hours (IST), or null when unknown. Only
+ * meaningful while the outlet's switch is on (`isOpen`): a kitchen that paused
+ * orders inside its hours has no known time to resume.
+ */
 export function nextOpening(
   hours: OpeningHours[] | null | undefined,
   now = new Date(),
@@ -207,7 +211,7 @@ export function OutletCard({ outlet: o, compact }: { outlet: OutletSummary; comp
       onClick={() => (o.sponsored ? reportAdClick(o.adCampaignId) : undefined)}
       className={cn(
         'group grid gap-2 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring',
-        !o.isOpen && 'opacity-60',
+        !o.isOpenNow && 'opacity-60',
       )}
     >
       <div className="relative overflow-hidden rounded-xl">
@@ -223,9 +227,9 @@ export function OutletCard({ outlet: o, compact }: { outlet: OutletSummary; comp
             Ad
           </span>
         ) : null}
-        {!o.isOpen ? (
+        {!o.isOpenNow ? (
           <span className="absolute inset-x-0 bottom-0 bg-black/65 px-3 py-1.5 text-xs font-medium text-white">
-            Closed now
+            {o.isOpen ? 'Closed now' : 'Not taking orders right now'}
           </span>
         ) : null}
       </div>

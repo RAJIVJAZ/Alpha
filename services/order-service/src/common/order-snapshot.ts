@@ -1,8 +1,9 @@
 import type { Order, OrderItem, Outlet } from '@foodgrid/database';
 import type { AddressSnapshot, OrderSnapshot } from '@foodgrid/types';
+import { toMoney } from './money';
 
-const s = (v: { toString(): string } | null | undefined) =>
-  v == null ? '0.00' : Number(v.toString()).toFixed(2);
+const s = (v: Parameters<typeof toMoney>[0] | null | undefined) =>
+  v == null ? '0.00' : toMoney(v);
 
 /** Builds the event payload shared by every order.* domain event. */
 export function toOrderSnapshot(
@@ -37,7 +38,7 @@ export function toOrderSnapshot(
     status: order.status,
     paymentMethod: order.paymentMethod,
     subtotal: s(order.subtotal),
-    discount: discount.toFixed(2),
+    discount: toMoney(discount),
     deliveryFee: s(order.deliveryFee),
     platformFee: s(order.platformFee),
     packagingCharge: s(order.packagingCharge),
@@ -45,7 +46,7 @@ export function toOrderSnapshot(
     tip: s(order.tip),
     total: s(order.total),
     couponFundedBy: order.couponFundedBy,
-    merchantDiscount: merchantDiscount.toFixed(2),
+    merchantDiscount: toMoney(merchantDiscount),
     commissionRate: order.commissionRate ? s(order.commissionRate) : null,
     deliveryAddress: (order.deliveryAddress as AddressSnapshot | null) ?? null,
     distanceKm: order.distanceKm,

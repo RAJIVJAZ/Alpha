@@ -5,6 +5,7 @@ import type { ActorType, Outlet } from '@foodgrid/database';
 import type { OrderChannel, OrderStatus, OrderType, PaymentMethod } from '@foodgrid/types';
 import { badRequest, conflict, round2 } from '@foodgrid/utils';
 import { unitPrice, validateOptions } from '../cart/cart.service';
+import { toMoney } from '../common/money';
 import { computePricing } from '../domain/pricing';
 import { OrderLifecycleService, OrderWithItems } from './order-lifecycle.service';
 
@@ -142,7 +143,7 @@ export class DirectOrderService {
               addons: r.addons.map((a) => ({
                 id: a.id,
                 name: a.name,
-                price: Number(a.price).toFixed(2),
+                price: toMoney(a.price),
               })),
               quantity: r.line.quantity,
               unitPrice: r.price,

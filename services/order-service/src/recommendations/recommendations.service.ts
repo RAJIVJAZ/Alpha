@@ -3,6 +3,7 @@ import Redis from 'ioredis';
 import { PrismaService } from '@foodgrid/database/nest';
 import { istParts } from '@foodgrid/utils';
 import { InternalHttpService, REDIS } from '@foodgrid/utils/server';
+import { toMoney } from '../common/money';
 import { DiscoveryService, toCard } from '../outlets/discovery.service';
 
 interface RankedOutlet {
@@ -141,7 +142,7 @@ export class RecommendationsService {
           items: o.items.map((i) => `${i.quantity} × ${i.name}`),
           count: 1,
           lastAt: o.createdAt,
-          total: o.total.toString(),
+          total: toMoney(o.total),
           imageUrl: o.outlet.coverImageUrl,
         });
     }

@@ -117,7 +117,8 @@ function OutletHeader({ outlet: o }: { outlet: OutletDetail }) {
   const { data: session } = useSession();
   const coupons = useApi<Coupon[]>(session ? 'coupons' : null, { outletId: o.id });
   const distance = km(place, o);
-  const opens = o.isOpenNow ? null : nextOpening(o.openingHours);
+  // a paused kitchen (switch off) has no reopening time; only outside-hours closures do
+  const opens = o.isOpen && !o.isOpenNow ? nextOpening(o.openingHours) : null;
   const offers = (coupons.data ?? []).filter((c) => c.eligible);
   return (
     <section className="grid grid-cols-1 gap-4">
@@ -164,8 +165,10 @@ function OutletHeader({ outlet: o }: { outlet: OutletDetail }) {
           role="status"
           className="rounded-xl border border-status-warning/40 bg-status-warning/15 px-4 py-3 text-sm"
         >
-          <span className="font-medium">Closed now.</span> {opens ? `${opens}. ` : ''}You can browse
-          the menu; ordering opens when the kitchen does.
+          <span className="font-medium">
+            {o.isOpen ? 'Closed now.' : 'Not taking orders right now.'}
+          </span>{' '}
+          {opens ? `${opens}. ` : ''}You can browse the menu; ordering opens when the kitchen does.
         </p>
       ) : null}
       {offers.length ? (

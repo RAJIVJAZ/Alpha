@@ -1,4 +1,4 @@
-import { computePricing, fallbackDeliveryFee, PricingInput } from './pricing';
+import { cartSubtotal, computePricing, fallbackDeliveryFee, PricingInput } from './pricing';
 
 const base: PricingInput = {
   lines: [
@@ -106,5 +106,16 @@ describe('computePricing', () => {
     expect(p.cgst).toBe(4.05);
     expect(p.sgst).toBe(4.05);
     expect(p.total).toBe(170);
+  });
+});
+
+describe('cartSubtotal', () => {
+  it('is the subtotal the bill uses, so coupon minimums are judged on the same figure', () => {
+    const lines = [
+      { menuItemId: 'a', quantity: 3, unitPrice: 33.33, gstRate: 5 },
+      { menuItemId: 'b', quantity: 1, unitPrice: 0.1, gstRate: 5 },
+    ];
+    expect(cartSubtotal(lines)).toBe(100.09);
+    expect(cartSubtotal(lines)).toBe(computePricing({ ...base, lines }).subtotal);
   });
 });

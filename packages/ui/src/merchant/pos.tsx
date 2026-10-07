@@ -39,6 +39,7 @@ import {
 } from '../lib/format';
 import { useApi, useApiMutation } from '../lib/hooks';
 import { cn } from '../lib/utils';
+import { useCanSeeSales } from './access';
 import { OutletPicker, useOutlet } from './outlet';
 import type { MerchantOrder } from './types';
 
@@ -92,6 +93,7 @@ interface Receipt {
   paymentMethod: string;
   issuedAt: string;
 }
+/** GET pos/summary (needs reports:read): every amount is a rupee string, splits are sales not counts. */
 interface PosSummary {
   date: string;
   orders: number;
@@ -100,10 +102,10 @@ interface PosSummary {
   taxCollected: string;
   discounts: string;
   averageTicket: string;
-  byPaymentMethod: Record<string, number>;
-  byChannel: Record<string, number>;
-  hourly: { hour: number; orders: number; sales: number }[];
-  topItems: { name: string; quantity: number; sales: number }[];
+  byPaymentMethod: Record<string, string>;
+  byChannel: Record<string, string>;
+  hourly: { hour: number; orders: number; sales: string }[];
+  topItems: { name: string; quantity: number; sales: string }[];
 }
 
 const PAYMENT = [
@@ -115,6 +117,8 @@ const PAYMENT = [
 /** Counter billing for food carts and quick-service outlets; built for a phone or a small tablet. */
 export function PointOfSale() {
   const { outletId } = useOutlet();
+  // the day's revenue is for roles with reports:read; cashiers bill without seeing it
+  const canSeeSales = useCanSeeSales();
   return (
     <>
       <PageHeader
@@ -126,15 +130,17 @@ export function PointOfSale() {
         <TabsList>
           <TabsTrigger value="bill">New bill</TabsTrigger>
           <TabsTrigger value="open">Open orders</TabsTrigger>
-          <TabsTrigger value="today">Today</TabsTrigger>
+          {canSeeSales ? <TabsTrigger value="today">Today</TabsTrigger> : null}
         </TabsList>
         <TabsContent value="bill">{outletId ? <Biller outletId={outletId} /> : null}</TabsContent>
         <TabsContent value="open">
           {outletId ? <OpenOrders outletId={outletId} /> : null}
         </TabsContent>
-        <TabsContent value="today">
-          {outletId ? <DailySales outletId={outletId} /> : null}
-        </TabsContent>
+        {canSeeSales ? (
+          <TabsContent value="today">
+            {outletId ? <DailySales outletId={outletId} /> : null}
+          </TabsContent>
+        ) : null}
       </Tabs>
     </>
   );
@@ -687,7 +693,7 @@ function DailySales({ outletId }: { outletId: string }) {
   const s = useApi<PosSummary>('pos/summary', { outletId, date }).data;
   const hourly = (s?.hourly ?? [])
     .filter((h) => h.hour >= 6)
-    .map((h) => ({ hour: `${String(h.hour).padStart(2, '0')}:00`, sales: h.sales }));
+    .map((h) => ({ hour: `${String(h.hour).padStart(2, '0')}:00`, sales: Number(h.sales) }));
   return (
     <div className="grid gap-4">
       <Field label="Business day" className="w-48">
@@ -741,7 +747,7 @@ function DailySales({ outletId }: { outletId: string }) {
               <p className="mt-3 text-xs text-muted-foreground">
                 Payments:{' '}
                 {Object.entries(s.byPaymentMethod)
-                  .map(([k, v]) => `${humanize(k)} ${v}`)
+                  .map(([k, v]) => `${humanize(k)} ${formatMoney(v, { whole: true })}`)
                   .join(' · ') || 'none'}
                 {s.cancelled ? ` · ${s.cancelled} cancelled` : ''}
               </p>

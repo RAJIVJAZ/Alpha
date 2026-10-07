@@ -677,7 +677,7 @@ export function CartView() {
         </Field>
       </div>
       <aside className="grid gap-4 lg:sticky lg:top-20">
-        <CouponCard cart={c} onChange={() => void cart.refetch()} />
+        <CouponCard cart={c} status={q?.coupon ?? null} onChange={() => void cart.refetch()} />
         <Card>
           <CardHeader>
             <CardTitle>Bill details</CardTitle>
@@ -815,8 +815,18 @@ function CartLines({
   );
 }
 
-function CouponCard({ cart, onChange }: { cart: Cart; onChange: () => void }) {
+/** `status` is the quote's re-check of the applied code, which can lapse as the cart changes. */
+function CouponCard({
+  cart,
+  status,
+  onChange,
+}: {
+  cart: Cart;
+  status: Quote['coupon'];
+  onChange: () => void;
+}) {
   const coupons = useApi<Coupon[]>('coupons', { outletId: cart.outletId ?? undefined });
+  const lapsed = status?.code === cart.couponCode && status?.valid === false;
   const [code, setCode] = React.useState('');
   const [open, setOpen] = React.useState(false);
   const apply = useApiMutation((c: string) => api.post('cart/coupon', { code: c }), {
@@ -831,8 +841,14 @@ function CouponCard({ cart, onChange }: { cart: Cart; onChange: () => void }) {
           <div className="flex items-center justify-between gap-2">
             <span className="flex items-center gap-2 text-sm">
               <Ticket className="size-4 text-primary" aria-hidden />
-              <span>
-                <span className="font-semibold">{cart.couponCode}</span> applied
+              <span className="grid">
+                <span>
+                  <span className="font-semibold">{cart.couponCode}</span>{' '}
+                  {lapsed ? 'not applied' : 'applied'}
+                </span>
+                {lapsed && status?.reason ? (
+                  <span className="text-xs text-status-critical">{status.reason}</span>
+                ) : null}
               </span>
             </span>
             <Button
@@ -868,13 +884,15 @@ function CouponCard({ cart, onChange }: { cart: Cart; onChange: () => void }) {
               aria-label="Coupon code"
               placeholder="Enter a code"
               value={code}
-              onChange={(e) => setCode(e.target.value)}
+              onChange={(e) => (setCode(e.target.value), apply.reset())}
               className="uppercase"
             />
             <Button type="submit" loading={apply.isPending}>
               Apply
             </Button>
           </form>
+          {/* the server says why a code can't be used here (expired, minimum order, ...) */}
+          {apply.error ? <ErrorNotice error={apply.error} /> : null}
           <ul className="grid gap-2">
             {(coupons.data ?? []).map((cp) => (
               <li
@@ -923,7 +941,8 @@ export function Bill({
   pricing: Pricing;
   delivery: boolean;
   member?: boolean;
-  waivedDeliveryFee?: number;
+  /** quote.delivery.deliveryFee: what delivery would cost before a waiver (rupee string) */
+  waivedDeliveryFee?: string;
 }) {
   const row = (
     label: React.ReactNode,
@@ -954,7 +973,7 @@ export function Bill({
         hide: !n(p.membershipDiscount),
       })}
       {delivery ? (
-        !n(p.deliveryFee) && waivedDeliveryFee ? (
+        !n(p.deliveryFee) && n(waivedDeliveryFee ?? '0') ? (
           <div className="flex justify-between gap-3 text-sm">
             <span className="text-muted-foreground">Delivery fee</span>
             <span className="tabular">

@@ -12,12 +12,14 @@ import {
   travelMinutes,
 } from '@foodgrid/utils';
 import { InternalHttpService } from '@foodgrid/utils/server';
+import { toMoney } from '../common/money';
 import { NearbyQueryDto } from './dto/outlet.dto';
 
 export interface ScoredOutlet {
   outlet: Outlet;
   distanceKm: number;
   etaMins: number;
+  /** Accepting orders (the merchant's switch) and inside opening hours. */
   openNow: boolean;
 }
 
@@ -143,7 +145,13 @@ export class DiscoveryService {
   }
 }
 
-/** `adCampaignId` marks a sponsored placement; clients report clicks with it (POST ads/events/click). */
+/**
+ * Outlet summary for discovery, search and home rails. `isOpen` is the
+ * merchant's "accepting orders" switch and `isOpenNow` whether it can take an
+ * order right now (switch on and inside opening hours), as on the outlet page.
+ * `adCampaignId` marks a sponsored placement; clients report clicks with it
+ * (POST ads/events/click).
+ */
 export function toCard(r: ScoredOutlet, adCampaignId?: string): OutletCard {
   const o = r.outlet;
   return {
@@ -157,10 +165,11 @@ export function toCard(r: ScoredOutlet, adCampaignId?: string): OutletCard {
     lng: o.lng,
     ratingAvg: Math.round(o.ratingAvg * 10) / 10,
     ratingCount: o.ratingCount,
-    costForTwo: Number(o.costForTwo).toFixed(2),
+    costForTwo: toMoney(o.costForTwo),
     avgPrepTimeMins: o.avgPrepTimeMins,
     isPureVeg: o.isPureVeg,
-    isOpen: r.openNow,
+    isOpen: o.isOpen,
+    isOpenNow: r.openNow,
     coverImageUrl: o.coverImageUrl,
     distanceKm: Math.round(r.distanceKm * 10) / 10,
     etaMins: r.etaMins,

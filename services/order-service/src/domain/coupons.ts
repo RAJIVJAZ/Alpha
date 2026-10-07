@@ -1,4 +1,6 @@
+import type { Coupon } from '@foodgrid/database';
 import type { PaymentMethod } from '@foodgrid/types';
+import { round2 } from '@foodgrid/utils';
 
 export interface CouponRecord {
   code: string;
@@ -27,11 +29,26 @@ export interface CouponContext {
   isMember: boolean;
   userRedemptions: number;
   paymentMethod?: PaymentMethod | null;
+  /** Cart subtotal; leave out where there is no cart (offer listings show the minimum as a hint). */
+  subtotal?: number;
 }
 
 export type CouponCheck = { valid: true } | { valid: false; code: string; reason: string };
 
-/** Eligibility rules (minimum order value is applied during pricing so the UI can nudge). */
+export function toCouponRecord(c: Coupon): CouponRecord {
+  return {
+    ...c,
+    value: Number(c.value),
+    maxDiscount: c.maxDiscount == null ? null : Number(c.maxDiscount),
+    minOrderValue: Number(c.minOrderValue),
+  };
+}
+
+/**
+ * Eligibility rules, shared by applying a code, quoting and checkout so they
+ * always agree. The minimum order check comes last: its reason doubles as the
+ * "add items worth ₹X more" nudge.
+ */
 export function checkCouponEligibility(c: CouponRecord, ctx: CouponContext): CouponCheck {
   const fail = (code: string, reason: string): CouponCheck => ({ valid: false, code, reason });
   if (!c.isActive) return fail('COUPON_INACTIVE', 'This coupon is no longer active');
@@ -55,6 +72,12 @@ export function checkCouponEligibility(c: CouponRecord, ctx: CouponContext): Cou
     !c.paymentMethods.includes(ctx.paymentMethod)
   ) {
     return fail('COUPON_PAYMENT_METHOD', `Valid only with ${c.paymentMethods.join(', ')}`);
+  }
+  if (ctx.subtotal !== undefined && ctx.subtotal < c.minOrderValue) {
+    return fail(
+      'COUPON_MIN_ORDER',
+      `Add items worth ₹${round2(c.minOrderValue - ctx.subtotal)} more to use ${c.code}`,
+    );
   }
   return { valid: true };
 }

@@ -1,9 +1,11 @@
 import { Module } from '@nestjs/common';
+import { APP_INTERCEPTOR } from '@nestjs/core';
 import { ScheduleModule } from '@nestjs/schedule';
 import { CoreModule } from '@foodgrid/utils/server';
 import { CartController } from './cart/cart.controller';
 import { CartService } from './cart/cart.service';
 import { CheckoutService } from './checkout/checkout.service';
+import { MoneyJsonInterceptor } from './common/money';
 import { CouponsController } from './coupons/coupons.controller';
 import { CouponsService } from './coupons/coupons.service';
 import { OrderEventHandlers } from './events/order-event.handlers';
@@ -55,6 +57,8 @@ import { SubscriptionsService } from './subscriptions/subscriptions.service';
     InternalController,
   ],
   providers: [
+    // amounts leave the service as "700.00" strings, never Decimal.toJSON's "700"
+    { provide: APP_INTERCEPTOR, useClass: MoneyJsonInterceptor },
     CartService,
     CheckoutService,
     OrdersService,

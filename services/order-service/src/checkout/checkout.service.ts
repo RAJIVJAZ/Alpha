@@ -13,15 +13,16 @@ import {
   haversineKm,
   istParts,
   isWithinOpeningHours,
-  money,
   OpeningWindow,
   unprocessable,
 } from '@foodgrid/utils';
 import { businessCounter, InternalHttpService, OutboxService } from '@foodgrid/utils/server';
 import { CartService, HydratedCart } from '../cart/cart.service';
+import { toMoney } from '../common/money';
 import { toOrderSnapshot } from '../common/order-snapshot';
-import { checkCouponEligibility } from '../domain/coupons';
+import { checkCouponEligibility, toCouponRecord } from '../domain/coupons';
 import {
+  cartSubtotal,
   computePricing,
   fallbackDeliveryFee,
   MembershipBenefits,
@@ -37,6 +38,15 @@ export interface DeliveryQuote {
   surgeMultiplier: number;
   zoneId?: string | null;
 }
+
+/** Why a coupon cannot be used: a COUPON_* error code and a message for the customer. */
+export interface CouponRejection {
+  code: string;
+  reason: string;
+}
+
+type CouponEvaluation =
+  { coupon: Coupon; rejection: null } | { coupon: null; rejection: CouponRejection };
 
 interface FraudResult {
   score: number;
@@ -77,7 +87,10 @@ export class CheckoutService {
     });
     return {
       cart: this.cartView(cart, priced.breakdown),
-      delivery: priced.delivery,
+      delivery: priced.delivery && {
+        ...priced.delivery,
+        deliveryFee: toMoney(priced.delivery.deliveryFee),
+      },
       coupon: priced.couponError
         ? { code: cart.couponCode, valid: false, reason: priced.couponError }
         : cart.couponCode
@@ -102,8 +115,8 @@ export class CheckoutService {
         variant: l.variant?.name,
         addonIds: l.addons.map((a) => a.id),
         addons: l.addons.map((a) => a.name),
-        unitPrice: money(l.unitPrice),
-        totalPrice: money(l.unitPrice * l.quantity),
+        unitPrice: toMoney(l.unitPrice),
+        totalPrice: toMoney(l.unitPrice * l.quantity),
         isVeg: l.item.isVeg,
         notes: l.notes,
       })),
@@ -129,37 +142,17 @@ export class CheckoutService {
     const membership = await this.activeMembership(userId);
     const isFirstOrder = (await this.completedOrders(userId)) === 0;
 
+    // re-checked on every quote: the cart (and so the minimum order) can change after applying
     let coupon: Coupon | null = null;
     let couponError: string | undefined;
     if (cart.couponCode) {
-      coupon = await this.prisma.coupon.findUnique({ where: { code: cart.couponCode } });
-      if (!coupon) couponError = 'Invalid coupon code';
-      else {
-        const userRedemptions = await this.prisma.couponRedemption.count({
-          where: { couponId: coupon.id, userId },
-        });
-        const check = checkCouponEligibility(
-          {
-            ...coupon,
-            value: Number(coupon.value),
-            maxDiscount: coupon.maxDiscount ? Number(coupon.maxDiscount) : null,
-            minOrderValue: Number(coupon.minOrderValue),
-          },
-          {
-            now: new Date(),
-            outletId: outlet.id,
-            tenantId: outlet.tenantId,
-            isFirstOrder,
-            isMember: !!membership,
-            userRedemptions,
-            paymentMethod: opts.paymentMethod,
-          },
-        );
-        if (!check.valid) {
-          couponError = check.reason;
-          coupon = null;
-        }
-      }
+      const evaluated = await this.evaluateCoupon(userId, cart.couponCode, cart, {
+        isFirstOrder,
+        isMember: !!membership,
+        paymentMethod: opts.paymentMethod,
+      });
+      coupon = evaluated.coupon;
+      couponError = evaluated.rejection?.reason;
     }
 
     const pricing = computePricing({
@@ -198,9 +191,63 @@ export class CheckoutService {
     };
   }
 
+  /** Validates a code against the current cart, then stores it (422 COUPON_* with the reason otherwise). */
+  async applyCoupon(userId: string, rawCode: string) {
+    const code = rawCode.trim().toUpperCase();
+    const cart = await this.cart.hydrate(userId);
+    if (!cart.outlet || !cart.lines.length) throw badRequest('Cart is empty', 'CART_EMPTY');
+    const [membership, completed] = await Promise.all([
+      this.activeMembership(userId),
+      this.completedOrders(userId),
+    ]);
+    const { rejection } = await this.evaluateCoupon(userId, code, cart, {
+      isFirstOrder: completed === 0,
+      isMember: !!membership,
+    });
+    if (rejection) throw unprocessable(rejection.reason, rejection.code);
+    await this.cart.setCoupon(userId, code);
+  }
+
+  /**
+   * The one coupon check behind applying a code, quoting and checkout, so a code
+   * the cart accepted is exactly one the bill honours. Without a payment method
+   * (applying) method-restricted coupons pass; the quote re-checks them.
+   */
+  async evaluateCoupon(
+    userId: string,
+    code: string,
+    cart: HydratedCart,
+    ctx: { isFirstOrder: boolean; isMember: boolean; paymentMethod?: PaymentMethod },
+  ): Promise<CouponEvaluation> {
+    const outlet = cart.outlet!;
+    const coupon = await this.prisma.coupon.findUnique({ where: { code } });
+    if (!coupon) {
+      return {
+        coupon: null,
+        rejection: { code: 'COUPON_INVALID', reason: `${code} is not a valid coupon code` },
+      };
+    }
+    const userRedemptions = await this.prisma.couponRedemption.count({
+      where: { couponId: coupon.id, userId },
+    });
+    const check = checkCouponEligibility(toCouponRecord(coupon), {
+      now: new Date(),
+      outletId: outlet.id,
+      tenantId: outlet.tenantId,
+      isFirstOrder: ctx.isFirstOrder,
+      isMember: ctx.isMember,
+      userRedemptions,
+      paymentMethod: ctx.paymentMethod,
+      subtotal: cartSubtotal(cart.lines),
+    });
+    return check.valid
+      ? { coupon, rejection: null }
+      : { coupon: null, rejection: { code: check.code, reason: check.reason } };
+  }
+
   async deliveryQuote(outlet: Outlet, drop: { lat: number; lng: number }): Promise<DeliveryQuote> {
     try {
-      return await this.internal.get<DeliveryQuote>('delivery', 'internal/delivery/quote', {
+      const quote = await this.internal.get<DeliveryQuote>('delivery', 'internal/delivery/quote', {
         query: {
           pickupLat: outlet.lat,
           pickupLng: outlet.lng,
@@ -211,6 +258,8 @@ export class CheckoutService {
         timeoutMs: 800,
         retries: 0,
       });
+      // pricing does arithmetic on the fee, whether it arrives as a number or a decimal string
+      return { ...quote, deliveryFee: Number(quote.deliveryFee) };
     } catch (err) {
       this.logger.warn(`delivery quote fallback: ${(err as Error).message}`);
       const distanceKm = Math.round(estimateRoadKm(outlet, drop) * 10) / 10;
@@ -362,7 +411,7 @@ export class CheckoutService {
               addons: l.addons.map((a) => ({
                 id: a.id,
                 name: a.name,
-                price: Number(a.price).toFixed(2),
+                price: toMoney(a.price),
               })),
               quantity: l.quantity,
               unitPrice: l.unitPrice,
@@ -439,7 +488,8 @@ export class CheckoutService {
         id: order.id,
         orderNumber: order.orderNumber,
         status: order.status,
-        total: order.total,
+        // explicit: the idempotency cache stores this body before the response interceptor runs
+        total: toMoney(order.total),
         paymentStatus: order.paymentStatus,
       },
       pricing: priced.breakdown,
@@ -449,7 +499,7 @@ export class CheckoutService {
             required: true,
             purpose: 'ORDER',
             referenceId: order.id,
-            amount: money(p.total),
+            amount: toMoney(p.total),
             method: dto.paymentMethod,
           },
     };
@@ -557,20 +607,20 @@ export class CheckoutService {
 
 export function toBreakdown(p: PricingResult): PriceBreakdown {
   return {
-    subtotal: money(p.subtotal),
-    couponDiscount: money(p.couponDiscount),
-    membershipDiscount: money(p.membershipDiscount),
-    deliveryFee: money(p.deliveryFee),
-    packagingCharge: money(p.packagingCharge),
-    platformFee: money(p.platformFee),
-    cgst: money(p.cgst),
-    sgst: money(p.sgst),
-    igst: money(p.igst),
-    taxTotal: money(p.taxTotal),
-    tip: money(p.tip),
-    roundOff: money(p.roundOff),
-    total: money(p.total),
-    savings: money(p.savings),
+    subtotal: toMoney(p.subtotal),
+    couponDiscount: toMoney(p.couponDiscount),
+    membershipDiscount: toMoney(p.membershipDiscount),
+    deliveryFee: toMoney(p.deliveryFee),
+    packagingCharge: toMoney(p.packagingCharge),
+    platformFee: toMoney(p.platformFee),
+    cgst: toMoney(p.cgst),
+    sgst: toMoney(p.sgst),
+    igst: toMoney(p.igst),
+    taxTotal: toMoney(p.taxTotal),
+    tip: toMoney(p.tip),
+    roundOff: toMoney(p.roundOff),
+    total: toMoney(p.total),
+    savings: toMoney(p.savings),
     messages: p.messages,
   };
 }

@@ -4,6 +4,7 @@ import { Internal } from '@foodgrid/auth/nest';
 import { PrismaService } from '@foodgrid/database/nest';
 import { conflict, istDayStart, notFound } from '@foodgrid/utils';
 import { IdsDto } from '@foodgrid/utils/server';
+import { toMoney } from '../common/money';
 
 export interface Payable {
   referenceId: string;
@@ -41,7 +42,7 @@ export class InternalController {
     if (!order) throw notFound('Order', id);
     return {
       referenceId: id,
-      amount: order.total.toString(),
+      amount: toMoney(order.total),
       userId: order.customerId,
       tenantId: order.tenantId,
       payable: order.status === 'PENDING_PAYMENT' && order.paymentStatus !== 'PAID',
@@ -58,7 +59,7 @@ export class InternalController {
     if (!m) throw notFound('Membership', id);
     return {
       referenceId: id,
-      amount: m.plan.price.toString(),
+      amount: toMoney(m.plan.price),
       userId: m.customerId,
       tenantId: null,
       payable: m.status === 'PENDING_PAYMENT',
@@ -75,7 +76,7 @@ export class InternalController {
     if (!s) throw notFound('Subscription', id);
     return {
       referenceId: id,
-      amount: s.amountPaid.toString(),
+      amount: toMoney(s.amountPaid),
       userId: s.customerId,
       tenantId: s.tenantId,
       payable: s.status === 'PENDING_PAYMENT',
