@@ -11,10 +11,21 @@ import { ApprovalsService } from '../approvals/approvals.service';
 import { CreateApprovalDto } from '../approvals/dto/approval.dto';
 
 class AddRolesDto {
-  @ApiProperty({ enum: PLATFORM_ROLES, isArray: true }) @IsArray() @IsIn(PLATFORM_ROLES, { each: true }) roles!: PlatformRole[];
+  @ApiProperty({ enum: PLATFORM_ROLES, isArray: true })
+  @IsArray()
+  @IsIn(PLATFORM_ROLES, { each: true })
+  roles!: PlatformRole[];
 }
 
-const BASIC = { id: true, name: true, phone: true, email: true, roles: true, status: true, createdAt: true } as const;
+const BASIC = {
+  id: true,
+  name: true,
+  phone: true,
+  email: true,
+  roles: true,
+  status: true,
+  createdAt: true,
+} as const;
 
 /** Service-to-service API (blocked at the gateway). */
 @ApiTags('internal')
@@ -43,7 +54,11 @@ export class InternalController {
   async addRoles(@Param('id') id: string, @Body() dto: AddRolesDto) {
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id } });
     const roles = [...new Set([...user.roles, ...dto.roles])];
-    return this.prisma.user.update({ where: { id }, data: { roles: { set: roles } }, select: BASIC });
+    return this.prisma.user.update({
+      where: { id },
+      data: { roles: { set: roles } },
+      select: BASIC,
+    });
   }
 
   @Get('tenants/:id')
@@ -56,15 +71,24 @@ export class InternalController {
   @Post('tenants/batch')
   @ApiOperation({ summary: 'Tenant names for read models (analytics)' })
   tenantsBatch(@Body() dto: IdsDto) {
-    return this.prisma.tenant.findMany({ where: { id: { in: dto.ids } }, select: { id: true, name: true, type: true, city: true, status: true } });
+    return this.prisma.tenant.findMany({
+      where: { id: { in: dto.ids } },
+      select: { id: true, name: true, type: true, city: true, status: true },
+    });
   }
 
   @Get('tenants/:id/members')
-  @ApiOperation({ summary: 'Active members (optionally filtered by role) — used for notifications' })
+  @ApiOperation({
+    summary: 'Active members (optionally filtered by role) — used for notifications',
+  })
   members(@Param('id') id: string, @Query('roles') roles?: string) {
     const roleList = roles?.split(',').filter(Boolean);
     return this.prisma.tenantMember.findMany({
-      where: { tenantId: id, status: 'ACTIVE', ...(roleList?.length ? { role: { in: roleList as never[] } } : {}) },
+      where: {
+        tenantId: id,
+        status: 'ACTIVE',
+        ...(roleList?.length ? { role: { in: roleList as never[] } } : {}),
+      },
       select: { userId: true, role: true, outletIds: true },
     });
   }

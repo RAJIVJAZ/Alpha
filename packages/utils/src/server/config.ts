@@ -36,7 +36,9 @@ export function loadEnv<T extends z.ZodRawShape>(
   const schema = extension ? baseEnvSchema.extend(extension) : baseEnvSchema;
   const parsed = schema.safeParse(env);
   if (!parsed.success) {
-    const details = parsed.error.issues.map((i) => `  - ${i.path.join('.')}: ${i.message}`).join('\n');
+    const details = parsed.error.issues
+      .map((i) => `  - ${i.path.join('.')}: ${i.message}`)
+      .join('\n');
     throw new Error(`Invalid environment configuration:\n${details}`);
   }
   return parsed.data as BaseEnv & z.infer<z.ZodObject<T>>;

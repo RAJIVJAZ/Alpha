@@ -9,7 +9,14 @@ import { DashboardService } from '../dashboard/dashboard.service';
 import { ForecastsService } from '../forecasts/forecasts.service';
 import { RecommendationsService } from '../recommendations/recommendations.service';
 import { SettingsService } from '../settings/settings.service';
-import { AutoPoDto, CreatePoDto, DecisionDto, ListPoDto, ReceivePoDto, SettingsDto } from './dto/po.dto';
+import {
+  AutoPoDto,
+  CreatePoDto,
+  DecisionDto,
+  ListPoDto,
+  ReceivePoDto,
+  SettingsDto,
+} from './dto/po.dto';
 import { PurchaseOrdersService } from './purchase-orders.service';
 
 @ApiTags('procurement')
@@ -41,7 +48,9 @@ export class ProcurementController {
 
   @Put('settings')
   @RequirePermissions(Permissions.ProcurementApprove)
-  @ApiOperation({ summary: 'Auto-PO, approval threshold, default supplier strategy, service level' })
+  @ApiOperation({
+    summary: 'Auto-PO, approval threshold, default supplier strategy, service level',
+  })
   putSettings(@TenantId() tenantId: string, @Body() dto: SettingsDto) {
     return this.settings.update(tenantId, dto);
   }
@@ -50,7 +59,9 @@ export class ProcurementController {
   @Post('forecasts/run')
   @HttpCode(200)
   @RequirePermissions(Permissions.ProcurementManage)
-  @ApiOperation({ summary: 'Forecast ingredient demand (history + seasonality + weather + festivals)' })
+  @ApiOperation({
+    summary: 'Forecast ingredient demand (history + seasonality + weather + festivals)',
+  })
   runForecasts(@TenantId() tenantId: string, @Query('outletId') outletId?: string) {
     return this.forecasts.runForTenant(tenantId, outletId);
   }
@@ -71,7 +82,10 @@ export class ProcurementController {
 
   @Get('alerts')
   @RequirePermissions(Permissions.ProcurementRead)
-  listAlerts(@TenantId() tenantId: string, @Query() q: { status?: string; outletId?: string; severity?: string }) {
+  listAlerts(
+    @TenantId() tenantId: string,
+    @Query() q: { status?: string; outletId?: string; severity?: string },
+  ) {
     return this.alerts.list(tenantId, q);
   }
 
@@ -85,14 +99,21 @@ export class ProcurementController {
   // ─── supplier comparison ──────────────────────────────────────────────────
   @Get('recommendations')
   @RequirePermissions(Permissions.ProcurementRead)
-  @ApiOperation({ summary: 'Compare prices across suppliers; best by lowest cost / fastest / best rated' })
+  @ApiOperation({
+    summary: 'Compare prices across suppliers; best by lowest cost / fastest / best rated',
+  })
   recommend(
     @TenantId() tenantId: string,
     @Query('ingredientId') ingredientId: string,
     @Query('quantity') quantity?: string,
     @Query('strategy') strategy?: SupplierStrategy,
   ) {
-    return this.recommendations.recommend(tenantId, ingredientId, quantity ? Number(quantity) : undefined, strategy);
+    return this.recommendations.recommend(
+      tenantId,
+      ingredientId,
+      quantity ? Number(quantity) : undefined,
+      strategy,
+    );
   }
 
   // ─── purchase orders ──────────────────────────────────────────────────────
@@ -133,21 +154,33 @@ export class ProcurementController {
   @HttpCode(200)
   @RequirePermissions(Permissions.ProcurementApprove)
   @ApiOperation({ summary: 'Owner approval — sends the PO to the supplier' })
-  approve(@CurrentUser() user: AccessTokenClaims, @Param('id') id: string, @Body() dto: DecisionDto) {
+  approve(
+    @CurrentUser() user: AccessTokenClaims,
+    @Param('id') id: string,
+    @Body() dto: DecisionDto,
+  ) {
     return this.pos.approve(user, id, dto.comment);
   }
 
   @Post('purchase-orders/:id/reject')
   @HttpCode(200)
   @RequirePermissions(Permissions.ProcurementApprove)
-  reject(@CurrentUser() user: AccessTokenClaims, @Param('id') id: string, @Body() dto: DecisionDto) {
+  reject(
+    @CurrentUser() user: AccessTokenClaims,
+    @Param('id') id: string,
+    @Body() dto: DecisionDto,
+  ) {
     return this.pos.reject(user, id, dto.comment);
   }
 
   @Post('purchase-orders/:id/cancel')
   @HttpCode(200)
   @RequirePermissions(Permissions.ProcurementManage)
-  cancel(@CurrentUser() user: AccessTokenClaims, @Param('id') id: string, @Body() dto: DecisionDto) {
+  cancel(
+    @CurrentUser() user: AccessTokenClaims,
+    @Param('id') id: string,
+    @Body() dto: DecisionDto,
+  ) {
     return this.pos.cancel(user, id, dto.comment);
   }
 
@@ -155,7 +188,11 @@ export class ProcurementController {
   @HttpCode(200)
   @RequirePermissions(Permissions.InventoryManage)
   @ApiOperation({ summary: 'Goods receipt; stock is added to inventory automatically' })
-  receive(@CurrentUser() user: AccessTokenClaims, @Param('id') id: string, @Body() dto: ReceivePoDto) {
+  receive(
+    @CurrentUser() user: AccessTokenClaims,
+    @Param('id') id: string,
+    @Body() dto: ReceivePoDto,
+  ) {
     return this.pos.receive(user, id, dto);
   }
 }

@@ -16,7 +16,13 @@ import path from 'node:path';
 const root = path.resolve(__dirname, '..');
 const outDir = path.join(root, 'docs', 'api');
 
-type OpenApi = { info: { title: string; description?: string }; paths: Record<string, Record<string, { summary?: string; tags?: string[]; security?: unknown[] }>> };
+type OpenApi = {
+  info: { title: string; description?: string };
+  paths: Record<
+    string,
+    Record<string, { summary?: string; tags?: string[]; security?: unknown[] }>
+  >;
+};
 
 function prepareEnv() {
   const { publicKey, privateKey } = generateKeyPairSync('rsa', {
@@ -41,7 +47,8 @@ function prepareEnv() {
 async function generate(service: string): Promise<OpenApi> {
   const dir = path.join(root, 'services', service);
   const dist = path.join(dir, 'dist');
-  if (!existsSync(path.join(dist, 'app.module.js'))) throw new Error(`${service} is not built — run pnpm build`);
+  if (!existsSync(path.join(dist, 'app.module.js')))
+    throw new Error(`${service} is not built — run pnpm build`);
   // resolve framework packages from the service so the compiled module shares their instances
   const req = createRequire(path.join(dir, 'package.json'));
   const { NestFactory } = req('@nestjs/core');
@@ -61,7 +68,13 @@ function operations(doc: OpenApi) {
     for (const [method, op] of Object.entries(methods)) {
       const scheme = op.security?.[0] ? Object.keys(op.security[0] as object)[0] : undefined;
       const auth = scheme === 'service-token' ? 'service token' : scheme ? 'bearer' : 'public';
-      ops.push({ method: method.toUpperCase(), path: p, summary: op.summary ?? '', tag: op.tags?.[0] ?? '', auth });
+      ops.push({
+        method: method.toUpperCase(),
+        path: p,
+        summary: op.summary ?? '',
+        tag: op.tags?.[0] ?? '',
+        auth,
+      });
     }
   }
   return ops.sort((a, b) => a.path.localeCompare(b.path) || a.method.localeCompare(b.method));
@@ -70,7 +83,9 @@ function operations(doc: OpenApi) {
 async function main() {
   prepareEnv();
   mkdirSync(outDir, { recursive: true });
-  const services = readdirSync(path.join(root, 'services')).filter((d) => d.endsWith('-service')).sort();
+  const services = readdirSync(path.join(root, 'services'))
+    .filter((d) => d.endsWith('-service'))
+    .sort();
   const index: string[] = [
     '# FoodGrid HTTP APIs',
     '',
@@ -88,7 +103,9 @@ async function main() {
     writeFileSync(path.join(outDir, `${service}.json`), `${JSON.stringify(doc, null, 2)}\n`);
     const ops = operations(doc);
     const internal = ops.filter((o) => o.auth === 'service token');
-    index.push(`| ${service} | ${ops.length - internal.length} | ${internal.length} | [${service}.json](./${service}.json) |`);
+    index.push(
+      `| ${service} | ${ops.length - internal.length} | ${internal.length} | [${service}.json](./${service}.json) |`,
+    );
     sections.push(
       `## ${doc.info.title}`,
       '',
@@ -96,7 +113,9 @@ async function main() {
       '',
       '| Method | Path | Auth | Summary |',
       '| --- | --- | --- | --- |',
-      ...ops.map((o) => `| ${o.method} | \`${o.path}\` | ${o.auth} | ${o.summary.replace(/\|/g, '\\|')} |`),
+      ...ops.map(
+        (o) => `| ${o.method} | \`${o.path}\` | ${o.auth} | ${o.summary.replace(/\|/g, '\\|')} |`,
+      ),
       '',
     );
     console.log(`  • ${service}: ${ops.length} operations`);

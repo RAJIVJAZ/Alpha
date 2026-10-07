@@ -20,7 +20,8 @@ export function resolveCommissionRule(
   rules: CommissionRuleLike[],
   ctx: { tenantId: string; outletId: string; tenantType?: string | null; at: Date },
 ): CommissionRuleLike | null {
-  const specificity = (r: CommissionRuleLike) => (r.outletId ? 3 : r.tenantId ? 2 : r.tenantType ? 1 : 0);
+  const specificity = (r: CommissionRuleLike) =>
+    r.outletId ? 3 : r.tenantId ? 2 : r.tenantType ? 1 : 0;
   const applicable = rules.filter(
     (r) =>
       r.isActive &&
@@ -34,7 +35,10 @@ export function resolveCommissionRule(
   return applicable[0] ?? null;
 }
 
-export function computeCommission(rule: Pick<CommissionRuleLike, 'ratePct' | 'fixedFee' | 'minFee' | 'maxFee'>, base: number): number {
+export function computeCommission(
+  rule: Pick<CommissionRuleLike, 'ratePct' | 'fixedFee' | 'minFee' | 'maxFee'>,
+  base: number,
+): number {
   const raw = (base * rule.ratePct) / 100 + rule.fixedFee;
   return round2(clamp(raw, rule.minFee ?? 0, rule.maxFee ?? Number.POSITIVE_INFINITY));
 }

@@ -5,7 +5,14 @@
  */
 const values = <T extends string>(...v: T[]) => Object.freeze(v);
 
-export const TENANT_TYPES = values('PLATFORM', 'RESTAURANT', 'FOOD_CART', 'SUPPLIER', 'WHOLESALER', 'RETAILER');
+export const TENANT_TYPES = values(
+  'PLATFORM',
+  'RESTAURANT',
+  'FOOD_CART',
+  'SUPPLIER',
+  'WHOLESALER',
+  'RETAILER',
+);
 export type TenantType = (typeof TENANT_TYPES)[number];
 
 export const TENANT_STATUSES = values('PENDING_APPROVAL', 'ACTIVE', 'SUSPENDED', 'REJECTED');
@@ -28,7 +35,14 @@ export type TenantRole = (typeof TENANT_ROLES)[number];
 export const OUTLET_TYPES = values('RESTAURANT', 'FOOD_CART', 'CLOUD_KITCHEN');
 export type OutletType = (typeof OUTLET_TYPES)[number];
 
-export const OUTLET_STATUSES = values('DRAFT', 'PENDING_APPROVAL', 'ACTIVE', 'PAUSED', 'SUSPENDED', 'CLOSED');
+export const OUTLET_STATUSES = values(
+  'DRAFT',
+  'PENDING_APPROVAL',
+  'ACTIVE',
+  'PAUSED',
+  'SUSPENDED',
+  'CLOSED',
+);
 export type OutletStatus = (typeof OUTLET_STATUSES)[number];
 
 export const ORDER_CHANNELS = values('APP', 'WEB', 'QR', 'POS');
@@ -203,7 +217,13 @@ export type NotificationChannel = (typeof NOTIFICATION_CHANNELS)[number];
 export const APP_KINDS = values('CUSTOMER', 'RIDER', 'MERCHANT', 'ADMIN');
 export type AppKind = (typeof APP_KINDS)[number];
 
-export const AD_PLACEMENTS = values('SEARCH_TOP', 'HOME_CAROUSEL', 'CATEGORY_TOP', 'MARKETPLACE_TOP', 'MENU_HIGHLIGHT');
+export const AD_PLACEMENTS = values(
+  'SEARCH_TOP',
+  'HOME_CAROUSEL',
+  'CATEGORY_TOP',
+  'MARKETPLACE_TOP',
+  'MENU_HIGHLIGHT',
+);
 export type AdPlacement = (typeof AD_PLACEMENTS)[number];
 
 export const MEAL_SLOTS = values('BREAKFAST', 'LUNCH', 'DINNER');

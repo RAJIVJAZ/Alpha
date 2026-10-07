@@ -5,14 +5,26 @@ import { Reflector } from '@nestjs/core';
 import { AccessTokenService, signServiceToken } from '../tokens';
 import { Permissions } from '../permissions';
 import { AuthGuard } from './auth.guard';
-import { IS_INTERNAL_KEY, IS_PUBLIC_KEY, PERMISSIONS_KEY, ROLES_KEY, TENANT_TYPES_KEY } from './constants';
+import {
+  IS_INTERNAL_KEY,
+  IS_PUBLIC_KEY,
+  PERMISSIONS_KEY,
+  ROLES_KEY,
+  TENANT_TYPES_KEY,
+} from './constants';
 
 const { privateKey, publicKey } = generateKeyPairSync('rsa', {
   modulusLength: 2048,
   publicKeyEncoding: { type: 'spki', format: 'pem' },
   privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
 });
-const tokens = new AccessTokenService({ privateKey, publicKey, issuer: 'i', audience: 'a', accessTtlSeconds: 60 });
+const tokens = new AccessTokenService({
+  privateKey,
+  publicKey,
+  issuer: 'i',
+  audience: 'a',
+  accessTtlSeconds: 60,
+});
 
 function ctxWith(meta: Record<string, unknown>, headers: Record<string, string>) {
   const handler = () => undefined;
@@ -29,9 +41,14 @@ function ctxWith(meta: Record<string, unknown>, headers: Record<string, string>)
 
 describe('AuthGuard', () => {
   const revoked = new Set<string>();
-  const guard = new AuthGuard(new Reflector(), tokens, { internalSecret: 'sek' }, {
-    isRevoked: async (sid: string) => revoked.has(sid),
-  });
+  const guard = new AuthGuard(
+    new Reflector(),
+    tokens,
+    { internalSecret: 'sek' },
+    {
+      isRevoked: async (sid: string) => revoked.has(sid),
+    },
+  );
   const bearer = (claims: any) => ({ authorization: `Bearer ${tokens.sign(claims)}` });
 
   it('allows public routes anonymously', async () => {
@@ -57,31 +74,76 @@ describe('AuthGuard', () => {
   });
 
   it('enforces platform roles with ADMIN override', async () => {
-    const rider = ctxWith({ [ROLES_KEY]: ['RIDER'] }, bearer({ sub: 'u', roles: ['CUSTOMER'], sid: 's' }));
+    const rider = ctxWith(
+      { [ROLES_KEY]: ['RIDER'] },
+      bearer({ sub: 'u', roles: ['CUSTOMER'], sid: 's' }),
+    );
     await expect(guard.canActivate(rider.ctx)).rejects.toBeInstanceOf(ForbiddenException);
-    const admin = ctxWith({ [ROLES_KEY]: ['RIDER'] }, bearer({ sub: 'u', roles: ['ADMIN'], sid: 's' }));
+    const admin = ctxWith(
+      { [ROLES_KEY]: ['RIDER'] },
+      bearer({ sub: 'u', roles: ['ADMIN'], sid: 's' }),
+    );
     await expect(guard.canActivate(admin.ctx)).resolves.toBe(true);
   });
 
   it('requires tenant context of the right type and permissions', async () => {
-    const meta = { [TENANT_TYPES_KEY]: ['RESTAURANT'], [PERMISSIONS_KEY]: [Permissions.MenuManage] };
+    const meta = {
+      [TENANT_TYPES_KEY]: ['RESTAURANT'],
+      [PERMISSIONS_KEY]: [Permissions.MenuManage],
+    };
     const noTenant = ctxWith(meta, bearer({ sub: 'u', roles: [], sid: 's' }));
     await expect(guard.canActivate(noTenant.ctx)).rejects.toBeInstanceOf(ForbiddenException);
 
-    const wrongType = ctxWith(meta, bearer({ sub: 'u', roles: [], sid: 's', tenantId: 't', tenantType: 'SUPPLIER', tenantRole: 'OWNER' }));
+    const wrongType = ctxWith(
+      meta,
+      bearer({
+        sub: 'u',
+        roles: [],
+        sid: 's',
+        tenantId: 't',
+        tenantType: 'SUPPLIER',
+        tenantRole: 'OWNER',
+      }),
+    );
     await expect(guard.canActivate(wrongType.ctx)).rejects.toBeInstanceOf(ForbiddenException);
 
-    const chef = ctxWith(meta, bearer({ sub: 'u', roles: [], sid: 's', tenantId: 't', tenantType: 'RESTAURANT', tenantRole: 'CHEF' }));
+    const chef = ctxWith(
+      meta,
+      bearer({
+        sub: 'u',
+        roles: [],
+        sid: 's',
+        tenantId: 't',
+        tenantType: 'RESTAURANT',
+        tenantRole: 'CHEF',
+      }),
+    );
     await expect(guard.canActivate(chef.ctx)).rejects.toBeInstanceOf(ForbiddenException);
 
-    const owner = ctxWith(meta, bearer({ sub: 'u', roles: [], sid: 's', tenantId: 't', tenantType: 'RESTAURANT', tenantRole: 'OWNER' }));
+    const owner = ctxWith(
+      meta,
+      bearer({
+        sub: 'u',
+        roles: [],
+        sid: 's',
+        tenantId: 't',
+        tenantType: 'RESTAURANT',
+        tenantRole: 'OWNER',
+      }),
+    );
     await expect(guard.canActivate(owner.ctx)).resolves.toBe(true);
   });
 
   it('accepts only service tokens on internal routes', async () => {
-    const user = ctxWith({ [IS_INTERNAL_KEY]: true }, bearer({ sub: 'u', roles: ['ADMIN'], sid: 's' }));
+    const user = ctxWith(
+      { [IS_INTERNAL_KEY]: true },
+      bearer({ sub: 'u', roles: ['ADMIN'], sid: 's' }),
+    );
     await expect(guard.canActivate(user.ctx)).rejects.toBeInstanceOf(UnauthorizedException);
-    const svc = ctxWith({ [IS_INTERNAL_KEY]: true }, { 'x-service-token': signServiceToken('sek', 'payment-service') });
+    const svc = ctxWith(
+      { [IS_INTERNAL_KEY]: true },
+      { 'x-service-token': signServiceToken('sek', 'payment-service') },
+    );
     await expect(guard.canActivate(svc.ctx)).resolves.toBe(true);
     expect(svc.req.service.sub).toBe('payment-service');
   });

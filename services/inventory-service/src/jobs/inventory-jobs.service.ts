@@ -19,9 +19,14 @@ export class InventoryJobsService {
   @Cron('0 2 * * *', { timeZone: 'Asia/Kolkata' })
   async costSnapshots() {
     await withLock(this.redis, 'inventory:cost-snapshots', 3600, async () => {
-      const outlets = await this.prisma.recipe.findMany({ distinct: ['outletId'], select: { outletId: true, tenantId: true } });
+      const outlets = await this.prisma.recipe.findMany({
+        distinct: ['outletId'],
+        select: { outletId: true, tenantId: true },
+      });
       for (const o of outlets) {
-        await this.costing.snapshot(o.tenantId, o.outletId).catch((err: Error) => this.logger.warn(`snapshot ${o.outletId}: ${err.message}`));
+        await this.costing
+          .snapshot(o.tenantId, o.outletId)
+          .catch((err: Error) => this.logger.warn(`snapshot ${o.outletId}: ${err.message}`));
       }
     });
   }

@@ -26,16 +26,26 @@ export interface PaymentGateway {
   readonly provider: 'RAZORPAY';
   readonly keyId: string;
   readonly sandbox: boolean;
-  createOrder(input: { amountPaise: number; receipt: string; notes: Record<string, string> }): Promise<GatewayOrder>;
+  createOrder(input: {
+    amountPaise: number;
+    receipt: string;
+    notes: Record<string, string>;
+  }): Promise<GatewayOrder>;
   verifyCheckout(orderId: string, paymentId: string, signature: string): boolean;
   verifyWebhook(rawBody: Buffer | string, signature: string): boolean;
   fetchPayment(paymentId: string): Promise<GatewayPayment>;
   capture(paymentId: string, amountPaise: number): Promise<GatewayPayment>;
-  refund(paymentId: string, amountPaise: number, notes: Record<string, string>): Promise<GatewayRefund>;
+  refund(
+    paymentId: string,
+    amountPaise: number,
+    notes: Record<string, string>,
+  ): Promise<GatewayRefund>;
 }
 
 /** Maps a Razorpay method string to our PaymentMethod enum. */
-export function mapMethod(method: string | null | undefined): 'UPI' | 'CARD' | 'NETBANKING' | 'WALLET' | null {
+export function mapMethod(
+  method: string | null | undefined,
+): 'UPI' | 'CARD' | 'NETBANKING' | 'WALLET' | null {
   switch (method) {
     case 'upi':
       return 'UPI';

@@ -9,7 +9,10 @@ import { ReportsService } from './reports/reports.service';
 import { SERVICE_NAME, SUBSCRIBED_STREAMS } from './service.config';
 
 @Module({
-  imports: [CoreModule.forRoot({ serviceName: SERVICE_NAME, subscribe: SUBSCRIBED_STREAMS }), ScheduleModule.forRoot()],
+  imports: [
+    CoreModule.forRoot({ serviceName: SERVICE_NAME, subscribe: SUBSCRIBED_STREAMS }),
+    ScheduleModule.forRoot(),
+  ],
   controllers: [ReportsController],
   providers: [ProjectionsService, ReportsService, AnalyticsEventHandlers, AnalyticsJobsService],
 })

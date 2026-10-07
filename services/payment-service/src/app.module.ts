@@ -11,14 +11,20 @@ import { AdminPaymentsController, PaymentsController } from './payments/payments
 import { PaymentsService } from './payments/payments.service';
 import { WebhooksService } from './payments/webhooks.service';
 import { SERVICE_NAME, SUBSCRIBED_STREAMS } from './service.config';
-import { AdminFinanceController, MerchantFinanceController } from './settlements/settlements.controller';
+import {
+  AdminFinanceController,
+  MerchantFinanceController,
+} from './settlements/settlements.controller';
 import { SettlementsService } from './settlements/settlements.service';
 import { WalletLedgerService } from './wallets/wallet-ledger.service';
 import { AdminWalletsController, WalletsController } from './wallets/wallets.controller';
 import { WalletsService } from './wallets/wallets.service';
 
 @Module({
-  imports: [CoreModule.forRoot({ serviceName: SERVICE_NAME, subscribe: SUBSCRIBED_STREAMS }), ScheduleModule.forRoot()],
+  imports: [
+    CoreModule.forRoot({ serviceName: SERVICE_NAME, subscribe: SUBSCRIBED_STREAMS }),
+    ScheduleModule.forRoot(),
+  ],
   controllers: [
     PaymentsController,
     AdminPaymentsController,

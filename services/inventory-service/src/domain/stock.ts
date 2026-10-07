@@ -19,7 +19,10 @@ export interface Allocation {
  * dated ones, oldest receipt first. Returns the shortfall when stock on hand
  * (by batch) is insufficient; the caller still records the full consumption.
  */
-export function allocateFefo(batches: BatchLike[], quantity: number): { allocations: Allocation[]; shortfall: number } {
+export function allocateFefo(
+  batches: BatchLike[],
+  quantity: number,
+): { allocations: Allocation[]; shortfall: number } {
   const ordered = [...batches]
     .filter((b) => b.remainingQty > 0)
     .sort((a, b) => {
@@ -39,7 +42,12 @@ export function allocateFefo(batches: BatchLike[], quantity: number): { allocati
 }
 
 /** Moving weighted-average cost after a receipt. */
-export function weightedAverageCost(onHand: number, avgCost: number, receivedQty: number, receivedCost: number): number {
+export function weightedAverageCost(
+  onHand: number,
+  avgCost: number,
+  receivedQty: number,
+  receivedCost: number,
+): number {
   const base = Math.max(0, onHand);
   const total = base + receivedQty;
   if (total <= 0) return receivedCost;

@@ -42,7 +42,11 @@ export class AddonGroupDto {
   @ApiProperty({ example: 'Add-ons' }) @IsString() @MaxLength(60) name!: string;
   @ApiPropertyOptional() @IsOptional() @IsInt() @Min(0) minSelect?: number;
   @ApiPropertyOptional() @IsOptional() @IsInt() @Min(1) maxSelect?: number;
-  @ApiProperty({ type: [AddonDto] }) @IsArray() @ValidateNested({ each: true }) @Type(() => AddonDto) addons!: AddonDto[];
+  @ApiProperty({ type: [AddonDto] })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => AddonDto)
+  addons!: AddonDto[];
 }
 
 export class MenuItemDto {
@@ -58,17 +62,36 @@ export class MenuItemDto {
   @ApiPropertyOptional() @IsOptional() @IsBoolean() isRecommended?: boolean;
   @ApiPropertyOptional() @IsOptional() @IsInt() @Min(1) prepTimeMins?: number;
   @ApiPropertyOptional({ example: 5 }) @IsOptional() @IsNumber() @Min(0) @Max(28) gstRate?: number;
-  @ApiPropertyOptional({ type: [String] }) @IsOptional() @IsArray() @ArrayMaxSize(10) @IsString({ each: true }) tags?: string[];
+  @ApiPropertyOptional({ type: [String] })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(10)
+  @IsString({ each: true })
+  tags?: string[];
   @ApiPropertyOptional() @IsOptional() @IsInt() @Min(0) @Max(5) spiceLevel?: number;
   @ApiPropertyOptional() @IsOptional() @IsInt() calories?: number;
   @ApiPropertyOptional({ example: 'TANDOOR' }) @IsOptional() @IsString() kdsStation?: string;
   @ApiPropertyOptional() @IsOptional() @IsInt() sortOrder?: number;
-  @ApiPropertyOptional({ type: [VariantDto] }) @IsOptional() @IsArray() @ValidateNested({ each: true }) @Type(() => VariantDto) variants?: VariantDto[];
-  @ApiPropertyOptional({ type: [AddonGroupDto] }) @IsOptional() @IsArray() @ValidateNested({ each: true }) @Type(() => AddonGroupDto) addonGroups?: AddonGroupDto[];
+  @ApiPropertyOptional({ type: [VariantDto] })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => VariantDto)
+  variants?: VariantDto[];
+  @ApiPropertyOptional({ type: [AddonGroupDto] })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => AddonGroupDto)
+  addonGroups?: AddonGroupDto[];
 }
 export class UpdateMenuItemDto extends PartialType(MenuItemDto) {}
 
 export class BulkAvailabilityDto {
-  @ApiProperty({ type: [String] }) @IsArray() @ArrayMaxSize(500) @IsString({ each: true }) itemIds!: string[];
+  @ApiProperty({ type: [String] })
+  @IsArray()
+  @ArrayMaxSize(500)
+  @IsString({ each: true })
+  itemIds!: string[];
   @ApiProperty() @IsBoolean() isAvailable!: boolean;
 }

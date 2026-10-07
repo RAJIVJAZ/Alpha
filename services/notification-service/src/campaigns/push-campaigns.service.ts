@@ -1,6 +1,14 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsArray, IsDateString, IsIn, IsOptional, IsString, IsUrl, MaxLength } from 'class-validator';
+import {
+  IsArray,
+  IsDateString,
+  IsIn,
+  IsOptional,
+  IsString,
+  IsUrl,
+  MaxLength,
+} from 'class-validator';
 import { PrismaService } from '@foodgrid/database/nest';
 import type { AppKind, Prisma } from '@foodgrid/database';
 import { APP_KINDS } from '@foodgrid/types';
@@ -11,10 +19,18 @@ export class PushCampaignDto {
   @ApiProperty() @IsString() @MaxLength(80) title!: string;
   @ApiProperty() @IsString() @MaxLength(240) body!: string;
   @ApiPropertyOptional() @IsOptional() @IsUrl({ require_tld: false }) imageUrl?: string;
-  @ApiPropertyOptional({ example: 'foodgrid://outlets/spice-route' }) @IsOptional() @IsString() deepLink?: string;
+  @ApiPropertyOptional({ example: 'foodgrid://outlets/spice-route' })
+  @IsOptional()
+  @IsString()
+  deepLink?: string;
   @ApiProperty({ enum: APP_KINDS }) @IsIn(APP_KINDS) app!: AppKind;
-  @ApiPropertyOptional({ type: [String], description: 'Explicit user ids (default: everyone with the app installed)' })
-  @IsOptional() @IsArray() @IsString({ each: true })
+  @ApiPropertyOptional({
+    type: [String],
+    description: 'Explicit user ids (default: everyone with the app installed)',
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
   userIds?: string[];
   @ApiPropertyOptional() @IsOptional() @IsDateString() scheduledAt?: string;
 }
@@ -54,18 +70,28 @@ export class PushCampaignsService {
   async cancel(id: string) {
     const c = await this.prisma.pushCampaign.findUnique({ where: { id } });
     if (!c) throw notFound('Campaign', id);
-    if (!['DRAFT', 'SCHEDULED'].includes(c.status)) throw conflict('Campaign already sent', 'CAMPAIGN_SENT');
+    if (!['DRAFT', 'SCHEDULED'].includes(c.status))
+      throw conflict('Campaign already sent', 'CAMPAIGN_SENT');
     return this.prisma.pushCampaign.update({ where: { id }, data: { status: 'CANCELLED' } });
   }
 
   async send(id: string) {
-    const claimed = await this.prisma.pushCampaign.updateMany({ where: { id, status: { in: ['DRAFT', 'SCHEDULED'] } }, data: { status: 'SENDING' } });
+    const claimed = await this.prisma.pushCampaign.updateMany({
+      where: { id, status: { in: ['DRAFT', 'SCHEDULED'] } },
+      data: { status: 'SENDING' },
+    });
     if (!claimed.count) throw conflict('Campaign is not sendable', 'CAMPAIGN_STATE');
     const c = await this.prisma.pushCampaign.findUniqueOrThrow({ where: { id } });
     const explicit = (c.audience as { userIds?: string[] | null }).userIds;
     const users = explicit?.length
       ? explicit
-      : (await this.prisma.deviceToken.findMany({ where: { app: c.app, isActive: true }, distinct: ['userId'], select: { userId: true } })).map((d) => d.userId);
+      : (
+          await this.prisma.deviceToken.findMany({
+            where: { app: c.app, isActive: true },
+            distinct: ['userId'],
+            select: { userId: true },
+          })
+        ).map((d) => d.userId);
     await this.prisma.pushCampaign.update({ where: { id }, data: { targetCount: users.length } });
     let ok = 0;
     let failed = 0;
@@ -85,14 +111,26 @@ export class PushCampaignsService {
           }),
         ),
       );
-      for (const r of results) r.status === 'fulfilled' && r.value.some((n) => n.status === 'SENT') ? ok++ : failed++;
-      await this.prisma.pushCampaign.update({ where: { id }, data: { sentCount: ok, failedCount: failed } });
+      for (const r of results) {
+        if (r.status === 'fulfilled' && r.value.some((n) => n.status === 'SENT')) ok++;
+        else failed++;
+      }
+      await this.prisma.pushCampaign.update({
+        where: { id },
+        data: { sentCount: ok, failedCount: failed },
+      });
     }
     this.logger.log(`Campaign ${c.title}: ${ok} delivered, ${failed} failed/skipped`);
-    return this.prisma.pushCampaign.update({ where: { id }, data: { status: 'SENT', sentAt: new Date() } });
+    return this.prisma.pushCampaign.update({
+      where: { id },
+      data: { status: 'SENT', sentAt: new Date() },
+    });
   }
 
   async due() {
-    return this.prisma.pushCampaign.findMany({ where: { status: 'SCHEDULED', scheduledAt: { lte: new Date() } }, select: { id: true } });
+    return this.prisma.pushCampaign.findMany({
+      where: { status: 'SCHEDULED', scheduledAt: { lte: new Date() } },
+      select: { id: true },
+    });
   }
 }

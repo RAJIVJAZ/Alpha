@@ -3,7 +3,14 @@ import { PrismaService } from '@foodgrid/database/nest';
 import type { AppKind, NotificationChannel, Prisma } from '@foodgrid/database';
 import { istParts, hhmmToMinutes, normalizePage, paginate } from '@foodgrid/utils';
 import { businessCounter, InternalHttpService } from '@foodgrid/utils/server';
-import { EMAIL_PROVIDER, EmailProvider, PUSH_PROVIDER, PushProvider, SMS_PROVIDER, SmsProvider } from '../providers/providers';
+import {
+  EMAIL_PROVIDER,
+  EmailProvider,
+  PUSH_PROVIDER,
+  PushProvider,
+  SMS_PROVIDER,
+  SmsProvider,
+} from '../providers/providers';
 import { DEFAULT_TEMPLATES, render, TemplateContent } from '../templates/defaults';
 
 export interface SendInput {
@@ -22,7 +29,10 @@ export interface SendInput {
   marketing?: boolean;
 }
 
-const sent = businessCounter('notifications_sent_total', 'Notifications dispatched', ['channel', 'status']);
+const sent = businessCounter('notifications_sent_total', 'Notifications dispatched', [
+  'channel',
+  'status',
+]);
 
 @Injectable()
 export class NotificationsService {
@@ -36,13 +46,22 @@ export class NotificationsService {
     @Inject(EMAIL_PROVIDER) private readonly email: EmailProvider,
   ) {}
 
-  private async template(key: string, channel: NotificationChannel): Promise<TemplateContent | null> {
-    const row = await this.prisma.notificationTemplate.findUnique({ where: { key_channel_locale: { key, channel, locale: 'en' } } });
+  private async template(
+    key: string,
+    channel: NotificationChannel,
+  ): Promise<TemplateContent | null> {
+    const row = await this.prisma.notificationTemplate.findUnique({
+      where: { key_channel_locale: { key, channel, locale: 'en' } },
+    });
     if (row?.isActive) return { title: row.title ?? undefined, body: row.body };
     return DEFAULT_TEMPLATES[key]?.[channel as 'PUSH' | 'SMS' | 'EMAIL' | 'IN_APP'] ?? null;
   }
 
-  private async allowed(userId: string | null | undefined, channel: NotificationChannel, marketing: boolean): Promise<boolean> {
+  private async allowed(
+    userId: string | null | undefined,
+    channel: NotificationChannel,
+    marketing: boolean,
+  ): Promise<boolean> {
     if (!userId) return true;
     const pref = await this.prisma.notificationPreference.findUnique({ where: { userId } });
     if (!pref) return true;
@@ -72,13 +91,28 @@ export class NotificationsService {
       return [];
     }
     if (!(await this.allowed(input.userId, input.channel, !!input.marketing))) {
-      return [await this.record(input, title, body, data, input.recipient ?? input.userId ?? '-', 'SKIPPED')];
+      return [
+        await this.record(
+          input,
+          title,
+          body,
+          data,
+          input.recipient ?? input.userId ?? '-',
+          'SKIPPED',
+        ),
+      ];
     }
 
     switch (input.channel) {
       case 'PUSH': {
         const devices = input.userId
-          ? await this.prisma.deviceToken.findMany({ where: { userId: input.userId, isActive: true, ...(input.app ? { app: input.app } : {}) } })
+          ? await this.prisma.deviceToken.findMany({
+              where: {
+                userId: input.userId,
+                isActive: true,
+                ...(input.app ? { app: input.app } : {}),
+              },
+            })
           : [];
         const results = [];
         for (const d of devices) {
@@ -87,24 +121,43 @@ export class NotificationsService {
             body,
             data: Object.fromEntries(Object.entries(data).map(([k, v]) => [k, String(v)])),
           });
-          if (res.invalidToken) await this.prisma.deviceToken.update({ where: { id: d.id }, data: { isActive: false } });
-          results.push(await this.record(input, title, body, data, d.token, res.ok ? 'SENT' : 'FAILED', res));
+          if (res.invalidToken)
+            await this.prisma.deviceToken.update({
+              where: { id: d.id },
+              data: { isActive: false },
+            });
+          results.push(
+            await this.record(input, title, body, data, d.token, res.ok ? 'SENT' : 'FAILED', res),
+          );
         }
         // always keep an in-app copy so the bell icon shows it
-        results.push(await this.record({ ...input, channel: 'IN_APP' }, title, body, data, input.userId ?? '-', 'SENT'));
+        results.push(
+          await this.record(
+            { ...input, channel: 'IN_APP' },
+            title,
+            body,
+            data,
+            input.userId ?? '-',
+            'SENT',
+          ),
+        );
         return results;
       }
       case 'SMS': {
         const phone = input.recipient ?? (await this.lookupContact(input.userId, 'phone'));
         if (!phone) return [];
         const res = await this.sms.send(phone, body);
-        return [await this.record(input, title, body, data, phone, res.ok ? 'SENT' : 'FAILED', res)];
+        return [
+          await this.record(input, title, body, data, phone, res.ok ? 'SENT' : 'FAILED', res),
+        ];
       }
       case 'EMAIL': {
         const email = input.recipient ?? (await this.lookupContact(input.userId, 'email'));
         if (!email) return [];
         const res = await this.email.send(email, title ?? 'FoodGrid', body);
-        return [await this.record(input, title, body, data, email, res.ok ? 'SENT' : 'FAILED', res)];
+        return [
+          await this.record(input, title, body, data, email, res.ok ? 'SENT' : 'FAILED', res),
+        ];
       }
       default:
         return [await this.record(input, title, body, data, input.userId ?? '-', 'SENT')];
@@ -113,7 +166,9 @@ export class NotificationsService {
 
   private async lookupContact(userId: string | null | undefined, field: 'phone' | 'email') {
     if (!userId) return null;
-    const user = await this.internal.get<{ phone: string | null; email: string | null }>('user', `internal/users/${userId}`).catch(() => null);
+    const user = await this.internal
+      .get<{ phone: string | null; email: string | null }>('user', `internal/users/${userId}`)
+      .catch(() => null);
     return user?.[field] ?? null;
   }
 
@@ -138,7 +193,14 @@ export class NotificationsService {
         body,
         data: data as Prisma.InputJsonValue,
         status,
-        provider: input.channel === 'PUSH' ? this.push.name : input.channel === 'SMS' ? this.sms.name : input.channel === 'EMAIL' ? this.email.name : 'in-app',
+        provider:
+          input.channel === 'PUSH'
+            ? this.push.name
+            : input.channel === 'SMS'
+              ? this.sms.name
+              : input.channel === 'EMAIL'
+                ? this.email.name
+                : 'in-app',
         providerMessageId: res?.providerMessageId,
         error: res?.error,
         attempts: 1,
@@ -151,9 +213,12 @@ export class NotificationsService {
   /** Sends to the active members of a business (e.g. new order → owners & cashiers). */
   async toTenant(tenantId: string, roles: string[], input: Omit<SendInput, 'userId' | 'tenantId'>) {
     const members = await this.internal
-      .get<{ userId: string; role: string }[]>('user', `internal/tenants/${tenantId}/members`, { query: { roles: roles.join(',') } })
+      .get<{ userId: string; role: string }[]>('user', `internal/tenants/${tenantId}/members`, {
+        query: { roles: roles.join(',') },
+      })
       .catch(() => [] as { userId: string; role: string }[]);
-    for (const m of members) await this.send({ ...input, userId: m.userId, tenantId, app: input.app ?? 'MERCHANT' });
+    for (const m of members)
+      await this.send({ ...input, userId: m.userId, tenantId, app: input.app ?? 'MERCHANT' });
     return members.length;
   }
 
@@ -162,7 +227,12 @@ export class NotificationsService {
     const p = normalizePage({ page, pageSize: 30 });
     const where = { userId, channel: 'IN_APP' as const };
     const [rows, total, unread] = await Promise.all([
-      this.prisma.notification.findMany({ where, orderBy: { createdAt: 'desc' }, skip: p.skip, take: p.take }),
+      this.prisma.notification.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: p.skip,
+        take: p.take,
+      }),
       this.prisma.notification.count({ where }),
       this.prisma.notification.count({ where: { ...where, readAt: null } }),
     ]);
@@ -185,14 +255,25 @@ export class NotificationsService {
   }
 
   removeDevice(userId: string, token: string) {
-    return this.prisma.deviceToken.updateMany({ where: { userId, token }, data: { isActive: false } });
+    return this.prisma.deviceToken.updateMany({
+      where: { userId, token },
+      data: { isActive: false },
+    });
   }
 
   preferences(userId: string) {
-    return this.prisma.notificationPreference.upsert({ where: { userId }, create: { userId }, update: {} });
+    return this.prisma.notificationPreference.upsert({
+      where: { userId },
+      create: { userId },
+      update: {},
+    });
   }
 
   updatePreferences(userId: string, data: Prisma.NotificationPreferenceUpdateInput) {
-    return this.prisma.notificationPreference.upsert({ where: { userId }, create: { userId, ...(data as object) }, update: data });
+    return this.prisma.notificationPreference.upsert({
+      where: { userId },
+      create: { userId, ...(data as object) },
+      update: data,
+    });
   }
 }

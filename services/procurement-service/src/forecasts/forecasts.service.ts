@@ -24,12 +24,16 @@ export class ForecastsService {
 
   async runForTenant(tenantId: string, outletId?: string) {
     const settings = await this.settings.get(tenantId);
-    const ingredients = (await this.clients.stockStatus(tenantId, outletId)).filter((i) => i.avgDailyUsage > 0 || i.currentStock > 0);
+    const ingredients = (await this.clients.stockStatus(tenantId, outletId)).filter(
+      (i) => i.avgDailyUsage > 0 || i.currentStock > 0,
+    );
     let ok = 0;
     let failed = 0;
     for (let i = 0; i < ingredients.length; i += CONCURRENCY) {
       const chunk = ingredients.slice(i, i + CONCURRENCY);
-      const results = await Promise.allSettled(chunk.map((ing) => this.forecastIngredient(ing, settings.forecastHorizonDays)));
+      const results = await Promise.allSettled(
+        chunk.map((ing) => this.forecastIngredient(ing, settings.forecastHorizonDays)),
+      );
       for (const r of results) {
         if (r.status === 'fulfilled') ok++;
         else {
@@ -42,7 +46,10 @@ export class ForecastsService {
   }
 
   async forecastIngredient(ing: StockStatus, horizonDays: number) {
-    const [series, outlet] = await Promise.all([this.clients.consumption(ing.id, 120), this.clients.outlet(ing.outletId)]);
+    const [series, outlet] = await Promise.all([
+      this.clients.consumption(ing.id, 120),
+      this.clients.outlet(ing.outletId),
+    ]);
     const result = await this.clients.forecast({
       series,
       horizonDays,
@@ -56,7 +63,9 @@ export class ForecastsService {
     await this.prisma.$transaction(
       result.points.map((p) =>
         this.prisma.demandForecast.upsert({
-          where: { ingredientId_forecastDate: { ingredientId: ing.id, forecastDate: dateOnly(p.date) } },
+          where: {
+            ingredientId_forecastDate: { ingredientId: ing.id, forecastDate: dateOnly(p.date) },
+          },
           create: {
             tenantId: ing.tenantId,
             outletId: ing.outletId,
@@ -66,7 +75,12 @@ export class ForecastsService {
             lowerQty: p.lower,
             upperQty: p.upper,
             model: result.model,
-            features: { multiplier: p.multiplier, signals: p.signals, mape: result.mape, residualStd: result.residualStd } as Prisma.InputJsonValue,
+            features: {
+              multiplier: p.multiplier,
+              signals: p.signals,
+              mape: result.mape,
+              residualStd: result.residualStd,
+            } as Prisma.InputJsonValue,
           },
           update: {
             predictedQty: p.value,
@@ -74,12 +88,19 @@ export class ForecastsService {
             upperQty: p.upper,
             model: result.model,
             generatedAt: new Date(),
-            features: { multiplier: p.multiplier, signals: p.signals, mape: result.mape, residualStd: result.residualStd } as Prisma.InputJsonValue,
+            features: {
+              multiplier: p.multiplier,
+              signals: p.signals,
+              mape: result.mape,
+              residualStd: result.residualStd,
+            } as Prisma.InputJsonValue,
           },
         }),
       ),
     );
-    await this.prisma.demandForecast.deleteMany({ where: { ingredientId: ing.id, forecastDate: { lte: today } } });
+    await this.prisma.demandForecast.deleteMany({
+      where: { ingredientId: ing.id, forecastDate: { lte: today } },
+    });
     return result;
   }
 
@@ -89,7 +110,9 @@ export class ForecastsService {
     if (ing.tenantId !== tenantId) return { history: [], forecast: [] };
     const [history, forecast] = await Promise.all([
       this.clients.consumption(ingredientId, 60),
-      this.prisma.forTenant(tenantId).demandForecast.findMany({ where: { ingredientId }, orderBy: { forecastDate: 'asc' } }),
+      this.prisma
+        .forTenant(tenantId)
+        .demandForecast.findMany({ where: { ingredientId }, orderBy: { forecastDate: 'asc' } }),
     ]);
     return {
       ingredient: { id: ing.id, name: ing.name, unit: ing.unit, currentStock: ing.currentStock },

@@ -19,7 +19,12 @@ export class IncentivesService {
 
   create(dto: IncentiveSchemeDto) {
     return this.prisma.incentiveScheme.create({
-      data: { ...dto, peakWindows: dto.peakWindows as Prisma.InputJsonValue | undefined, startsAt: new Date(dto.startsAt), endsAt: new Date(dto.endsAt) },
+      data: {
+        ...dto,
+        peakWindows: dto.peakWindows as Prisma.InputJsonValue | undefined,
+        startsAt: new Date(dto.startsAt),
+        endsAt: new Date(dto.endsAt),
+      },
     });
   }
 
@@ -40,7 +45,12 @@ export class IncentivesService {
     if (!rider) throw notFound('Rider profile');
     const now = new Date();
     const schemes = await this.prisma.incentiveScheme.findMany({
-      where: { isActive: true, endsAt: { gte: now }, OR: [{ zoneId: null }, { zoneId: rider.zoneId }], AND: [{ OR: [{ city: null }, { city: rider.city }] }] },
+      where: {
+        isActive: true,
+        endsAt: { gte: now },
+        OR: [{ zoneId: null }, { zoneId: rider.zoneId }],
+        AND: [{ OR: [{ city: null }, { city: rider.city }] }],
+      },
       include: { progress: { where: { riderId: rider.id } } },
       orderBy: { endsAt: 'asc' },
     });

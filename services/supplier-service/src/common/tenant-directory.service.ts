@@ -29,11 +29,22 @@ export class TenantDirectory {
     const key = `tenant-dir:${tenantId}`;
     const cached = await this.redis.get(key);
     if (cached) return JSON.parse(cached) as TenantInfo;
-    const t = await this.internal.get<TenantInfo>('user', `internal/tenants/${tenantId}`).catch(() => null);
+    const t = await this.internal
+      .get<TenantInfo>('user', `internal/tenants/${tenantId}`)
+      .catch(() => null);
     if (!t) throw notFound('Business', tenantId);
     const slim: TenantInfo = {
-      id: t.id, name: t.name, legalName: t.legalName, type: t.type, status: t.status, gstin: t.gstin,
-      stateCode: t.stateCode, city: t.city, pincode: t.pincode, lat: t.lat, lng: t.lng,
+      id: t.id,
+      name: t.name,
+      legalName: t.legalName,
+      type: t.type,
+      status: t.status,
+      gstin: t.gstin,
+      stateCode: t.stateCode,
+      city: t.city,
+      pincode: t.pincode,
+      lat: t.lat,
+      lng: t.lng,
     };
     await this.redis.set(key, JSON.stringify(slim), 'EX', 600);
     return slim;

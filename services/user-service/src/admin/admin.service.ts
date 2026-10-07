@@ -45,7 +45,16 @@ export class AdminService {
     const [rows, total] = await Promise.all([
       this.prisma.user.findMany({
         where,
-        select: { id: true, name: true, phone: true, email: true, roles: true, status: true, createdAt: true, lastLoginAt: true },
+        select: {
+          id: true,
+          name: true,
+          phone: true,
+          email: true,
+          roles: true,
+          status: true,
+          createdAt: true,
+          lastLoginAt: true,
+        },
         orderBy: { createdAt: 'desc' },
         skip,
         take,
@@ -59,9 +68,20 @@ export class AdminService {
     const user = await this.prisma.user.findUnique({
       where: { id },
       select: {
-        id: true, name: true, phone: true, email: true, roles: true, status: true, avatarUrl: true,
-        referralCode: true, referredBy: true, createdAt: true, lastLoginAt: true,
-        memberships: { include: { tenant: { select: { id: true, name: true, type: true, status: true } } } },
+        id: true,
+        name: true,
+        phone: true,
+        email: true,
+        roles: true,
+        status: true,
+        avatarUrl: true,
+        referralCode: true,
+        referredBy: true,
+        createdAt: true,
+        lastLoginAt: true,
+        memberships: {
+          include: { tenant: { select: { id: true, name: true, type: true, status: true } } },
+        },
         addresses: true,
       },
     });
@@ -74,22 +94,37 @@ export class AdminService {
     if (dto.status === 'BLOCKED') {
       await this.internal
         .post('auth', 'internal/auth/revoke-user-sessions', { userId: id })
-        .catch((err: Error) => this.logger.error(`Could not revoke sessions for ${id}: ${err.message}`));
+        .catch((err: Error) =>
+          this.logger.error(`Could not revoke sessions for ${id}: ${err.message}`),
+        );
     }
-    await this.audit.record({ actorId, action: `user.${dto.status.toLowerCase()}`, entityType: 'User', entityId: id, changes: dto });
+    await this.audit.record({
+      actorId,
+      action: `user.${dto.status.toLowerCase()}`,
+      entityType: 'User',
+      entityId: id,
+      changes: dto,
+    });
     return { id: user.id, status: user.status };
   }
 
   async setUserRoles(id: string, actorId: string, dto: UpdateUserRolesDto) {
     const roles = [...new Set(dto.roles)];
     const user = await this.prisma.user.update({ where: { id }, data: { roles: { set: roles } } });
-    await this.audit.record({ actorId, action: 'user.roles', entityType: 'User', entityId: id, changes: { roles } });
+    await this.audit.record({
+      actorId,
+      action: 'user.roles',
+      entityType: 'User',
+      entityId: id,
+      changes: { roles },
+    });
     return { id: user.id, roles: user.roles };
   }
 
   async createStaff(actorId: string, dto: CreateStaffDto) {
     const email = dto.email.toLowerCase();
-    if (await this.prisma.user.findUnique({ where: { email } })) throw conflict('Email already registered', 'EMAIL_TAKEN');
+    if (await this.prisma.user.findUnique({ where: { email } }))
+      throw conflict('Email already registered', 'EMAIL_TAKEN');
     const user = await this.prisma.user.create({
       data: {
         email,
@@ -100,7 +135,13 @@ export class AdminService {
       },
       select: { id: true, email: true, name: true, roles: true },
     });
-    await this.audit.record({ actorId, action: 'staff.create', entityType: 'User', entityId: user.id, changes: { roles: dto.roles } });
+    await this.audit.record({
+      actorId,
+      action: 'staff.create',
+      entityType: 'User',
+      entityId: user.id,
+      changes: { roles: dto.roles },
+    });
     return user;
   }
 
@@ -109,10 +150,23 @@ export class AdminService {
     const where: Prisma.TenantWhereInput = {
       type: q.type,
       status: q.status,
-      ...(q.q ? { OR: [{ name: { contains: q.q, mode: 'insensitive' } }, { gstin: { contains: q.q.toUpperCase() } }] } : {}),
+      ...(q.q
+        ? {
+            OR: [
+              { name: { contains: q.q, mode: 'insensitive' } },
+              { gstin: { contains: q.q.toUpperCase() } },
+            ],
+          }
+        : {}),
     };
     const [rows, total] = await Promise.all([
-      this.prisma.tenant.findMany({ where, orderBy: { createdAt: 'desc' }, skip, take, include: { _count: { select: { members: true } } } }),
+      this.prisma.tenant.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take,
+        include: { _count: { select: { members: true } } },
+      }),
       this.prisma.tenant.count({ where }),
     ]);
     return paginate(rows, total, page, pageSize);
@@ -121,7 +175,11 @@ export class AdminService {
   async getTenant(id: string) {
     const tenant = await this.prisma.tenant.findUnique({
       where: { id },
-      include: { members: { include: { user: { select: { id: true, name: true, phone: true, email: true } } } } },
+      include: {
+        members: {
+          include: { user: { select: { id: true, name: true, phone: true, email: true } } },
+        },
+      },
     });
     if (!tenant) throw notFound('Tenant', id);
     return tenant;
@@ -140,12 +198,24 @@ export class AdminService {
           aggregateType: 'Tenant',
           aggregateId: id,
           tenantId: id,
-          data: { tenantId: id, tenantType: updated.type, status: updated.status, reason: dto.reason ?? null },
+          data: {
+            tenantId: id,
+            tenantType: updated.type,
+            status: updated.status,
+            reason: dto.reason ?? null,
+          },
         });
       }
       return updated;
     });
-    await this.audit.record({ actorId, tenantId: id, action: 'tenant.admin_update', entityType: 'Tenant', entityId: id, changes: dto });
+    await this.audit.record({
+      actorId,
+      tenantId: id,
+      action: 'tenant.admin_update',
+      entityType: 'Tenant',
+      entityId: id,
+      changes: dto,
+    });
     return tenant;
   }
 
@@ -165,20 +235,27 @@ export class AdminService {
   }
 
   async stats() {
-    const [usersByRole, tenantsByType, pendingApprovals, totalUsers, blockedUsers] = await Promise.all([
-      this.prisma.$queryRaw<{ role: string; count: bigint }[]>`
+    const [usersByRole, tenantsByType, pendingApprovals, totalUsers, blockedUsers] =
+      await Promise.all([
+        this.prisma.$queryRaw<{ role: string; count: bigint }[]>`
         SELECT unnest(roles)::text AS role, COUNT(*) AS count FROM "identity"."User" GROUP BY 1`,
-      this.prisma.tenant.groupBy({ by: ['type', 'status'], _count: { _all: true } }),
-      this.prisma.approvalRequest.groupBy({ by: ['entityType'], where: { status: 'PENDING' }, _count: { _all: true } }),
-      this.prisma.user.count(),
-      this.prisma.user.count({ where: { status: 'BLOCKED' } }),
-    ]);
+        this.prisma.tenant.groupBy({ by: ['type', 'status'], _count: { _all: true } }),
+        this.prisma.approvalRequest.groupBy({
+          by: ['entityType'],
+          where: { status: 'PENDING' },
+          _count: { _all: true },
+        }),
+        this.prisma.user.count(),
+        this.prisma.user.count({ where: { status: 'BLOCKED' } }),
+      ]);
     return {
       totalUsers,
       blockedUsers,
       usersByRole: Object.fromEntries(usersByRole.map((r) => [r.role, Number(r.count)])),
       tenants: tenantsByType.map((t) => ({ type: t.type, status: t.status, count: t._count._all })),
-      pendingApprovals: Object.fromEntries(pendingApprovals.map((a) => [a.entityType, a._count._all])),
+      pendingApprovals: Object.fromEntries(
+        pendingApprovals.map((a) => [a.entityType, a._count._all]),
+      ),
     };
   }
 }

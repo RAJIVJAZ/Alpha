@@ -25,7 +25,10 @@ export class SignalsService {
     return this.prisma.externalSignal.findMany({
       where: {
         city: q.city,
-        date: { gte: q.from ? dateOnly(q.from.slice(0, 10)) : undefined, lte: q.to ? dateOnly(q.to.slice(0, 10)) : undefined },
+        date: {
+          gte: q.from ? dateOnly(q.from.slice(0, 10)) : undefined,
+          lte: q.to ? dateOnly(q.to.slice(0, 10)) : undefined,
+        },
       },
       orderBy: { date: 'asc' },
       take: 500,
@@ -33,7 +36,9 @@ export class SignalsService {
   }
 
   create(dto: SignalDto) {
-    return this.prisma.externalSignal.create({ data: { ...dto, date: dateOnly(dto.date.slice(0, 10)), categories: dto.categories ?? [] } });
+    return this.prisma.externalSignal.create({
+      data: { ...dto, date: dateOnly(dto.date.slice(0, 10)), categories: dto.categories ?? [] },
+    });
   }
 
   remove(id: string) {
@@ -49,9 +54,12 @@ export class SignalsService {
     if (!key) return { synced: 0, skipped: 'OPENWEATHER_API_KEY not configured' };
     let synced = 0;
     for (const city of cities) {
-      const res = await fetch(`https://api.openweathermap.org/data/2.5/forecast?lat=${city.lat}&lon=${city.lng}&units=metric&appid=${key}`, {
-        signal: AbortSignal.timeout(5000),
-      }).catch((err: Error) => {
+      const res = await fetch(
+        `https://api.openweathermap.org/data/2.5/forecast?lat=${city.lat}&lon=${city.lng}&units=metric&appid=${key}`,
+        {
+          signal: AbortSignal.timeout(5000),
+        },
+      ).catch((err: Error) => {
         this.logger.warn(`weather fetch failed for ${city.name}: ${err.message}`);
         return null;
       });
@@ -69,11 +77,31 @@ export class SignalsService {
         const signals: { name: string; impact: number; categories: string[] }[] = [];
         if (w.rain > 10) signals.push({ name: 'Heavy rain', impact: 1.25, categories: [] });
         else if (w.rain > 2) signals.push({ name: 'Rain', impact: 1.1, categories: [] });
-        if (w.tmax >= 38) signals.push({ name: 'Heatwave', impact: 1.3, categories: ['BEVERAGES', 'DAIRY', 'FRUITS'] });
+        if (w.tmax >= 38)
+          signals.push({
+            name: 'Heatwave',
+            impact: 1.3,
+            categories: ['BEVERAGES', 'DAIRY', 'FRUITS'],
+          });
         for (const s of signals) {
           await this.prisma.externalSignal.upsert({
-            where: { type_name_city_date: { type: 'WEATHER', name: s.name, city: city.name, date: dateOnly(d) } },
-            create: { type: 'WEATHER', name: s.name, city: city.name, date: dateOnly(d), impact: s.impact, categories: s.categories, data: { rainMm: round2(w.rain), tempMax: w.tmax } },
+            where: {
+              type_name_city_date: {
+                type: 'WEATHER',
+                name: s.name,
+                city: city.name,
+                date: dateOnly(d),
+              },
+            },
+            create: {
+              type: 'WEATHER',
+              name: s.name,
+              city: city.name,
+              date: dateOnly(d),
+              impact: s.impact,
+              categories: s.categories,
+              data: { rainMm: round2(w.rain), tempMax: w.tmax },
+            },
             update: { impact: s.impact, data: { rainMm: round2(w.rain), tempMax: w.tmax } },
           });
           synced++;

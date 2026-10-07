@@ -29,7 +29,11 @@ export class CartController {
   }
 
   @Patch('items/:lineId')
-  async update(@CurrentUser('sub') userId: string, @Param('lineId') lineId: string, @Body() dto: UpdateCartLineDto) {
+  async update(
+    @CurrentUser('sub') userId: string,
+    @Param('lineId') lineId: string,
+    @Body() dto: UpdateCartLineDto,
+  ) {
     await this.cart.updateLine(userId, lineId, dto.quantity);
     return this.get(userId);
   }

@@ -39,7 +39,10 @@ export class ApiClient {
   constructor(private readonly opts: ApiClientOptions) {}
 
   private buildUrl(path: string, query?: RequestOptions['query']) {
-    const url = new URL(path.replace(/^\//, ''), this.opts.baseUrl.endsWith('/') ? this.opts.baseUrl : `${this.opts.baseUrl}/`);
+    const url = new URL(
+      path.replace(/^\//, ''),
+      this.opts.baseUrl.endsWith('/') ? this.opts.baseUrl : `${this.opts.baseUrl}/`,
+    );
     for (const [k, v] of Object.entries(query ?? {})) {
       if (v !== undefined && v !== null && v !== '') url.searchParams.set(k, String(v));
     }

@@ -56,7 +56,9 @@ export class DiscoveryService {
           outlet,
           distanceKm,
           etaMins: outlet.avgPrepTimeMins + travelMinutes(distanceKm) + 5,
-          openNow: outlet.isOpen && isWithinOpeningHours(outlet.openingHours as unknown as OpeningWindow[], now),
+          openNow:
+            outlet.isOpen &&
+            isWithinOpeningHours(outlet.openingHours as unknown as OpeningWindow[], now),
         };
       })
       .filter((c) => c.distanceKm <= Math.min(radiusKm, c.outlet.deliveryRadiusKm));
@@ -77,10 +79,15 @@ export class DiscoveryService {
 
     const sponsored = await this.sponsoredOutlets(rows[0]?.outlet.city);
     if (sponsored.size && (q.sort ?? 'relevance') === 'relevance') {
-      rows = [...rows.filter((r) => sponsored.has(r.outlet.id) && r.openNow), ...rows.filter((r) => !(sponsored.has(r.outlet.id) && r.openNow))];
+      rows = [
+        ...rows.filter((r) => sponsored.has(r.outlet.id) && r.openNow),
+        ...rows.filter((r) => !(sponsored.has(r.outlet.id) && r.openNow)),
+      ];
     }
     const { page, pageSize, skip } = normalizePage(q);
-    const slice = rows.slice(skip, skip + pageSize).map((r) => toCard(r, sponsored.get(r.outlet.id)));
+    const slice = rows
+      .slice(skip, skip + pageSize)
+      .map((r) => toCard(r, sponsored.get(r.outlet.id)));
     return paginate(slice, rows.length, page, pageSize);
   }
 
@@ -95,13 +102,18 @@ export class DiscoveryService {
       case 'eta':
         return sorted.sort((a, b) => byOpen(a, b) || a.etaMins - b.etaMins);
       case 'cost_low':
-        return sorted.sort((a, b) => byOpen(a, b) || Number(a.outlet.costForTwo) - Number(b.outlet.costForTwo));
+        return sorted.sort(
+          (a, b) => byOpen(a, b) || Number(a.outlet.costForTwo) - Number(b.outlet.costForTwo),
+        );
       case 'cost_high':
-        return sorted.sort((a, b) => byOpen(a, b) || Number(b.outlet.costForTwo) - Number(a.outlet.costForTwo));
+        return sorted.sort(
+          (a, b) => byOpen(a, b) || Number(b.outlet.costForTwo) - Number(a.outlet.costForTwo),
+        );
       default: {
         // Bayesian-smoothed rating (prior 3.8 with weight 20) blended with distance decay.
         const score = (r: ScoredOutlet) => {
-          const smoothed = (r.outlet.ratingAvg * r.outlet.ratingCount + 3.8 * 20) / (r.outlet.ratingCount + 20);
+          const smoothed =
+            (r.outlet.ratingAvg * r.outlet.ratingCount + 3.8 * 20) / (r.outlet.ratingCount + 20);
           return smoothed * Math.exp(-r.distanceKm / 10);
         };
         return sorted.sort((a, b) => byOpen(a, b) || score(b) - score(a));
@@ -113,13 +125,17 @@ export class DiscoveryService {
   private async sponsoredOutlets(city?: string): Promise<Map<string, string>> {
     if (!city) return new Map();
     try {
-      const ads = await this.internal.post<{ campaignId: string; targetType: string; targetId: string }[]>(
+      const ads = await this.internal.post<
+        { campaignId: string; targetType: string; targetId: string }[]
+      >(
         'ads',
         'internal/ads/serve',
         { placement: 'SEARCH_TOP', city, limit: 3 },
         { timeoutMs: 300 },
       );
-      return new Map(ads.filter((a) => a.targetType === 'OUTLET').map((a) => [a.targetId, a.campaignId]));
+      return new Map(
+        ads.filter((a) => a.targetType === 'OUTLET').map((a) => [a.targetId, a.campaignId]),
+      );
     } catch (err) {
       this.logger.debug(`ads unavailable: ${(err as Error).message}`);
       return new Map();

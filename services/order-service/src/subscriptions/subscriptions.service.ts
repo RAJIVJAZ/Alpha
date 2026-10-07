@@ -6,7 +6,12 @@ import { badRequest, conflict, dateOnly, istDate, notFound, round2 } from '@food
 import { assertOutletAccess } from '../common/outlet-access';
 import { isoWeekday, mealsInPlan, scheduleMeals, todayIst } from '../domain/meal-plan';
 import { DirectOrderService } from '../orders/direct-order.service';
-import { PauseDto, SubscribeDto, SubscriptionPlanDto, UpdateSubscriptionPlanDto } from './dto/subscription.dto';
+import {
+  PauseDto,
+  SubscribeDto,
+  SubscriptionPlanDto,
+  UpdateSubscriptionPlanDto,
+} from './dto/subscription.dto';
 
 /** Tiffin / meal subscriptions: prepaid plans that auto-create daily delivery orders. */
 @Injectable()
@@ -34,7 +39,9 @@ export class SubscriptionsService {
   }
 
   async updatePlan(user: AccessTokenClaims, id: string, dto: UpdateSubscriptionPlanDto) {
-    const plan = await this.prisma.forTenant(user.tenantId!).subscriptionPlan.findUnique({ where: { id } });
+    const plan = await this.prisma
+      .forTenant(user.tenantId!)
+      .subscriptionPlan.findUnique({ where: { id } });
     if (!plan) throw notFound('Plan', id);
     if (dto.menuRotation) await this.validateRotation(plan.outletId, dto.menuRotation);
     const days = dto.daysOfWeek ?? plan.daysOfWeek;
@@ -69,19 +76,27 @@ export class SubscriptionsService {
   private async validateRotation(outletId: string, rotation: Record<string, string[]>) {
     const ids = [...new Set(Object.values(rotation).flat())];
     const count = await this.prisma.menuItem.count({ where: { id: { in: ids }, outletId } });
-    if (count !== ids.length) throw badRequest('Menu rotation references items from another outlet', 'INVALID_ROTATION');
+    if (count !== ids.length)
+      throw badRequest('Menu rotation references items from another outlet', 'INVALID_ROTATION');
   }
 
   // ─── customer ──────────────────────────────────────────────────────────────
   plansForOutlet(outletId: string) {
-    return this.prisma.subscriptionPlan.findMany({ where: { outletId, isActive: true }, orderBy: { pricePerMeal: 'asc' } });
+    return this.prisma.subscriptionPlan.findMany({
+      where: { outletId, isActive: true },
+      orderBy: { pricePerMeal: 'asc' },
+    });
   }
 
   async subscribe(userId: string, dto: SubscribeDto) {
-    const plan = await this.prisma.subscriptionPlan.findUnique({ where: { id: dto.planId }, include: { outlet: true } });
+    const plan = await this.prisma.subscriptionPlan.findUnique({
+      where: { id: dto.planId },
+      include: { outlet: true },
+    });
     if (!plan || !plan.isActive) throw notFound('Plan', dto.planId);
     const start = dateOnly(dto.startDate.slice(0, 10));
-    if (start < dateOnly(istDate())) throw badRequest('Start date cannot be in the past', 'INVALID_START');
+    if (start < dateOnly(istDate()))
+      throw badRequest('Start date cannot be in the past', 'INVALID_START');
     const meals = mealsInPlan(plan.durationDays, plan.daysOfWeek, start);
     const schedule = scheduleMeals(start, plan.daysOfWeek, meals);
     return this.prisma.mealSubscription.create({
@@ -111,12 +126,18 @@ export class SubscriptionsService {
 
   async pause(userId: string, id: string, dto: PauseDto) {
     const sub = await this.owned(userId, id);
-    if (sub.status !== 'ACTIVE' && sub.status !== 'PAUSED') throw conflict('Subscription is not active', 'SUBSCRIPTION_STATE');
+    if (sub.status !== 'ACTIVE' && sub.status !== 'PAUSED')
+      throw conflict('Subscription is not active', 'SUBSCRIPTION_STATE');
     const tomorrow = new Date(todayIst().getTime() + 86_400_000);
     const dates = dto.dates.map((d) => dateOnly(d.slice(0, 10)));
-    if (dates.some((d) => d < tomorrow)) throw badRequest('You can pause from tomorrow onwards', 'PAUSE_TOO_LATE');
-    const paused = [...new Map([...sub.pausedDates, ...dates].map((d) => [d.toISOString(), d])).values()];
-    const plan = await this.prisma.subscriptionPlan.findUniqueOrThrow({ where: { id: sub.planId } });
+    if (dates.some((d) => d < tomorrow))
+      throw badRequest('You can pause from tomorrow onwards', 'PAUSE_TOO_LATE');
+    const paused = [
+      ...new Map([...sub.pausedDates, ...dates].map((d) => [d.toISOString(), d])).values(),
+    ];
+    const plan = await this.prisma.subscriptionPlan.findUniqueOrThrow({
+      where: { id: sub.planId },
+    });
     const schedule = scheduleMeals(sub.startDate, plan.daysOfWeek, sub.mealsTotal, paused);
     return this.prisma.mealSubscription.update({
       where: { id },
@@ -126,7 +147,8 @@ export class SubscriptionsService {
 
   async cancel(userId: string, id: string) {
     const sub = await this.owned(userId, id);
-    if (['CANCELLED', 'EXPIRED'].includes(sub.status)) throw conflict('Subscription already ended', 'SUBSCRIPTION_STATE');
+    if (['CANCELLED', 'EXPIRED'].includes(sub.status))
+      throw conflict('Subscription already ended', 'SUBSCRIPTION_STATE');
     return this.prisma.mealSubscription.update({ where: { id }, data: { status: 'CANCELLED' } });
   }
 
@@ -150,7 +172,9 @@ export class SubscriptionsService {
     let created = 0;
     let skipped = 0;
     for (const sub of subs) {
-      const servesToday = sub.plan.daysOfWeek.includes(weekday) && !sub.pausedDates.some((d) => d.toISOString().slice(0, 10) === ymd);
+      const servesToday =
+        sub.plan.daysOfWeek.includes(weekday) &&
+        !sub.pausedDates.some((d) => d.toISOString().slice(0, 10) === ymd);
       const itemIds = (sub.plan.menuRotation as Record<string, string[]>)[String(weekday)] ?? [];
       if (!servesToday || !itemIds.length || sub.mealsDelivered >= sub.mealsTotal) {
         skipped++;

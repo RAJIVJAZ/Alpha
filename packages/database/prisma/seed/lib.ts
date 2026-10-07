@@ -114,7 +114,11 @@ export function slugify(s: string): string {
 }
 
 /** Inserts rows in chunks so large createMany calls stay under bind-parameter limits. */
-export async function inChunks<T>(rows: T[], size: number, write: (chunk: T[]) => Promise<unknown>): Promise<void> {
+export async function inChunks<T>(
+  rows: T[],
+  size: number,
+  write: (chunk: T[]) => Promise<unknown>,
+): Promise<void> {
   for (let i = 0; i < rows.length; i += size) await write(rows.slice(i, i + size));
 }
 

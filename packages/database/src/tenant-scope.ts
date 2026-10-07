@@ -139,7 +139,9 @@ export function withTenantScope(client: PrismaClient, tenantId: string) {
       $allModels: {
         async $allOperations({ model, operation, args, query }) {
           if (!TENANT_SCOPED_MODELS.has(model as Prisma.ModelName)) return query(args);
-          return query(applyTenantScope(model, operation, args as AnyArgs, tenantId) as typeof args);
+          return query(
+            applyTenantScope(model, operation, args as AnyArgs, tenantId) as typeof args,
+          );
         },
       },
     },

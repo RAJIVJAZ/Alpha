@@ -28,7 +28,14 @@ export function buildHeatmap(demand: LatLng[], riders: LatLng[], precision = 6):
   return [...cells.entries()]
     .map(([geohash, c]) => {
       const center = decodeGeohash(geohash);
-      return { geohash, lat: round2(center.lat * 1e4) / 1e4, lng: round2(center.lng * 1e4) / 1e4, demand: c.demand, riders: c.riders, pressure: round2(c.demand / Math.max(1, c.riders)) };
+      return {
+        geohash,
+        lat: round2(center.lat * 1e4) / 1e4,
+        lng: round2(center.lng * 1e4) / 1e4,
+        demand: c.demand,
+        riders: c.riders,
+        pressure: round2(c.demand / Math.max(1, c.riders)),
+      };
     })
     .sort((a, b) => b.pressure - a.pressure || b.demand - a.demand);
 }

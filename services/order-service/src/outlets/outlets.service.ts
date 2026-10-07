@@ -3,13 +3,25 @@ import { randomBytes } from 'node:crypto';
 import { PrismaService } from '@foodgrid/database/nest';
 import type { Prisma } from '@foodgrid/database';
 import type { AccessTokenClaims } from '@foodgrid/types';
-import { conflict, encodeGeohash, isWithinOpeningHours, notFound, OpeningWindow } from '@foodgrid/utils';
+import {
+  conflict,
+  encodeGeohash,
+  isWithinOpeningHours,
+  notFound,
+  OpeningWindow,
+} from '@foodgrid/utils';
 import { InternalHttpService } from '@foodgrid/utils/server';
 import { assertOutletAccess } from '../common/outlet-access';
 import { CreateOutletDto, OutletLocationDto, UpdateOutletDto } from './dto/outlet.dto';
 
 const slugify = (v: string) =>
-  v.toLowerCase().normalize('NFKD').replace(/[^\w\s-]/g, '').trim().replace(/[\s_-]+/g, '-').slice(0, 60);
+  v
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[^\w\s-]/g, '')
+    .trim()
+    .replace(/[\s_-]+/g, '-')
+    .slice(0, 60);
 
 @Injectable()
 export class OutletsService {
@@ -23,7 +35,10 @@ export class OutletsService {
   // ─── merchant ──────────────────────────────────────────────────────────────
   async create(user: AccessTokenClaims, dto: CreateOutletDto) {
     if (user.tenantType === 'FOOD_CART' && dto.type !== 'FOOD_CART') {
-      throw conflict('Food cart businesses can only create food cart outlets', 'OUTLET_TYPE_MISMATCH');
+      throw conflict(
+        'Food cart businesses can only create food cart outlets',
+        'OUTLET_TYPE_MISMATCH',
+      );
     }
     const { openingHours, costForTwo, minOrderValue, packagingCharge, ...rest } = dto;
     return this.prisma.forTenant(user.tenantId!).outlet.create({
@@ -57,7 +72,9 @@ export class OutletsService {
       where: { id },
       data: {
         ...rest,
-        ...(dto.lat !== undefined && dto.lng !== undefined ? { geohash: encodeGeohash(dto.lat, dto.lng, 9) } : {}),
+        ...(dto.lat !== undefined && dto.lng !== undefined
+          ? { geohash: encodeGeohash(dto.lat, dto.lng, 9) }
+          : {}),
         ...(openingHours ? { openingHours: openingHours as unknown as Prisma.InputJsonValue } : {}),
       },
     });
@@ -66,7 +83,8 @@ export class OutletsService {
   /** Sends the outlet to the admin approval queue. */
   async submit(user: AccessTokenClaims, id: string) {
     const outlet = await assertOutletAccess(this.prisma, user, id);
-    if (!['DRAFT', 'PAUSED'].includes(outlet.status)) throw conflict(`Outlet is ${outlet.status}`, 'OUTLET_STATE');
+    if (!['DRAFT', 'PAUSED'].includes(outlet.status))
+      throw conflict(`Outlet is ${outlet.status}`, 'OUTLET_STATE');
     const items = await this.prisma.menuItem.count({ where: { outletId: id } });
     if (!items) throw conflict('Add at least one menu item before submitting', 'MENU_EMPTY');
     await this.internal.post('user', 'internal/approvals', {
@@ -75,21 +93,29 @@ export class OutletsService {
       tenantId: outlet.tenantId,
       title: `${outlet.type.replace('_', ' ')} listing: ${outlet.name} (${outlet.city})`,
       submittedBy: user.sub,
-      metadata: { city: outlet.city, cuisines: outlet.cuisines, fssai: outlet.fssaiNumber, menuItems: items },
+      metadata: {
+        city: outlet.city,
+        cuisines: outlet.cuisines,
+        fssai: outlet.fssaiNumber,
+        menuItems: items,
+      },
     });
     return this.prisma.outlet.update({ where: { id }, data: { status: 'PENDING_APPROVAL' } });
   }
 
   async setAvailability(user: AccessTokenClaims, id: string, isOpen: boolean) {
     const outlet = await assertOutletAccess(this.prisma, user, id);
-    if (isOpen && outlet.status !== 'ACTIVE') throw conflict('Outlet is not live yet', 'OUTLET_NOT_ACTIVE');
+    if (isOpen && outlet.status !== 'ACTIVE')
+      throw conflict('Outlet is not live yet', 'OUTLET_NOT_ACTIVE');
     return this.prisma.outlet.update({ where: { id }, data: { isOpen } });
   }
 
   async pause(user: AccessTokenClaims, id: string, paused: boolean) {
     const outlet = await assertOutletAccess(this.prisma, user, id);
-    if (paused && outlet.status !== 'ACTIVE') throw conflict('Only live outlets can be paused', 'OUTLET_STATE');
-    if (!paused && outlet.status !== 'PAUSED') throw conflict('Outlet is not paused', 'OUTLET_STATE');
+    if (paused && outlet.status !== 'ACTIVE')
+      throw conflict('Only live outlets can be paused', 'OUTLET_STATE');
+    if (!paused && outlet.status !== 'PAUSED')
+      throw conflict('Outlet is not paused', 'OUTLET_STATE');
     return this.prisma.outlet.update({
       where: { id },
       data: { status: paused ? 'PAUSED' : 'ACTIVE', isOpen: paused ? false : outlet.isOpen },
@@ -99,7 +125,8 @@ export class OutletsService {
   /** Food carts move around: the vendor app pushes the current spot. */
   async updateLocation(user: AccessTokenClaims, id: string, dto: OutletLocationDto) {
     const outlet = await assertOutletAccess(this.prisma, user, id);
-    if (!outlet.isMobile) throw conflict('Only mobile outlets (food carts) can move', 'OUTLET_NOT_MOBILE');
+    if (!outlet.isMobile)
+      throw conflict('Only mobile outlets (food carts) can move', 'OUTLET_NOT_MOBILE');
     return this.prisma.outlet.update({
       where: { id },
       data: {
@@ -144,7 +171,9 @@ export class OutletsService {
         },
       },
     });
-    const recommended = categories.flatMap((c) => c.items).filter((i) => i.isRecommended && i.isAvailable);
+    const recommended = categories
+      .flatMap((c) => c.items)
+      .filter((i) => i.isRecommended && i.isAvailable);
     return { outlet, recommended, categories: categories.filter((c) => c.items.length) };
   }
 }

@@ -19,7 +19,9 @@ export class SearchService {
 
   async search(q: SearchQueryDto) {
     const term = q.q.trim();
-    const nearby = await this.discovery.candidates({ lat: q.lat, lng: q.lng }, SEARCH_RADIUS_KM, { type: q.type });
+    const nearby = await this.discovery.candidates({ lat: q.lat, lng: q.lng }, SEARCH_RADIUS_KM, {
+      type: q.type,
+    });
     const byId = new Map(nearby.map((n) => [n.outlet.id, n]));
     const lower = term.toLowerCase();
 
@@ -42,7 +44,10 @@ export class SearchService {
         })
       : [];
 
-    const rankedOutlets = this.discovery.sort(outletMatches, 'relevance').slice(0, 30).map((r) => toCard(r));
+    const rankedOutlets = this.discovery
+      .sort(outletMatches, 'relevance')
+      .slice(0, 30)
+      .map((r) => toCard(r));
     const dishResults = dishes
       .map((d) => {
         const o = byId.get(d.outletId)!;
@@ -55,7 +60,11 @@ export class SearchService {
           outlet: toCard(o),
         };
       })
-      .sort((a, b) => Number(b.outlet.isOpen) - Number(a.outlet.isOpen) || (a.outlet.distanceKm ?? 0) - (b.outlet.distanceKm ?? 0));
+      .sort(
+        (a, b) =>
+          Number(b.outlet.isOpen) - Number(a.outlet.isOpen) ||
+          (a.outlet.distanceKm ?? 0) - (b.outlet.distanceKm ?? 0),
+      );
 
     return { query: term, outlets: rankedOutlets, dishes: dishResults };
   }
@@ -63,10 +72,13 @@ export class SearchService {
   async suggest(q: SearchQueryDto) {
     const result = await this.search(q);
     const cuisines = new Set<string>();
-    for (const o of result.outlets) for (const c of o.cuisines) if (c.toLowerCase().includes(q.q.toLowerCase())) cuisines.add(c);
+    for (const o of result.outlets)
+      for (const c of o.cuisines) if (c.toLowerCase().includes(q.q.toLowerCase())) cuisines.add(c);
     return {
       cuisines: [...cuisines].slice(0, 5),
-      outlets: result.outlets.slice(0, 5).map((o) => ({ id: o.id, slug: o.slug, name: o.name, type: o.type })),
+      outlets: result.outlets
+        .slice(0, 5)
+        .map((o) => ({ id: o.id, slug: o.slug, name: o.name, type: o.type })),
       dishes: [...new Set(result.dishes.map((d) => d.name))].slice(0, 5),
     };
   }

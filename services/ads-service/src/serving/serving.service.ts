@@ -6,7 +6,9 @@ import { businessCounter } from '@foodgrid/utils/server';
 import { hasBudget, runAuction } from '../domain/auction';
 import { ClickDto, ServeDto } from '../campaigns/dto/campaign.dto';
 
-const adEvents = businessCounter('ad_events_total', 'Ad impressions / clicks / conversions', ['type']);
+const adEvents = businessCounter('ad_events_total', 'Ad impressions / clicks / conversions', [
+  'type',
+]);
 
 /**
  * Ad serving: eligibility (dates, geo, keywords, budget) → GSP auction →
@@ -28,14 +30,18 @@ export class ServingService {
         placement: dto.placement,
         startsAt: { lte: now },
         OR: [{ endsAt: null }, { endsAt: { gte: now } }],
-        ...(dto.city ? { AND: [{ OR: [{ cities: { isEmpty: true } }, { cities: { has: dto.city } }] }] } : {}),
+        ...(dto.city
+          ? { AND: [{ OR: [{ cities: { isEmpty: true } }, { cities: { has: dto.city } }] }] }
+          : {}),
       },
       include: { dailyStats: { where: { date: { gte: new Date(Date.now() - 30 * 86_400_000) } } } },
     });
     const keywords = (dto.keywords ?? []).map((k) => k.toLowerCase());
     const eligible = campaigns.filter(
       (c) =>
-        (!keywords.length || !c.keywords.length || c.keywords.some((k) => keywords.some((q) => q.includes(k.toLowerCase())))) &&
+        (!keywords.length ||
+          !c.keywords.length ||
+          c.keywords.some((k) => keywords.some((q) => q.includes(k.toLowerCase())))) &&
         hasBudget(this.budgetView(c), Number(c.bidAmount), today),
     );
     const winners = runAuction(
@@ -51,11 +57,22 @@ export class ServingService {
     const byId = new Map(campaigns.map((c) => [c.id, c]));
     for (const w of winners) {
       const cost = w.bidType === 'CPM' ? round2(w.price / 1000) : 0;
-      await this.record(w.campaignId, 'IMPRESSION', cost, { userId: dto.userId, sessionId: dto.sessionId, context: { placement: dto.placement, rank: w.rank, price: w.price } });
+      await this.record(w.campaignId, 'IMPRESSION', cost, {
+        userId: dto.userId,
+        sessionId: dto.sessionId,
+        context: { placement: dto.placement, rank: w.rank, price: w.price },
+      });
     }
     return winners.map((w) => {
       const c = byId.get(w.campaignId)!;
-      return { campaignId: c.id, targetType: c.targetType, targetId: c.targetId, creative: c.creative, rank: w.rank, sponsored: true };
+      return {
+        campaignId: c.id,
+        targetType: c.targetType,
+        targetId: c.targetId,
+        creative: c.creative,
+        rank: w.rank,
+        sponsored: true,
+      };
     });
   }
 
@@ -64,7 +81,12 @@ export class ServingService {
     if (!c || c.status !== 'ACTIVE') return { charged: false };
     // de-duplicate rapid repeated clicks from the same user/session (click fraud)
     const recent = await this.prisma.adEvent.count({
-      where: { campaignId: c.id, type: 'CLICK', createdAt: { gte: new Date(Date.now() - 60_000) }, OR: [{ userId: userId ?? '__none__' }, { sessionId: dto.sessionId ?? '__none__' }] },
+      where: {
+        campaignId: c.id,
+        type: 'CLICK',
+        createdAt: { gte: new Date(Date.now() - 60_000) },
+        OR: [{ userId: userId ?? '__none__' }, { sessionId: dto.sessionId ?? '__none__' }],
+      },
     });
     if (recent) return { charged: false, reason: 'duplicate' };
     const cost = c.bidType === 'CPC' ? Number(c.bidAmount) : 0;
@@ -75,7 +97,12 @@ export class ServingService {
   /** Attributes an order to a click on the same outlet by the same user within 24h. */
   async attributeConversion(userId: string, outletId: string, orderId: string, revenue: number) {
     const click = await this.prisma.adEvent.findFirst({
-      where: { type: 'CLICK', userId, createdAt: { gte: new Date(Date.now() - 86_400_000) }, campaign: { targetType: 'OUTLET', targetId: outletId } },
+      where: {
+        type: 'CLICK',
+        userId,
+        createdAt: { gte: new Date(Date.now() - 86_400_000) },
+        campaign: { targetType: 'OUTLET', targetId: outletId },
+      },
       orderBy: { createdAt: 'desc' },
     });
     if (!click) return false;
@@ -100,7 +127,13 @@ export class ServingService {
     campaignId: string,
     type: 'IMPRESSION' | 'CLICK' | 'CONVERSION',
     cost: number,
-    meta: { userId?: string; sessionId?: string; orderId?: string; revenue?: number; context?: Record<string, unknown> },
+    meta: {
+      userId?: string;
+      sessionId?: string;
+      orderId?: string;
+      revenue?: number;
+      context?: Record<string, unknown>;
+    },
   ): Promise<boolean> {
     const today = dateOnly(istDate());
     return this.prisma.$transaction(async (tx) => {
@@ -114,11 +147,25 @@ export class ServingService {
           WHERE id = ${campaignId} AND spent + ${cost} <= "totalBudget" AND "spentToday" + ${cost} <= "dailyBudget"`;
         if (!charged) {
           const c = await tx.adCampaign.findUniqueOrThrow({ where: { id: campaignId } });
-          if (Number(c.spent) + cost > Number(c.totalBudget)) await tx.adCampaign.update({ where: { id: campaignId }, data: { status: 'EXHAUSTED' } });
+          if (Number(c.spent) + cost > Number(c.totalBudget))
+            await tx.adCampaign.update({
+              where: { id: campaignId },
+              data: { status: 'EXHAUSTED' },
+            });
           return false;
         }
       }
-      await tx.adEvent.create({ data: { campaignId, type, cost, userId: meta.userId, sessionId: meta.sessionId, orderId: meta.orderId, context: meta.context as never } });
+      await tx.adEvent.create({
+        data: {
+          campaignId,
+          type,
+          cost,
+          userId: meta.userId,
+          sessionId: meta.sessionId,
+          orderId: meta.orderId,
+          context: meta.context as never,
+        },
+      });
       await tx.adDailyStats.upsert({
         where: { campaignId_date: { campaignId, date: today } },
         create: {

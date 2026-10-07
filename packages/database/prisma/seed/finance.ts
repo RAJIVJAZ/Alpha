@@ -7,11 +7,28 @@ export async function seedCommissionRules(ctx: SeedContext) {
   const from = new Date(ctx.now.getTime() - 400 * 86_400_000);
   await ctx.prisma.commissionRule.createMany({
     data: [
-      { name: 'Restaurants - standard', tenantType: 'RESTAURANT', ratePct: 18, effectiveFrom: from },
+      {
+        name: 'Restaurants - standard',
+        tenantType: 'RESTAURANT',
+        ratePct: 18,
+        effectiveFrom: from,
+      },
       { name: 'Food carts - standard', tenantType: 'FOOD_CART', ratePct: 10, effectiveFrom: from },
       { name: 'B2B marketplace sellers', tenantType: 'SUPPLIER', ratePct: 3, effectiveFrom: from },
-      { name: 'Spice Garden - negotiated', tenantId: ctx.merchants.get('spicegarden')!.id, ratePct: 16, priority: 10, effectiveFrom: from },
-      { name: 'Bharat Wholesale - volume tier', tenantId: ctx.sellers.get('bharat')!.id, ratePct: 2.5, priority: 10, effectiveFrom: from },
+      {
+        name: 'Spice Garden - negotiated',
+        tenantId: ctx.merchants.get('spicegarden')!.id,
+        ratePct: 16,
+        priority: 10,
+        effectiveFrom: from,
+      },
+      {
+        name: 'Bharat Wholesale - volume tier',
+        tenantId: ctx.sellers.get('bharat')!.id,
+        ratePct: 2.5,
+        priority: 10,
+        effectiveFrom: from,
+      },
     ],
   });
   log('commission rules', 5);
@@ -34,29 +51,77 @@ export async function seedSettlements(ctx: SeedContext) {
     const periodEnd = new Date(periodStart.getTime() + 7 * 86_400_000);
     const runAt = atIst(periodEnd, 3, 0);
     if (runAt > ctx.now) continue;
-    const groups = await prisma.settlementLine.groupBy({ by: ['tenantId'], where: { settlementId: null, orderDate: { gte: periodStart, lt: periodEnd } } });
+    const groups = await prisma.settlementLine.groupBy({
+      by: ['tenantId'],
+      where: { settlementId: null, orderDate: { gte: periodStart, lt: periodEnd } },
+    });
     for (const { tenantId } of groups) {
-      const lines = await prisma.settlementLine.findMany({ where: { tenantId, settlementId: null, orderDate: { gte: periodStart, lt: periodEnd } } });
-      const sum = (key: 'taxableValue' | 'merchantDiscount' | 'commission' | 'commissionGst' | 'tcs' | 'tds' | 'netAmount') => sumMoney(lines.map((l) => String(l[key])));
+      const lines = await prisma.settlementLine.findMany({
+        where: { tenantId, settlementId: null, orderDate: { gte: periodStart, lt: periodEnd } },
+      });
+      const sum = (
+        key:
+          | 'taxableValue'
+          | 'merchantDiscount'
+          | 'commission'
+          | 'commissionGst'
+          | 'tcs'
+          | 'tds'
+          | 'netAmount',
+      ) => sumMoney(lines.map((l) => String(l[key])));
       const paid = k > 1;
       const paidAt = addMinutes(runAt, 2 * 1440 + 8 * 60);
       const s = await prisma.settlement.create({
         data: {
-          tenantId, periodStart, periodEnd, ordersCount: lines.length, grossSales: sum('taxableValue'), merchantDiscounts: sum('merchantDiscount'),
-          commission: sum('commission'), commissionGst: sum('commissionGst'), tcs: sum('tcs'), tds: sum('tds'), netPayable: sum('netAmount'),
-          status: paid ? 'PAID' : 'PENDING', paidAt: paid ? paidAt : null, payoutReference: paid ? `UTR${rng.digits(12)}` : null, createdAt: runAt,
+          tenantId,
+          periodStart,
+          periodEnd,
+          ordersCount: lines.length,
+          grossSales: sum('taxableValue'),
+          merchantDiscounts: sum('merchantDiscount'),
+          commission: sum('commission'),
+          commissionGst: sum('commissionGst'),
+          tcs: sum('tcs'),
+          tds: sum('tds'),
+          netPayable: sum('netAmount'),
+          status: paid ? 'PAID' : 'PENDING',
+          paidAt: paid ? paidAt : null,
+          payoutReference: paid ? `UTR${rng.digits(12)}` : null,
+          createdAt: runAt,
         },
       });
-      await prisma.settlementLine.updateMany({ where: { id: { in: lines.map((l) => l.id) } }, data: { settlementId: s.id } });
+      await prisma.settlementLine.updateMany({
+        where: { id: { in: lines.map((l) => l.id) } },
+        data: { settlementId: s.id },
+      });
       const tenant = names.get(tenantId);
       const commission = Number(s.commission);
       if (commission > 0) {
-        const g = computeGst(commission, 18, tenant ? tenant.stateCode !== ctx.platform.stateCode : false);
+        const g = computeGst(
+          commission,
+          18,
+          tenant ? tenant.stateCode !== ctx.platform.stateCode : false,
+        );
         await prisma.gstInvoice.create({
           data: {
-            invoiceNumber: ctx.docNumber('FGC', runAt), type: 'COMMISSION', referenceId: s.id, tenantId, supplierName: ctx.platform.legalName, supplierGstin: ctx.platform.gstin,
-            supplierStateCode: ctx.platform.stateCode, recipientName: tenant?.legalName ?? null, recipientGstin: tenant?.gstin ?? null, placeOfSupply: tenant?.stateCode ?? ctx.platform.stateCode,
-            isInterState: g.igst > 0, hsnSac: '998599', taxableValue: g.taxableValue, cgst: g.cgst, sgst: g.sgst, igst: g.igst, total: g.total, issuedAt: runAt,
+            invoiceNumber: ctx.docNumber('FGC', runAt),
+            type: 'COMMISSION',
+            referenceId: s.id,
+            tenantId,
+            supplierName: ctx.platform.legalName,
+            supplierGstin: ctx.platform.gstin,
+            supplierStateCode: ctx.platform.stateCode,
+            recipientName: tenant?.legalName ?? null,
+            recipientGstin: tenant?.gstin ?? null,
+            placeOfSupply: tenant?.stateCode ?? ctx.platform.stateCode,
+            isInterState: g.igst > 0,
+            hsnSac: '998599',
+            taxableValue: g.taxableValue,
+            cgst: g.cgst,
+            sgst: g.sgst,
+            igst: g.igst,
+            total: g.total,
+            issuedAt: runAt,
           },
         });
       }
@@ -114,6 +179,9 @@ export async function seedAnalyticsAggregates(ctx: SeedContext) {
       FROM "marketplace"."B2bOrder" GROUP BY 1
     ) b
     WHERE p.date = b.date`;
-  const [outletDays, platformDays] = await Promise.all([prisma.dailyOutletStats.count(), prisma.dailyPlatformStats.count()]);
+  const [outletDays, platformDays] = await Promise.all([
+    prisma.dailyOutletStats.count(),
+    prisma.dailyPlatformStats.count(),
+  ]);
   log('analytics read models', `${outletDays} outlet-days, ${platformDays} platform-days`);
 }

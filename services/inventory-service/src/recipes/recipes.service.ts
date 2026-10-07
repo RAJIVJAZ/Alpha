@@ -20,7 +20,9 @@ export class RecipesService {
   }
 
   async get(tenantId: string, menuItemId: string) {
-    const recipe = await this.prisma.forTenant(tenantId).recipe.findFirst({ where: { menuItemId }, include: INCLUDE });
+    const recipe = await this.prisma
+      .forTenant(tenantId)
+      .recipe.findFirst({ where: { menuItemId }, include: INCLUDE });
     if (!recipe) throw notFound('Recipe for menu item', menuItemId);
     return recipe;
   }
@@ -33,9 +35,16 @@ export class RecipesService {
     const byId = new Map(ingredients.map((i) => [i.id, i]));
     for (const line of dto.lines) {
       const ing = byId.get(line.ingredientId);
-      if (!ing) throw badRequest(`Ingredient ${line.ingredientId} not found at this outlet`, 'INVALID_INGREDIENT');
+      if (!ing)
+        throw badRequest(
+          `Ingredient ${line.ingredientId} not found at this outlet`,
+          'INVALID_INGREDIENT',
+        );
       if (!canConvert(line.unit as Unit, ing.unit as Unit)) {
-        throw badRequest(`${ing.name} is stocked in ${ing.unit}; ${line.unit} is not compatible`, 'UNIT_MISMATCH');
+        throw badRequest(
+          `${ing.name} is stocked in ${ing.unit}; ${line.unit} is not compatible`,
+          'UNIT_MISMATCH',
+        );
       }
     }
     const { lines, ...data } = dto;
@@ -48,7 +57,13 @@ export class RecipesService {
       if (recipe.tenantId !== tenantId) throw notFound('Recipe for menu item', dto.menuItemId);
       await tx.recipeIngredient.deleteMany({ where: { recipeId: recipe.id } });
       await tx.recipeIngredient.createMany({
-        data: lines.map((l) => ({ recipeId: recipe.id, ingredientId: l.ingredientId, quantity: l.quantity, unit: l.unit, wastagePct: l.wastagePct ?? 0 })),
+        data: lines.map((l) => ({
+          recipeId: recipe.id,
+          ingredientId: l.ingredientId,
+          quantity: l.quantity,
+          unit: l.unit,
+          wastagePct: l.wastagePct ?? 0,
+        })),
       });
       return tx.recipe.findUniqueOrThrow({ where: { id: recipe.id }, include: INCLUDE });
     });

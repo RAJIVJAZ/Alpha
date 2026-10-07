@@ -17,7 +17,16 @@ export interface CustomerRef {
   name: string;
   phone: string;
   area: string;
-  address: { id: string; line1: string; city: string; state: string; pincode: string; lat: number; lng: number; label: string };
+  address: {
+    id: string;
+    line1: string;
+    city: string;
+    state: string;
+    pincode: string;
+    lat: number;
+    lng: number;
+    label: string;
+  };
   /** Relative ordering frequency (a few heavy users, a long tail). */
   weight: number;
   hasMembership: boolean;
@@ -75,16 +84,56 @@ export interface SeedContext {
   outlets: OutletRef[];
   customers: CustomerRef[];
   riders: RiderRef[];
-  zones: Map<string, { id: string; baseFee: number; perKmFee: number; freeKm: number; riderBasePay: number; riderPerKm: number }>;
-  coupons: Map<string, { id: string; code: string; type: 'FLAT' | 'PERCENT' | 'FREE_DELIVERY'; value: number; maxDiscount: number | null; minOrderValue: number; fundedBy: 'PLATFORM' | 'MERCHANT' | 'SHARED'; tenantId: string | null; firstOrderOnly: boolean }>;
+  zones: Map<
+    string,
+    {
+      id: string;
+      baseFee: number;
+      perKmFee: number;
+      freeKm: number;
+      riderBasePay: number;
+      riderPerKm: number;
+    }
+  >;
+  coupons: Map<
+    string,
+    {
+      id: string;
+      code: string;
+      type: 'FLAT' | 'PERCENT' | 'FREE_DELIVERY';
+      value: number;
+      maxDiscount: number | null;
+      minOrderValue: number;
+      fundedBy: 'PLATFORM' | 'MERCHANT' | 'SHARED';
+      tenantId: string | null;
+      firstOrderOnly: boolean;
+    }
+  >;
   /** Product id lookup by ingredient key, per seller. */
-  products: { id: string; seller: SellerKey; ingredient: string; name: string; sku: string; unit: string; packSize: number; price: number; moq: number; gstRate: number; tiers: { minQty: number; unitPrice: number; segment: string }[]; leadTimeHours: number }[];
+  products: {
+    id: string;
+    seller: SellerKey;
+    ingredient: string;
+    name: string;
+    sku: string;
+    unit: string;
+    packSize: number;
+    price: number;
+    moq: number;
+    gstRate: number;
+    tiers: { minQty: number; unitPrice: number; segment: string }[];
+    leadTimeHours: number;
+  }[];
   counters: Map<string, number>;
   /** Next human-readable document number, mirroring generateDocumentNumber(). */
   docNumber(prefix: string, at: Date, pad?: number): string;
 }
 
-export function createContext(prisma: PrismaClient, passwordHash: string, now = new Date()): SeedContext {
+export function createContext(
+  prisma: PrismaClient,
+  passwordHash: string,
+  now = new Date(),
+): SeedContext {
   const counters = new Map<string, number>();
   return {
     prisma,

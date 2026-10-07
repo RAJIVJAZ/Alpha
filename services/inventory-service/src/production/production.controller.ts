@@ -15,7 +15,11 @@ export class ProductionController {
   @Post('generate')
   @RequirePermissions(Permissions.ProductionManage)
   @ApiOperation({ summary: 'Generate a production plan from forecast dish demand' })
-  generate(@TenantId() tenantId: string, @CurrentUser('sub') userId: string, @Body() dto: GeneratePlanDto) {
+  generate(
+    @TenantId() tenantId: string,
+    @CurrentUser('sub') userId: string,
+    @Body() dto: GeneratePlanDto,
+  ) {
     return this.production.generate(tenantId, userId, dto);
   }
 
@@ -34,7 +38,12 @@ export class ProductionController {
 
   @Patch(':id/items/:itemId')
   @RequirePermissions(Permissions.ProductionManage)
-  updateItem(@TenantId() tenantId: string, @Param('id') id: string, @Param('itemId') itemId: string, @Body() dto: UpdatePlanItemDto) {
+  updateItem(
+    @TenantId() tenantId: string,
+    @Param('id') id: string,
+    @Param('itemId') itemId: string,
+    @Body() dto: UpdatePlanItemDto,
+  ) {
     return this.production.updateItem(tenantId, id, itemId, dto);
   }
 

@@ -18,15 +18,26 @@ export class RecommendationsService {
     private readonly settings: SettingsService,
   ) {}
 
-  async recommend(tenantId: string, ingredientId: string, quantity?: number, strategy?: SupplierStrategy): Promise<SupplierRecommendation & { ingredientName: string }> {
+  async recommend(
+    tenantId: string,
+    ingredientId: string,
+    quantity?: number,
+    strategy?: SupplierStrategy,
+  ): Promise<SupplierRecommendation & { ingredientName: string }> {
     const ing = await this.clients.ingredient(ingredientId);
     if (ing.tenantId !== tenantId) throw notFound('Ingredient', ingredientId);
     const settings = await this.settings.get(tenantId);
     const chosen = strategy ?? settings.defaultStrategy;
-    const alert = await this.prisma.reorderAlert.findFirst({ where: { ingredientId, status: 'OPEN' } });
+    const alert = await this.prisma.reorderAlert.findFirst({
+      where: { ingredientId, status: 'OPEN' },
+    });
     const qty = quantity ?? (alert ? Number(alert.suggestedQty) : Number(ing.reorderQty) || 1);
     const outlet = await this.clients.outlet(ing.outletId);
-    if (!ing.marketplaceCategory) throw unprocessable(`Set a marketplace category for ${ing.name} to compare suppliers`, 'NO_CATEGORY');
+    if (!ing.marketplaceCategory)
+      throw unprocessable(
+        `Set a marketplace category for ${ing.name} to compare suppliers`,
+        'NO_CATEGORY',
+      );
 
     const offers = await this.clients.quotes({
       buyerTenantId: tenantId,
@@ -38,7 +49,9 @@ export class RecommendationsService {
       lat: outlet.lat,
       lng: outlet.lng,
     });
-    const ranked = offers.length ? await this.clients.rank({ offers, quantity: qty, strategy: chosen, tenantId }) : { options: [], best: {} };
+    const ranked = offers.length
+      ? await this.clients.rank({ offers, quantity: qty, strategy: chosen, tenantId })
+      : { options: [], best: {} };
 
     if (ranked.options.length) {
       await this.prisma.supplierQuote.createMany({
@@ -72,8 +85,13 @@ export class RecommendationsService {
   }
 
   /** Best feasible option for the strategy (used by auto-PO). */
-  async bestOption(tenantId: string, ingredientId: string, quantity: number, strategy?: SupplierStrategy): Promise<RankedOption | null> {
+  async bestOption(
+    tenantId: string,
+    ingredientId: string,
+    quantity: number,
+    strategy?: SupplierStrategy,
+  ): Promise<RankedOption | null> {
     const rec = await this.recommend(tenantId, ingredientId, quantity, strategy);
-    return ((rec.options as unknown as RankedOption[]).find((o) => o.feasible) ?? null);
+    return (rec.options as unknown as RankedOption[]).find((o) => o.feasible) ?? null;
   }
 }

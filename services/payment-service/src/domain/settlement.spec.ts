@@ -1,4 +1,9 @@
-import { computeCommission, computeSettlementLine, resolveCommissionRule, CommissionRuleLike } from './settlement';
+import {
+  computeCommission,
+  computeSettlementLine,
+  resolveCommissionRule,
+  CommissionRuleLike,
+} from './settlement';
 
 const rule = (p: Partial<CommissionRuleLike>): CommissionRuleLike => ({
   id: 'r',
@@ -26,22 +31,45 @@ describe('commission rules', () => {
     rule({ id: 'expired', tenantId: 't2', ratePct: 1, effectiveTo: new Date('2026-06-01') }),
   ];
   it('prefers the most specific active rule', () => {
-    expect(resolveCommissionRule(rules, { tenantId: 't1', outletId: 'o1', tenantType: 'RESTAURANT', at })?.id).toBe('outlet');
-    expect(resolveCommissionRule(rules, { tenantId: 't1', outletId: 'o2', tenantType: 'RESTAURANT', at })?.id).toBe('tenant');
-    expect(resolveCommissionRule(rules, { tenantId: 't9', outletId: 'o9', tenantType: 'FOOD_CART', at })?.id).toBe('carts');
-    expect(resolveCommissionRule(rules, { tenantId: 't2', outletId: 'o9', tenantType: 'RESTAURANT', at })?.id).toBe('default');
+    expect(
+      resolveCommissionRule(rules, { tenantId: 't1', outletId: 'o1', tenantType: 'RESTAURANT', at })
+        ?.id,
+    ).toBe('outlet');
+    expect(
+      resolveCommissionRule(rules, { tenantId: 't1', outletId: 'o2', tenantType: 'RESTAURANT', at })
+        ?.id,
+    ).toBe('tenant');
+    expect(
+      resolveCommissionRule(rules, { tenantId: 't9', outletId: 'o9', tenantType: 'FOOD_CART', at })
+        ?.id,
+    ).toBe('carts');
+    expect(
+      resolveCommissionRule(rules, { tenantId: 't2', outletId: 'o9', tenantType: 'RESTAURANT', at })
+        ?.id,
+    ).toBe('default');
   });
   it('clamps commission to min/max', () => {
     expect(computeCommission({ ratePct: 10, fixedFee: 5, minFee: 20, maxFee: 100 }, 100)).toBe(20);
-    expect(computeCommission({ ratePct: 10, fixedFee: 5, minFee: 20, maxFee: 100 }, 5000)).toBe(100);
-    expect(computeCommission({ ratePct: 18, fixedFee: 0, minFee: null, maxFee: null }, 500)).toBe(90);
+    expect(computeCommission({ ratePct: 10, fixedFee: 5, minFee: 20, maxFee: 100 }, 5000)).toBe(
+      100,
+    );
+    expect(computeCommission({ ratePct: 18, fixedFee: 0, minFee: null, maxFee: null }, 500)).toBe(
+      90,
+    );
   });
 });
 
 describe('computeSettlementLine', () => {
   it('settles a restaurant order (GST paid by platform under 9(5), TDS 0.1%, no TCS)', () => {
     const line = computeSettlementLine(
-      { subtotal: 580, packagingCharge: 20, merchantDiscount: 50, deliveryFee: 40, platformFee: 5, taxTotal: 35.6 },
+      {
+        subtotal: 580,
+        packagingCharge: 20,
+        merchantDiscount: 50,
+        deliveryFee: 40,
+        platformFee: 5,
+        taxTotal: 35.6,
+      },
       { ratePct: 20, fixedFee: 0, minFee: null, maxFee: null },
     );
     expect(line.taxableValue).toBe(550);
@@ -54,7 +82,14 @@ describe('computeSettlementLine', () => {
   });
   it('collects 1% TCS for goods sellers', () => {
     const line = computeSettlementLine(
-      { subtotal: 10000, packagingCharge: 0, merchantDiscount: 0, deliveryFee: 0, platformFee: 0, taxTotal: 500 },
+      {
+        subtotal: 10000,
+        packagingCharge: 0,
+        merchantDiscount: 0,
+        deliveryFee: 0,
+        platformFee: 0,
+        taxTotal: 500,
+      },
       { ratePct: 3, fixedFee: 0, minFee: null, maxFee: null },
       { tcsApplicable: true },
     );

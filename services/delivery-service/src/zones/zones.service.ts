@@ -2,7 +2,14 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import Redis from 'ioredis';
 import { PrismaService } from '@foodgrid/database/nest';
 import type { DeliveryZone, Prisma } from '@foodgrid/database';
-import { estimateRoadKm, istParts, LatLng, pointInPolygon, round2, travelMinutes } from '@foodgrid/utils';
+import {
+  estimateRoadKm,
+  istParts,
+  LatLng,
+  pointInPolygon,
+  round2,
+  travelMinutes,
+} from '@foodgrid/utils';
 import { InternalHttpService, REDIS } from '@foodgrid/utils/server';
 import { deliveryFee } from '../domain/fees';
 import { DeliveryZoneDto, UpdateDeliveryZoneDto } from './dto/zone.dto';
@@ -31,7 +38,10 @@ export class ZonesService {
 
   async active(): Promise<DeliveryZone[]> {
     if (Date.now() - this.cache.at > 60_000) {
-      this.cache = { at: Date.now(), zones: await this.prisma.deliveryZone.findMany({ where: { isActive: true } }) };
+      this.cache = {
+        at: Date.now(),
+        zones: await this.prisma.deliveryZone.findMany({ where: { isActive: true } }),
+      };
     }
     return this.cache.zones;
   }
@@ -50,9 +60,24 @@ export class ZonesService {
   async quote(pickup: LatLng, drop: LatLng, prepMins = 20) {
     const zone = await this.zoneFor(pickup);
     const distanceKm = round2(estimateRoadKm(pickup, drop));
-    if (!zone) return { serviceable: false, reason: 'Pickup outside delivery zones', distanceKm, deliveryFee: 0, etaMins: 0, surgeMultiplier: 1, zoneId: null };
+    if (!zone)
+      return {
+        serviceable: false,
+        reason: 'Pickup outside delivery zones',
+        distanceKm,
+        deliveryFee: 0,
+        etaMins: 0,
+        surgeMultiplier: 1,
+        zoneId: null,
+      };
     const surge = await this.surge(zone);
-    const tariff = { baseFee: Number(zone.baseFee), perKmFee: Number(zone.perKmFee), freeKm: zone.freeKm, riderBasePay: Number(zone.riderBasePay), riderPerKm: Number(zone.riderPerKm) };
+    const tariff = {
+      baseFee: Number(zone.baseFee),
+      perKmFee: Number(zone.perKmFee),
+      freeKm: zone.freeKm,
+      riderBasePay: Number(zone.riderBasePay),
+      riderPerKm: Number(zone.riderPerKm),
+    };
     return {
       serviceable: distanceKm <= MAX_DELIVERY_KM,
       distanceKm,
@@ -68,8 +93,12 @@ export class ZonesService {
     const zones = await this.active();
     for (const z of zones) {
       const [pending, online] = await Promise.all([
-        this.prisma.delivery.count({ where: { zoneId: z.id, status: { in: ['UNASSIGNED', 'SEARCHING'] } } }),
-        this.prisma.riderProfile.count({ where: { zoneId: z.id, isOnline: true, isOnDelivery: false, status: 'ACTIVE' } }),
+        this.prisma.delivery.count({
+          where: { zoneId: z.id, status: { in: ['UNASSIGNED', 'SEARCHING'] } },
+        }),
+        this.prisma.riderProfile.count({
+          where: { zoneId: z.id, isOnline: true, isOnDelivery: false, status: 'ACTIVE' },
+        }),
       ]);
       let multiplier = 1;
       try {
@@ -81,23 +110,37 @@ export class ZonesService {
         );
         multiplier = res.multiplier;
       } catch {
-        multiplier = pending > online * 1.2 ? Math.min(2, 1 + 0.3 * (pending / Math.max(1, online) - 1.2)) : 1;
+        multiplier =
+          pending > online * 1.2 ? Math.min(2, 1 + 0.3 * (pending / Math.max(1, online) - 1.2)) : 1;
       }
-      await this.redis.set(surgeKey(z.id), String(Math.max(z.surgeMultiplier, multiplier)), 'EX', 180);
+      await this.redis.set(
+        surgeKey(z.id),
+        String(Math.max(z.surgeMultiplier, multiplier)),
+        'EX',
+        180,
+      );
     }
   }
 
   list() {
-    return this.prisma.deliveryZone.findMany({ orderBy: [{ city: 'asc' }, { name: 'asc' }], include: { _count: { select: { riders: true } } } });
+    return this.prisma.deliveryZone.findMany({
+      orderBy: [{ city: 'asc' }, { name: 'asc' }],
+      include: { _count: { select: { riders: true } } },
+    });
   }
 
   create(dto: DeliveryZoneDto) {
     this.cache.at = 0;
-    return this.prisma.deliveryZone.create({ data: { ...dto, polygon: dto.polygon as unknown as Prisma.InputJsonValue } });
+    return this.prisma.deliveryZone.create({
+      data: { ...dto, polygon: dto.polygon as unknown as Prisma.InputJsonValue },
+    });
   }
 
   update(id: string, dto: UpdateDeliveryZoneDto) {
     this.cache.at = 0;
-    return this.prisma.deliveryZone.update({ where: { id }, data: { ...dto, polygon: dto.polygon as unknown as Prisma.InputJsonValue | undefined } });
+    return this.prisma.deliveryZone.update({
+      where: { id },
+      data: { ...dto, polygon: dto.polygon as unknown as Prisma.InputJsonValue | undefined },
+    });
   }
 }

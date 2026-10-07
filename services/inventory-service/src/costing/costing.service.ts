@@ -22,11 +22,16 @@ export class CostingService {
   ) {}
 
   async report(tenantId: string, outletId: string) {
-    const outlet = await this.internal.get<{ tenantId: string }>('order', `internal/outlets/${outletId}`).catch(() => null);
+    const outlet = await this.internal
+      .get<{ tenantId: string }>('order', `internal/outlets/${outletId}`)
+      .catch(() => null);
     if (!outlet || outlet.tenantId !== tenantId) throw notFound('Outlet', outletId);
     const [prices, recipes] = await Promise.all([
       this.internal.get<MenuPrice[]>('order', `internal/outlets/${outletId}/menu-prices`),
-      this.prisma.forTenant(tenantId).recipe.findMany({ where: { outletId }, include: { lines: { include: { ingredient: true } } } }),
+      this.prisma.forTenant(tenantId).recipe.findMany({
+        where: { outletId },
+        include: { lines: { include: { ingredient: true } } },
+      }),
     ]);
     const byItem = new Map(recipes.map((r) => [r.menuItemId, r]));
     const rows = prices.map((p) => {
@@ -51,7 +56,9 @@ export class CostingService {
     return {
       outletId,
       items: rows.sort((a, b) => (b.foodCostPct ?? -1) - (a.foodCostPct ?? -1)),
-      averageFoodCostPct: costed.length ? round2(costed.reduce((s, r) => s + r.foodCostPct!, 0) / costed.length) : null,
+      averageFoodCostPct: costed.length
+        ? round2(costed.reduce((s, r) => s + r.foodCostPct!, 0) / costed.length)
+        : null,
       highCostItems: rows.filter((r) => r.flag === 'HIGH_COST').length,
       missingRecipes: rows.filter((r) => r.flag === 'NO_RECIPE').length,
     };
@@ -76,7 +83,12 @@ export class CostingService {
           foodCostPct: row.foodCostPct!,
           marginPct: row.marginPct!,
         },
-        update: { sellingPrice: row.sellingPrice, foodCost: row.foodCost, foodCostPct: row.foodCostPct!, marginPct: row.marginPct! },
+        update: {
+          sellingPrice: row.sellingPrice,
+          foodCost: row.foodCost,
+          foodCostPct: row.foodCostPct!,
+          marginPct: row.marginPct!,
+        },
       });
       written++;
     }
@@ -84,6 +96,8 @@ export class CostingService {
   }
 
   trend(tenantId: string, menuItemId: string) {
-    return this.prisma.forTenant(tenantId).costSnapshot.findMany({ where: { menuItemId }, orderBy: { date: 'asc' }, take: 120 });
+    return this.prisma
+      .forTenant(tenantId)
+      .costSnapshot.findMany({ where: { menuItemId }, orderBy: { date: 'asc' }, take: 120 });
   }
 }

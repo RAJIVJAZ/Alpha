@@ -4,7 +4,12 @@ import type Redis from 'ioredis';
 import request from 'supertest';
 import { PrismaService } from '@foodgrid/database/nest';
 import { InternalHttpService, REDIS } from '@foodgrid/utils/server';
-import { createTestApp, FakeInternalHttp, issueServiceToken, truncateSchemas } from '@foodgrid/utils/testing';
+import {
+  createTestApp,
+  FakeInternalHttp,
+  issueServiceToken,
+  truncateSchemas,
+} from '@foodgrid/utils/testing';
 import { AppModule } from '../src/app.module';
 import { SERVICE } from '../src/service.config';
 
@@ -16,7 +21,9 @@ describe('auth-service (e2e)', () => {
   const api = () => request(app.getHttpServer());
 
   beforeAll(async () => {
-    app = await createTestApp(AppModule, SERVICE, (b) => b.overrideProvider(InternalHttpService).useValue(http));
+    app = await createTestApp(AppModule, SERVICE, (b) =>
+      b.overrideProvider(InternalHttpService).useValue(http),
+    );
     prisma = app.get(PrismaService);
     redis = app.get(REDIS);
   });
@@ -34,7 +41,10 @@ describe('auth-service (e2e)', () => {
 
   async function otpLogin(phone: string) {
     const req = await api().post('/api/v1/auth/otp/request').send({ phone }).expect(200);
-    return api().post('/api/v1/auth/otp/verify').send({ phone, code: req.body.devCode }).expect(200);
+    return api()
+      .post('/api/v1/auth/otp/verify')
+      .send({ phone, code: req.body.devCode })
+      .expect(200);
   }
 
   it('signs up a new customer with phone OTP and sends the code by SMS', async () => {
@@ -42,12 +52,19 @@ describe('auth-service (e2e)', () => {
 
     expect(res.body.isNewUser).toBe(true);
     expect(res.body.user).toMatchObject({ phone: '+919876543210', roles: ['CUSTOMER'] });
-    expect(res.body.tokens).toMatchObject({ tokenType: 'Bearer', accessToken: expect.any(String), refreshToken: expect.any(String) });
+    expect(res.body.tokens).toMatchObject({
+      tokenType: 'Bearer',
+      accessToken: expect.any(String),
+      refreshToken: expect.any(String),
+    });
     const sms = http.callsTo('notification', 'internal/notifications/sms');
     expect(sms).toHaveLength(1);
     expect(sms[0]!.body).toMatchObject({ phone: '+919876543210', templateKey: 'auth.otp' });
 
-    const me = await api().get('/api/v1/auth/me').set('Authorization', `Bearer ${res.body.tokens.accessToken}`).expect(200);
+    const me = await api()
+      .get('/api/v1/auth/me')
+      .set('Authorization', `Bearer ${res.body.tokens.accessToken}`)
+      .expect(200);
     expect(me.body.id).toBe(res.body.user.id);
     // second login is not a sign-up
     await redis.flushdb();
@@ -59,17 +76,27 @@ describe('auth-service (e2e)', () => {
     const { body } = await api().post('/api/v1/auth/otp/request').send({ phone }).expect(200);
     const wrong = body.devCode === '000000' ? '111111' : '000000';
 
-    const first = await api().post('/api/v1/auth/otp/verify').send({ phone, code: wrong }).expect(400);
+    const first = await api()
+      .post('/api/v1/auth/otp/verify')
+      .send({ phone, code: wrong })
+      .expect(400);
     expect(first.body).toMatchObject({ code: 'OTP_INVALID', details: { remainingAttempts: 4 } });
-    for (let i = 0; i < 4; i++) await api().post('/api/v1/auth/otp/verify').send({ phone, code: wrong }).expect(400);
+    for (let i = 0; i < 4; i++)
+      await api().post('/api/v1/auth/otp/verify').send({ phone, code: wrong }).expect(400);
     // even the right code is refused once the challenge is locked
-    const locked = await api().post('/api/v1/auth/otp/verify').send({ phone, code: body.devCode }).expect(429);
+    const locked = await api()
+      .post('/api/v1/auth/otp/verify')
+      .send({ phone, code: body.devCode })
+      .expect(429);
     expect(locked.body.code).toBe('OTP_LOCKED');
   });
 
   it('enforces the resend cooldown', async () => {
     await api().post('/api/v1/auth/otp/request').send({ phone: '9000000002' }).expect(200);
-    const again = await api().post('/api/v1/auth/otp/request').send({ phone: '9000000002' }).expect(429);
+    const again = await api()
+      .post('/api/v1/auth/otp/request')
+      .send({ phone: '9000000002' })
+      .expect(429);
     expect(again.body.code).toBe('OTP_COOLDOWN');
   });
 
@@ -77,7 +104,10 @@ describe('auth-service (e2e)', () => {
     const login = await otpLogin('9000000003');
     const first = login.body.tokens.refreshToken as string;
 
-    const rotated = await api().post('/api/v1/auth/refresh').send({ refreshToken: first }).expect(200);
+    const rotated = await api()
+      .post('/api/v1/auth/refresh')
+      .send({ refreshToken: first })
+      .expect(200);
     const second = rotated.body.tokens.refreshToken as string;
     expect(second).not.toBe(first);
 
@@ -85,34 +115,68 @@ describe('auth-service (e2e)', () => {
     await api().post('/api/v1/auth/refresh').send({ refreshToken: first }).expect(200);
 
     // after the grace window, presenting the rotated token again is treated as theft
-    await prisma.refreshToken.updateMany({ where: { revokedReason: 'rotated' }, data: { revokedAt: new Date(Date.now() - 60_000) } });
-    const reused = await api().post('/api/v1/auth/refresh').send({ refreshToken: first }).expect(401);
+    await prisma.refreshToken.updateMany({
+      where: { revokedReason: 'rotated' },
+      data: { revokedAt: new Date(Date.now() - 60_000) },
+    });
+    const reused = await api()
+      .post('/api/v1/auth/refresh')
+      .send({ refreshToken: first })
+      .expect(401);
     expect(reused.body.code).toBe('REFRESH_REUSED');
 
     // every token in the family is now dead, and so are its access tokens
-    const afterReuse = await api().post('/api/v1/auth/refresh').send({ refreshToken: second }).expect(401);
+    const afterReuse = await api()
+      .post('/api/v1/auth/refresh')
+      .send({ refreshToken: second })
+      .expect(401);
     expect(afterReuse.body.code).toBe('REFRESH_REUSED');
-    const me = await api().get('/api/v1/auth/me').set('Authorization', `Bearer ${login.body.tokens.accessToken}`).expect(401);
+    const me = await api()
+      .get('/api/v1/auth/me')
+      .set('Authorization', `Bearer ${login.body.tokens.accessToken}`)
+      .expect(401);
     expect(me.body.code).toBe('SESSION_REVOKED');
   });
 
   it('logs staff in with a password and locks out after repeated failures', async () => {
-    await prisma.user.create({ data: { email: 'owner@test.dev', name: 'Owner', passwordHash: await bcrypt.hash('Correct#123', 4) } });
+    await prisma.user.create({
+      data: {
+        email: 'owner@test.dev',
+        name: 'Owner',
+        passwordHash: await bcrypt.hash('Correct#123', 4),
+      },
+    });
 
-    const ok = await api().post('/api/v1/auth/password').send({ email: 'Owner@Test.dev', password: 'Correct#123' }).expect(200);
+    const ok = await api()
+      .post('/api/v1/auth/password')
+      .send({ email: 'Owner@Test.dev', password: 'Correct#123' })
+      .expect(200);
     expect(ok.body.user.email).toBe('owner@test.dev');
 
     for (let i = 0; i < 5; i++) {
-      const bad = await api().post('/api/v1/auth/password').send({ email: 'owner@test.dev', password: 'wrong-password' }).expect(401);
+      const bad = await api()
+        .post('/api/v1/auth/password')
+        .send({ email: 'owner@test.dev', password: 'wrong-password' })
+        .expect(401);
       expect(bad.body.code).toBe('INVALID_CREDENTIALS');
     }
-    const locked = await api().post('/api/v1/auth/password').send({ email: 'owner@test.dev', password: 'Correct#123' }).expect(429);
+    const locked = await api()
+      .post('/api/v1/auth/password')
+      .send({ email: 'owner@test.dev', password: 'Correct#123' })
+      .expect(429);
     expect(locked.body.code).toBe('LOGIN_LOCKED');
   });
 
   it('validates request bodies with the platform error envelope', async () => {
-    const res = await api().post('/api/v1/auth/otp/verify').send({ phone: '9000000004', code: '12ab' }).expect(400);
-    expect(res.body).toMatchObject({ statusCode: 400, code: 'VALIDATION_FAILED', requestId: expect.any(String) });
+    const res = await api()
+      .post('/api/v1/auth/otp/verify')
+      .send({ phone: '9000000004', code: '12ab' })
+      .expect(400);
+    expect(res.body).toMatchObject({
+      statusCode: 400,
+      code: 'VALIDATION_FAILED',
+      requestId: expect.any(String),
+    });
     expect(res.body.details.errors).toEqual([expect.stringContaining('6 digits')]);
   });
 
@@ -128,8 +192,15 @@ describe('auth-service (e2e)', () => {
       .set('Authorization', `Bearer ${login.body.tokens.accessToken}`)
       .send({ userId })
       .expect(401);
-    const revoked = await api().post('/api/v1/internal/auth/revoke-user-sessions').set('x-service-token', issueServiceToken('user-service')).send({ userId }).expect(200);
+    const revoked = await api()
+      .post('/api/v1/internal/auth/revoke-user-sessions')
+      .set('x-service-token', issueServiceToken('user-service'))
+      .send({ userId })
+      .expect(200);
     expect(revoked.body.revoked).toBe(1);
-    await api().post('/api/v1/auth/refresh').send({ refreshToken: login.body.tokens.refreshToken }).expect(401);
+    await api()
+      .post('/api/v1/auth/refresh')
+      .send({ refreshToken: login.body.tokens.refreshToken })
+      .expect(401);
   });
 });

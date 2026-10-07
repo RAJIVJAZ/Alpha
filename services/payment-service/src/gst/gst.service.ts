@@ -2,7 +2,17 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '@foodgrid/database/nest';
 import { generateDocumentNumber, Prisma } from '@foodgrid/database';
 import type { InvoiceType } from '@foodgrid/database';
-import { computeGst, extractGst, isInterState, istMonthRange, normalizePage, paginate, round2, STATUTORY_RATES, sumMoney } from '@foodgrid/utils';
+import {
+  computeGst,
+  extractGst,
+  isInterState,
+  istMonthRange,
+  normalizePage,
+  paginate,
+  round2,
+  STATUTORY_RATES,
+  sumMoney,
+} from '@foodgrid/utils';
 import { InternalHttpService, resolveIstRange } from '@foodgrid/utils/server';
 
 type Tx = Prisma.TransactionClient;
@@ -38,10 +48,12 @@ export class GstService {
   ) {}
 
   async tenantInfo(tenantId: string): Promise<TenantTaxInfo | null> {
-    return this.internal.get<TenantTaxInfo>('user', `internal/tenants/${tenantId}`, { timeoutMs: 2000 }).catch((err: Error) => {
-      this.logger.warn(`tenant ${tenantId} lookup failed: ${err.message}`);
-      return null;
-    });
+    return this.internal
+      .get<TenantTaxInfo>('user', `internal/tenants/${tenantId}`, { timeoutMs: 2000 })
+      .catch((err: Error) => {
+        this.logger.warn(`tenant ${tenantId} lookup failed: ${err.message}`);
+        return null;
+      });
   }
 
   async issue(
@@ -58,7 +70,9 @@ export class GstService {
       prefix: string;
     },
   ) {
-    const existing = await tx.gstInvoice.findFirst({ where: { type: input.type, referenceId: input.referenceId } });
+    const existing = await tx.gstInvoice.findFirst({
+      where: { type: input.type, referenceId: input.referenceId },
+    });
     if (existing) return existing;
     const placeOfSupply = input.recipient.stateCode ?? input.supplier.stateCode;
     const inter = isInterState(input.supplier.stateCode, placeOfSupply);
@@ -89,7 +103,13 @@ export class GstService {
   /** Invoices for a delivered consumer order (platform is the deemed supplier). */
   async invoiceCustomerOrder(
     tx: Tx,
-    o: { orderId: string; tenantId: string; customerName: string | null; foodTaxable: number; serviceTaxable: number },
+    o: {
+      orderId: string;
+      tenantId: string;
+      customerName: string | null;
+      foodTaxable: number;
+      serviceTaxable: number;
+    },
   ) {
     const recipient = { name: o.customerName, gstin: null, stateCode: PLATFORM.stateCode };
     if (o.foodTaxable > 0) {
@@ -151,10 +171,21 @@ export class GstService {
     };
   }
 
-  async invoices(q: { from?: string; to?: string; type?: InvoiceType; tenantId?: string; page?: number; pageSize?: number }) {
+  async invoices(q: {
+    from?: string;
+    to?: string;
+    type?: InvoiceType;
+    tenantId?: string;
+    page?: number;
+    pageSize?: number;
+  }) {
     const range = resolveIstRange(q);
     const { page, pageSize, skip, take } = normalizePage(q);
-    const where: Prisma.GstInvoiceWhereInput = { issuedAt: { gte: range.from, lte: range.to }, type: q.type, tenantId: q.tenantId };
+    const where: Prisma.GstInvoiceWhereInput = {
+      issuedAt: { gte: range.from, lte: range.to },
+      type: q.type,
+      tenantId: q.tenantId,
+    };
     const [rows, total] = await Promise.all([
       this.prisma.gstInvoice.findMany({ where, orderBy: { issuedAt: 'desc' }, skip, take }),
       this.prisma.gstInvoice.count({ where }),

@@ -94,7 +94,11 @@ export class RiderController {
   @Roles('RIDER')
   @Get('me/earnings')
   @ApiOperation({ summary: 'Earnings dashboard (by type and by day)' })
-  earningsSummary(@CurrentUser('sub') userId: string, @Query('from') from?: string, @Query('to') to?: string) {
+  earningsSummary(
+    @CurrentUser('sub') userId: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
     return this.earnings.summary(userId, { from, to });
   }
 
@@ -130,7 +134,11 @@ export class DeliveriesController {
 
   @Post('offers/:offerId/reject')
   @HttpCode(200)
-  reject(@CurrentUser('sub') userId: string, @Param('offerId') offerId: string, @Body() dto: RejectOfferDto) {
+  reject(
+    @CurrentUser('sub') userId: string,
+    @Param('offerId') offerId: string,
+    @Body() dto: RejectOfferDto,
+  ) {
     return this.dispatch.reject(userId, offerId, dto.reason);
   }
 
@@ -159,14 +167,24 @@ export class DeliveriesController {
 
   @Post(':id/complete')
   @HttpCode(200)
-  @ApiOperation({ summary: 'Complete with customer OTP or photo proof (upload via /media/presign)' })
-  async complete(@CurrentUser('sub') userId: string, @Param('id') id: string, @Body() dto: CompleteDeliveryDto) {
+  @ApiOperation({
+    summary: 'Complete with customer OTP or photo proof (upload via /media/presign)',
+  })
+  async complete(
+    @CurrentUser('sub') userId: string,
+    @Param('id') id: string,
+    @Body() dto: CompleteDeliveryDto,
+  ) {
     return riderView(await this.deliveries.complete(userId, id, dto));
   }
 
   @Post(':id/fail')
   @HttpCode(200)
-  async fail(@CurrentUser('sub') userId: string, @Param('id') id: string, @Body() dto: FailDeliveryDto) {
+  async fail(
+    @CurrentUser('sub') userId: string,
+    @Param('id') id: string,
+    @Body() dto: FailDeliveryDto,
+  ) {
     return riderView(await this.deliveries.fail(userId, id, dto));
   }
 }

@@ -51,7 +51,11 @@ export class OrderEventHandlers {
       await this.lifecycle.transition(order.id, 'PLACED', {
         actorType: 'SYSTEM',
         note: 'Payment received',
-        data: { paymentStatus: 'PAID', paymentId: p.paymentId, paymentMethod: p.method ?? order.paymentMethod },
+        data: {
+          paymentStatus: 'PAID',
+          paymentId: p.paymentId,
+          paymentMethod: p.method ?? order.paymentMethod,
+        },
       });
       return;
     }
@@ -64,7 +68,12 @@ export class OrderEventHandlers {
         include: { items: true, outlet: true },
       });
       if (['CANCELLED', 'REJECTED'].includes(updated.status)) {
-        await this.lifecycle.emit(tx, updated, updated.status, 'Payment received after cancellation');
+        await this.lifecycle.emit(
+          tx,
+          updated,
+          updated.status,
+          'Payment received after cancellation',
+        );
       }
     });
   }
@@ -92,7 +101,10 @@ export class OrderEventHandlers {
 
   @OnDomainEvent(EventTypes.DeliveryAssigned)
   async onAssigned(env: EventEnvelope<string, DeliveryEvent>) {
-    await this.prisma.order.updateMany({ where: { id: env.data.orderId }, data: { riderId: env.data.riderId } });
+    await this.prisma.order.updateMany({
+      where: { id: env.data.orderId },
+      data: { riderId: env.data.riderId },
+    });
   }
 
   @OnDomainEvent(EventTypes.DeliveryPickedUp)
@@ -100,7 +112,10 @@ export class OrderEventHandlers {
     const order = await this.prisma.order.findUnique({ where: { id: env.data.orderId } });
     if (!order) return;
     if (['ACCEPTED', 'PREPARING'].includes(order.status)) {
-      await this.lifecycle.transition(order.id, 'READY', { actorType: 'SYSTEM', note: 'Picked up by rider' });
+      await this.lifecycle.transition(order.id, 'READY', {
+        actorType: 'SYSTEM',
+        note: 'Picked up by rider',
+      });
     }
     if (['ACCEPTED', 'PREPARING', 'READY'].includes(order.status)) {
       await this.lifecycle.transition(order.id, 'OUT_FOR_DELIVERY', {
@@ -116,7 +131,10 @@ export class OrderEventHandlers {
     const order = await this.prisma.order.findUnique({ where: { id: env.data.orderId } });
     if (!order || order.status === 'DELIVERED') return;
     if (order.status === 'READY') {
-      await this.lifecycle.transition(order.id, 'OUT_FOR_DELIVERY', { actorType: 'RIDER', actorId: env.data.riderId });
+      await this.lifecycle.transition(order.id, 'OUT_FOR_DELIVERY', {
+        actorType: 'RIDER',
+        actorId: env.data.riderId,
+      });
     }
     await this.lifecycle.transition(order.id, 'DELIVERED', {
       actorType: 'RIDER',
@@ -134,7 +152,8 @@ export class OrderEventHandlers {
   @OnDomainEvent(EventTypes.DeliveryFailed)
   async onDeliveryFailed(env: EventEnvelope<string, DeliveryEvent & { reason?: string }>) {
     const order = await this.prisma.order.findUnique({ where: { id: env.data.orderId } });
-    if (!order || ['DELIVERED', 'CANCELLED', 'REJECTED', 'COMPLETED'].includes(order.status)) return;
+    if (!order || ['DELIVERED', 'CANCELLED', 'REJECTED', 'COMPLETED'].includes(order.status))
+      return;
     await this.lifecycle.transition(order.id, 'CANCELLED', {
       actorType: 'SYSTEM',
       note: env.data.reason ?? 'Delivery could not be completed',
@@ -161,7 +180,10 @@ export class OrderEventHandlers {
         data: { status: 'SUSPENDED', isOpen: false },
       });
     } else if (t.status === 'ACTIVE') {
-      await this.prisma.outlet.updateMany({ where: { tenantId: t.tenantId, status: 'SUSPENDED' }, data: { status: 'PAUSED' } });
+      await this.prisma.outlet.updateMany({
+        where: { tenantId: t.tenantId, status: 'SUSPENDED' },
+        data: { status: 'PAUSED' },
+      });
     }
   }
 }

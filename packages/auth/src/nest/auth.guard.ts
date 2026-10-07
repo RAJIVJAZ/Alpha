@@ -36,7 +36,9 @@ export class AuthGuard implements CanActivate {
     private readonly reflector: Reflector,
     private readonly tokens: AccessTokenService,
     @Inject(AUTH_MODULE_OPTIONS) private readonly options: AuthModuleOptions,
-    @Optional() @Inject(SESSION_REVOCATION_CHECKER) private readonly revocation?: SessionRevocationChecker,
+    @Optional()
+    @Inject(SESSION_REVOCATION_CHECKER)
+    private readonly revocation?: SessionRevocationChecker,
   ) {}
 
   private meta<T>(key: string, ctx: ExecutionContext): T | undefined {
@@ -85,7 +87,10 @@ export class AuthGuard implements CanActivate {
     } catch (err) {
       if (isPublic) return true;
       const reason = err instanceof TokenError ? err.reason : 'invalid';
-      throw new UnauthorizedException({ message: 'Invalid access token', code: `TOKEN_${reason.toUpperCase()}` });
+      throw new UnauthorizedException({
+        message: 'Invalid access token',
+        code: `TOKEN_${reason.toUpperCase()}`,
+      });
     }
 
     if (this.revocation && req.user.sid && (await this.revocation.isRevoked(req.user.sid))) {
@@ -103,15 +108,26 @@ export class AuthGuard implements CanActivate {
 
     const tenantTypes = this.meta<TenantType[]>(TENANT_TYPES_KEY, ctx);
     if (tenantTypes) {
-      if (!user.tenantId) throw new ForbiddenException({ message: 'Select a business first', code: 'TENANT_REQUIRED' });
+      if (!user.tenantId)
+        throw new ForbiddenException({
+          message: 'Select a business first',
+          code: 'TENANT_REQUIRED',
+        });
       if (tenantTypes.length && (!user.tenantType || !tenantTypes.includes(user.tenantType))) {
-        throw new ForbiddenException({ message: 'Not available for this business type', code: 'TENANT_TYPE_MISMATCH' });
+        throw new ForbiddenException({
+          message: 'Not available for this business type',
+          code: 'TENANT_TYPE_MISMATCH',
+        });
       }
     }
 
     const permissions = this.meta<Permission[]>(PERMISSIONS_KEY, ctx);
     if (permissions?.length && !hasPermission(user, ...permissions)) {
-      throw new ForbiddenException({ message: 'Missing permission', code: 'PERMISSION_DENIED', details: permissions });
+      throw new ForbiddenException({
+        message: 'Missing permission',
+        code: 'PERMISSION_DENIED',
+        details: permissions,
+      });
     }
     return true;
   }

@@ -2,7 +2,15 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@foodgrid/database/nest';
 import type { CampaignStatus, Prisma } from '@foodgrid/database';
 import type { AccessTokenClaims } from '@foodgrid/types';
-import { badRequest, conflict, dateOnly, enumLabel, istDate, notFound, round2 } from '@foodgrid/utils';
+import {
+  badRequest,
+  conflict,
+  dateOnly,
+  enumLabel,
+  istDate,
+  notFound,
+  round2,
+} from '@foodgrid/utils';
 import { InternalHttpService } from '@foodgrid/utils/server';
 import { CampaignDto, UpdateCampaignDto } from './dto/campaign.dto';
 
@@ -14,8 +22,10 @@ export class CampaignsService {
   ) {}
 
   private validate(dto: Partial<CampaignDto>) {
-    if (dto.dailyBudget && dto.totalBudget && dto.dailyBudget > dto.totalBudget) throw badRequest('Daily budget exceeds total budget', 'INVALID_BUDGET');
-    if (dto.endsAt && dto.startsAt && new Date(dto.endsAt) <= new Date(dto.startsAt)) throw badRequest('End must be after start', 'INVALID_DATES');
+    if (dto.dailyBudget && dto.totalBudget && dto.dailyBudget > dto.totalBudget)
+      throw badRequest('Daily budget exceeds total budget', 'INVALID_BUDGET');
+    if (dto.endsAt && dto.startsAt && new Date(dto.endsAt) <= new Date(dto.startsAt))
+      throw badRequest('End must be after start', 'INVALID_DATES');
   }
 
   list(tenantId: string) {
@@ -25,14 +35,25 @@ export class CampaignsService {
   create(user: AccessTokenClaims, dto: CampaignDto) {
     this.validate(dto);
     return this.prisma.forTenant(user.tenantId!).adCampaign.create({
-      data: { ...dto, tenantId: user.tenantId!, startsAt: new Date(dto.startsAt), endsAt: dto.endsAt ? new Date(dto.endsAt) : null, creative: (dto.creative ?? {}) as Prisma.InputJsonValue },
+      data: {
+        ...dto,
+        tenantId: user.tenantId!,
+        startsAt: new Date(dto.startsAt),
+        endsAt: dto.endsAt ? new Date(dto.endsAt) : null,
+        creative: (dto.creative ?? {}) as Prisma.InputJsonValue,
+      },
     });
   }
 
   async update(user: AccessTokenClaims, id: string, dto: UpdateCampaignDto) {
     const c = await this.owned(user.tenantId!, id);
-    if (!['DRAFT', 'PAUSED', 'REJECTED'].includes(c.status)) throw conflict('Pause the campaign before editing', 'CAMPAIGN_LIVE');
-    this.validate({ ...dto, totalBudget: dto.totalBudget ?? Number(c.totalBudget), dailyBudget: dto.dailyBudget ?? Number(c.dailyBudget) });
+    if (!['DRAFT', 'PAUSED', 'REJECTED'].includes(c.status))
+      throw conflict('Pause the campaign before editing', 'CAMPAIGN_LIVE');
+    this.validate({
+      ...dto,
+      totalBudget: dto.totalBudget ?? Number(c.totalBudget),
+      dailyBudget: dto.dailyBudget ?? Number(c.dailyBudget),
+    });
     return this.prisma.adCampaign.update({
       where: { id },
       data: {
@@ -60,23 +81,45 @@ export class CampaignsService {
       tenantId: c.tenantId,
       title: `Ad campaign: ${c.name} (${enumLabel(c.placement)}, ₹${Number(c.totalBudget)})`,
       submittedBy: user.sub,
-      metadata: { placement: c.placement, targetType: c.targetType, targetId: c.targetId, creative: c.creative },
+      metadata: {
+        placement: c.placement,
+        targetType: c.targetType,
+        targetId: c.targetId,
+        creative: c.creative,
+      },
     });
     return this.prisma.adCampaign.update({ where: { id }, data: { status: 'PENDING_REVIEW' } });
   }
 
-  async setStatus(user: AccessTokenClaims, id: string, status: Extract<CampaignStatus, 'ACTIVE' | 'PAUSED'>) {
+  async setStatus(
+    user: AccessTokenClaims,
+    id: string,
+    status: Extract<CampaignStatus, 'ACTIVE' | 'PAUSED'>,
+  ) {
     const c = await this.owned(user.tenantId!, id);
     const allowed = status === 'PAUSED' ? ['ACTIVE'] : ['PAUSED'];
-    if (!allowed.includes(c.status)) throw conflict(`Cannot ${status === 'PAUSED' ? 'pause' : 'resume'} a ${c.status.toLowerCase()} campaign`, 'CAMPAIGN_STATE');
+    if (!allowed.includes(c.status))
+      throw conflict(
+        `Cannot ${status === 'PAUSED' ? 'pause' : 'resume'} a ${c.status.toLowerCase()} campaign`,
+        'CAMPAIGN_STATE',
+      );
     return this.prisma.adCampaign.update({ where: { id }, data: { status } });
   }
 
   async stats(tenantId: string, id: string) {
     const c = await this.owned(tenantId, id);
-    const daily = await this.prisma.adDailyStats.findMany({ where: { campaignId: id }, orderBy: { date: 'asc' } });
+    const daily = await this.prisma.adDailyStats.findMany({
+      where: { campaignId: id },
+      orderBy: { date: 'asc' },
+    });
     const t = daily.reduce(
-      (a, d) => ({ impressions: a.impressions + d.impressions, clicks: a.clicks + d.clicks, conversions: a.conversions + d.conversions, spend: a.spend + Number(d.spend), revenue: a.revenue + Number(d.revenue) }),
+      (a, d) => ({
+        impressions: a.impressions + d.impressions,
+        clicks: a.clicks + d.clicks,
+        conversions: a.conversions + d.conversions,
+        spend: a.spend + Number(d.spend),
+        revenue: a.revenue + Number(d.revenue),
+      }),
       { impressions: 0, clicks: 0, conversions: 0, spend: 0, revenue: 0 },
     );
     return {
@@ -96,7 +139,11 @@ export class CampaignsService {
 
   /** Admin review queue and decision (also reachable via the central approval queue). */
   adminList(status?: CampaignStatus) {
-    return this.prisma.adCampaign.findMany({ where: status ? { status } : {}, orderBy: { createdAt: 'desc' }, take: 200 });
+    return this.prisma.adCampaign.findMany({
+      where: status ? { status } : {},
+      orderBy: { createdAt: 'desc' },
+      take: 200,
+    });
   }
 
   async decide(id: string, approved: boolean, reviewerId: string, notes?: string | null) {
@@ -104,7 +151,12 @@ export class CampaignsService {
     if (!c || c.status !== 'PENDING_REVIEW') return c;
     return this.prisma.adCampaign.update({
       where: { id },
-      data: { status: approved ? 'ACTIVE' : 'REJECTED', reviewedBy: reviewerId, reviewNotes: notes, spentTodayDate: dateOnly(istDate()) },
+      data: {
+        status: approved ? 'ACTIVE' : 'REJECTED',
+        reviewedBy: reviewerId,
+        reviewNotes: notes,
+        spentTodayDate: dateOnly(istDate()),
+      },
     });
   }
 }

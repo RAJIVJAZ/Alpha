@@ -30,7 +30,10 @@ export class ProcurementJobsService {
   }
 
   async runAll() {
-    const pairs = await this.internal.get<{ tenantId: string; outletId: string }[]>('inventory', 'internal/inventory/tenants');
+    const pairs = await this.internal.get<{ tenantId: string; outletId: string }[]>(
+      'inventory',
+      'internal/inventory/tenants',
+    );
     const tenants = [...new Set(pairs.map((p) => p.tenantId))];
     for (const tenantId of tenants) {
       try {
@@ -38,7 +41,9 @@ export class ProcurementJobsService {
         const a = await this.alerts.scan(tenantId);
         const s = await this.settings.get(tenantId);
         const po = s.autoPoEnabled ? await this.pos.autoCreate(tenantId, null) : null;
-        this.logger.log(`tenant ${tenantId}: ${f.forecasted} forecasts, ${a.opened} new alerts, ${po?.created.length ?? 0} POs`);
+        this.logger.log(
+          `tenant ${tenantId}: ${f.forecasted} forecasts, ${a.opened} new alerts, ${po?.created.length ?? 0} POs`,
+        );
       } catch (err) {
         this.logger.error(`procurement cycle failed for ${tenantId}: ${(err as Error).message}`);
       }

@@ -9,6 +9,7 @@ export const SUBSCRIBED_STREAMS: EventStream[] = ['order', 'identity'];
 export const SERVICE: ServiceBootstrapOptions = {
   name: SERVICE_NAME,
   title: 'FoodGrid Ads Service',
-  description: 'Sponsored listings: campaigns, auctions, budget pacing, impression/click/conversion tracking.',
+  description:
+    'Sponsored listings: campaigns, auctions, budget pacing, impression/click/conversion tracking.',
   defaultPort: 4010,
 };

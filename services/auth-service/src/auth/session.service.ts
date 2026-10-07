@@ -43,7 +43,11 @@ export class SessionService {
     });
   }
 
-  toSessionUser(user: User, memberships: MembershipWithTenant[], activeTenantId?: string | null): SessionUser {
+  toSessionUser(
+    user: User,
+    memberships: MembershipWithTenant[],
+    activeTenantId?: string | null,
+  ): SessionUser {
     return {
       id: user.id,
       name: user.name,
@@ -63,7 +67,11 @@ export class SessionService {
     };
   }
 
-  buildClaims(user: User, sid: string, membership?: MembershipWithTenant | null): Omit<AccessTokenClaims, 'iat' | 'exp'> {
+  buildClaims(
+    user: User,
+    sid: string,
+    membership?: MembershipWithTenant | null,
+  ): Omit<AccessTokenClaims, 'iat' | 'exp'> {
     return {
       sub: user.id,
       sid,
@@ -83,7 +91,8 @@ export class SessionService {
 
   /** Starts a new session (refresh-token family) after a successful login. */
   async startSession(user: User, meta: ClientMeta, preferredTenantId?: string | null) {
-    if (user.status !== 'ACTIVE') throw new AppError('ACCOUNT_BLOCKED', 'This account is not active', 403);
+    if (user.status !== 'ACTIVE')
+      throw new AppError('ACCOUNT_BLOCKED', 'This account is not active', 403);
     const memberships = await this.memberships(user.id);
     // Auto-select the business when the user belongs to exactly one.
     const active =
@@ -127,21 +136,27 @@ export class SessionService {
 
     if (current.revokedAt) {
       const withinGrace =
-        current.revokedReason === 'rotated' && Date.now() - current.revokedAt.getTime() < ROTATION_GRACE_MS;
+        current.revokedReason === 'rotated' &&
+        Date.now() - current.revokedAt.getTime() < ROTATION_GRACE_MS;
       if (!withinGrace) {
         await this.revokeFamily(current.familyId, 'reuse-detected');
-        this.logger.warn(`Refresh token reuse detected for user ${current.userId}, family ${current.familyId}`);
+        this.logger.warn(
+          `Refresh token reuse detected for user ${current.userId}, family ${current.familyId}`,
+        );
         throw new AppError('REFRESH_REUSED', 'Session expired, please log in again', 401);
       }
     }
-    if (current.expiresAt < new Date()) throw new AppError('REFRESH_EXPIRED', 'Session expired', 401);
+    if (current.expiresAt < new Date())
+      throw new AppError('REFRESH_EXPIRED', 'Session expired', 401);
     if (current.user.status !== 'ACTIVE') {
       await this.revokeFamily(current.familyId, 'account-inactive');
       throw new AppError('ACCOUNT_BLOCKED', 'This account is not active', 403);
     }
 
     const memberships = await this.memberships(current.userId);
-    const active = current.tenantId ? memberships.find((m) => m.tenantId === current.tenantId) : undefined;
+    const active = current.tenantId
+      ? memberships.find((m) => m.tenantId === current.tenantId)
+      : undefined;
 
     const nextRaw = randomToken(48);
     await this.prisma.$transaction(async (tx) => {
@@ -205,7 +220,9 @@ export class SessionService {
   }
 
   async revokeByToken(rawToken: string) {
-    const token = await this.prisma.refreshToken.findUnique({ where: { tokenHash: sha256(rawToken) } });
+    const token = await this.prisma.refreshToken.findUnique({
+      where: { tokenHash: sha256(rawToken) },
+    });
     if (token) await this.revokeFamily(token.familyId, 'logout');
   }
 

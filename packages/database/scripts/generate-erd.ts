@@ -15,7 +15,10 @@ import path from 'node:path';
 import { getDMMF } from '@prisma/internals';
 
 type DMMF = Awaited<ReturnType<typeof getDMMF>>;
-type Model = DMMF['datamodel']['models'][number] & { schema?: string | null; documentation?: string };
+type Model = DMMF['datamodel']['models'][number] & {
+  schema?: string | null;
+  documentation?: string;
+};
 type Field = Model['fields'][number] & { documentation?: string };
 
 const root = path.resolve(__dirname, '../../..');
@@ -68,24 +71,34 @@ const LOGICAL_REF_OVERRIDES: Record<string, string> = {
   'notifications.campaignId': 'PushCampaign',
 };
 
-const mermaidType = (f: Field) => `${f.type}${f.isList ? '_list' : ''}`.replace(/[^A-Za-z0-9_]/g, '_');
+const mermaidType = (f: Field) =>
+  `${f.type}${f.isList ? '_list' : ''}`.replace(/[^A-Za-z0-9_]/g, '_');
 const esc = (s: string) => s.replace(/\|/g, '\\|').replace(/\n/g, ' ');
 
 function defaultOf(f: Field): string {
   const d = (f as { default?: unknown }).default;
   if (d === undefined) return '';
-  if (typeof d === 'object' && d !== null && 'name' in d) return `${(d as { name: string }).name}()`;
+  if (typeof d === 'object' && d !== null && 'name' in d)
+    return `${(d as { name: string }).name}()`;
   return Array.isArray(d) ? `[${d.join(', ')}]` : String(d);
 }
 
 async function main() {
   const files = readdirSync(schemaDir)
     .filter((f) => f.endsWith('.prisma'))
-    .map((f) => [path.join(schemaDir, f), readFileSync(path.join(schemaDir, f), 'utf8')] as [string, string]);
+    .map(
+      (f) =>
+        [path.join(schemaDir, f), readFileSync(path.join(schemaDir, f), 'utf8')] as [
+          string,
+          string,
+        ],
+    );
   const dmmf = await getDMMF({ datamodel: files });
   const models = dmmf.datamodel.models as Model[];
   const contextOf = new Map(models.map((m) => [m.name, m.schema ?? 'public']));
-  const contexts = [...new Set(models.map((m) => m.schema ?? 'public'))].sort((a, b) => Object.keys(OWNERS).indexOf(a) - Object.keys(OWNERS).indexOf(b));
+  const contexts = [...new Set(models.map((m) => m.schema ?? 'public'))].sort(
+    (a, b) => Object.keys(OWNERS).indexOf(a) - Object.keys(OWNERS).indexOf(b),
+  );
   const enumNames = new Set(dmmf.datamodel.enums.map((e) => e.name));
   mkdirSync(outDir, { recursive: true });
 
@@ -93,13 +106,25 @@ async function main() {
   const edges = new Map<string, Set<string>>();
   const logicalRefs = new Map<string, { field: string; target: string }[]>();
   for (const m of models) {
-    const fkFields = new Set(m.fields.flatMap((f) => (f.relationFromFields as string[] | undefined) ?? []));
+    const fkFields = new Set(
+      m.fields.flatMap((f) => (f.relationFromFields as string[] | undefined) ?? []),
+    );
     for (const f of m.fields) {
       const target = LOGICAL_REF_OVERRIDES[`${m.schema}.${f.name}`] ?? LOGICAL_REFS[f.name];
-      if (f.kind !== 'scalar' || !target || fkFields.has(f.name) || target === m.name || !contextOf.has(target)) continue;
+      if (
+        f.kind !== 'scalar' ||
+        !target ||
+        fkFields.has(f.name) ||
+        target === m.name ||
+        !contextOf.has(target)
+      )
+        continue;
       const from = contextOf.get(m.name)!;
       const to = contextOf.get(target)!;
-      logicalRefs.set(m.name, [...(logicalRefs.get(m.name) ?? []), { field: f.name, target: `${to}.${target}` }]);
+      logicalRefs.set(m.name, [
+        ...(logicalRefs.get(m.name) ?? []),
+        { field: f.name, target: `${to}.${target}` },
+      ]);
       if (from === to) continue;
       const key = `${from}|${to}`;
       edges.set(key, (edges.get(key) ?? new Set()).add(f.name));
@@ -116,7 +141,10 @@ async function main() {
     '',
     '| Context (schema) | Owner | Models |',
     '| --- | --- | ---: |',
-    ...contexts.map((c) => `| [${c}](./${c}.md) | ${OWNERS[c] ?? ''} | ${models.filter((m) => (m.schema ?? 'public') === c).length} |`),
+    ...contexts.map(
+      (c) =>
+        `| [${c}](./${c}.md) | ${OWNERS[c] ?? ''} | ${models.filter((m) => (m.schema ?? 'public') === c).length} |`,
+    ),
     '',
     '## Context map',
     '',
@@ -136,7 +164,9 @@ async function main() {
 
   // ── per context ───────────────────────────────────────────────────────────
   for (const ctx of contexts) {
-    const inCtx = models.filter((m) => (m.schema ?? 'public') === ctx).sort((a, b) => a.name.localeCompare(b.name));
+    const inCtx = models
+      .filter((m) => (m.schema ?? 'public') === ctx)
+      .sort((a, b) => a.name.localeCompare(b.name));
     const lines: string[] = [
       `# \`${ctx}\` schema`,
       '',
@@ -149,21 +179,31 @@ async function main() {
     ];
     const rels = new Set<string>();
     for (const m of inCtx) {
-      const fkFields = new Set(m.fields.flatMap((f) => (f.relationFromFields as string[] | undefined) ?? []));
+      const fkFields = new Set(
+        m.fields.flatMap((f) => (f.relationFromFields as string[] | undefined) ?? []),
+      );
       const uniques = new Set(m.fields.filter((f) => f.isUnique).map((f) => f.name));
       lines.push(`  ${m.name} {`);
       for (const f of m.fields) {
         if (f.kind === 'object') continue;
-        const keys = [f.isId || m.primaryKey?.fields.includes(f.name) ? 'PK' : '', fkFields.has(f.name) ? 'FK' : '', uniques.has(f.name) ? 'UK' : ''].filter(Boolean);
+        const keys = [
+          f.isId || m.primaryKey?.fields.includes(f.name) ? 'PK' : '',
+          fkFields.has(f.name) ? 'FK' : '',
+          uniques.has(f.name) ? 'UK' : '',
+        ].filter(Boolean);
         const logical = logicalRefs.get(m.name)?.find((r) => r.field === f.name);
         if (!keys.length && !logical) continue;
-        lines.push(`    ${mermaidType(f)} ${f.name}${keys.length ? ` ${keys.join(', ')}` : ''}${logical && !keys.includes('FK') ? ` "-> ${logical.target}"` : ''}`);
+        lines.push(
+          `    ${mermaidType(f)} ${f.name}${keys.length ? ` ${keys.join(', ')}` : ''}${logical && !keys.includes('FK') ? ` "-> ${logical.target}"` : ''}`,
+        );
       }
       lines.push('  }');
       for (const f of m.fields) {
         if (f.kind !== 'object' || !f.relationFromFields?.length) continue;
         const target = models.find((x) => x.name === f.type)!;
-        const back = target.fields.find((x) => x.relationName === f.relationName && x.type === m.name && x !== f);
+        const back = target.fields.find(
+          (x) => x.relationName === f.relationName && x.type === m.name && x !== f,
+        );
         const many = back?.isList ?? true;
         const childOptional = !f.isRequired;
         const card = `${childOptional ? '|o' : '||'}--${many ? 'o{' : 'o|'}`;
@@ -175,20 +215,31 @@ async function main() {
     for (const m of inCtx) {
       lines.push(`## ${m.name}`, '');
       if (m.documentation) lines.push(m.documentation, '');
-      lines.push(`Table \`${ctx}."${m.dbName ?? m.name}"\``, '', '| Column | Type | Null | Default | Notes |', '| --- | --- | :---: | --- | --- |');
+      lines.push(
+        `Table \`${ctx}."${m.dbName ?? m.name}"\``,
+        '',
+        '| Column | Type | Null | Default | Notes |',
+        '| --- | --- | :---: | --- | --- |',
+      );
       for (const f of m.fields) {
         if (f.kind === 'object') continue;
         const type = `${enumNames.has(f.type) ? `enum ${f.type}` : f.type}${f.isList ? '[]' : ''}`;
         const notes = [
           f.isId ? 'PK' : '',
           f.isUnique ? 'unique' : '',
-          logicalRefs.get(m.name)?.find((r) => r.field === f.name) ? `→ ${logicalRefs.get(m.name)!.find((r) => r.field === f.name)!.target}` : '',
+          logicalRefs.get(m.name)?.find((r) => r.field === f.name)
+            ? `→ ${logicalRefs.get(m.name)!.find((r) => r.field === f.name)!.target}`
+            : '',
           (f as Field).documentation ?? '',
         ].filter(Boolean);
-        lines.push(`| \`${f.name}\` | ${type} | ${f.isRequired ? '' : '✓'} | ${esc(defaultOf(f as Field))} | ${esc(notes.join('; '))} |`);
+        lines.push(
+          `| \`${f.name}\` | ${type} | ${f.isRequired ? '' : '✓'} | ${esc(defaultOf(f as Field))} | ${esc(notes.join('; '))} |`,
+        );
       }
       const indexes = [
-        ...(m.primaryKey && m.primaryKey.fields.length > 1 ? [`primary key (${m.primaryKey.fields.join(', ')})`] : []),
+        ...(m.primaryKey && m.primaryKey.fields.length > 1
+          ? [`primary key (${m.primaryKey.fields.join(', ')})`]
+          : []),
         ...m.uniqueFields.map((u) => `unique (${u.join(', ')})`),
       ];
       if (indexes.length) lines.push('', `Constraints: ${indexes.join('; ')}`);
@@ -196,7 +247,9 @@ async function main() {
     }
     writeFileSync(path.join(outDir, `${ctx}.md`), lines.join('\n'));
   }
-  console.log(`ERD for ${models.length} models in ${contexts.length} contexts written to ${path.relative(root, outDir)}/`);
+  console.log(
+    `ERD for ${models.length} models in ${contexts.length} contexts written to ${path.relative(root, outDir)}/`,
+  );
 }
 
 main().catch((err) => {

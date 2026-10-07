@@ -14,9 +14,13 @@ export class ReviewsService {
   ) {}
 
   async create(userId: string, orderId: string, dto: ReviewDto) {
-    const order = await this.prisma.order.findUnique({ where: { id: orderId }, include: { review: true } });
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: { review: true },
+    });
     if (!order || order.customerId !== userId) throw notFound('Order', orderId);
-    if (!['DELIVERED', 'COMPLETED'].includes(order.status)) throw conflict('You can review once the order is delivered', 'NOT_DELIVERED');
+    if (!['DELIVERED', 'COMPLETED'].includes(order.status))
+      throw conflict('You can review once the order is delivered', 'NOT_DELIVERED');
     if (order.review) throw conflict('You have already reviewed this order', 'ALREADY_REVIEWED');
 
     return this.prisma.$transaction(async (tx) => {
@@ -65,12 +69,22 @@ export class ReviewsService {
     const p = normalizePage({ page, pageSize });
     const where = { outletId, status: 'PUBLISHED' as const };
     const [rows, total, distribution] = await Promise.all([
-      this.prisma.review.findMany({ where, orderBy: { createdAt: 'desc' }, skip: p.skip, take: p.take }),
+      this.prisma.review.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: p.skip,
+        take: p.take,
+      }),
       this.prisma.review.count({ where }),
       this.prisma.review.groupBy({ by: ['rating'], where, _count: { _all: true } }),
     ]);
     return {
-      ...paginate(rows.map(({ customerId: _c, ...r }) => r), total, p.page, p.pageSize),
+      ...paginate(
+        rows.map(({ customerId: _c, ...r }) => r),
+        total,
+        p.page,
+        p.pageSize,
+      ),
       distribution: Object.fromEntries(distribution.map((d) => [d.rating, d._count._all])),
     };
   }
@@ -80,7 +94,13 @@ export class ReviewsService {
     const where = { ...outletScope(user, outletId) };
     const db = this.prisma.forTenant(user.tenantId!);
     const [rows, total] = await Promise.all([
-      db.review.findMany({ where, orderBy: { createdAt: 'desc' }, skip: p.skip, take: p.take, include: { order: { select: { orderNumber: true } } } }),
+      db.review.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: p.skip,
+        take: p.take,
+        include: { order: { select: { orderNumber: true } } },
+      }),
       db.review.count({ where }),
     ]);
     return paginate(rows, total, p.page, p.pageSize);

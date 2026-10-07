@@ -35,10 +35,17 @@ export class ProcurementEventHandlers {
     const settings = await this.settings.get(s.tenantId);
     if (!settings.autoPoEnabled) return;
     const open = await this.alerts.list(s.tenantId, { status: 'OPEN', outletId: s.outletId });
-    const urgent = open.filter((a) => a.ingredientId === s.ingredientId && (a.severity === 'CRITICAL' || a.severity === 'HIGH'));
+    const urgent = open.filter(
+      (a) =>
+        a.ingredientId === s.ingredientId && (a.severity === 'CRITICAL' || a.severity === 'HIGH'),
+    );
     if (urgent.length) {
-      const res = await this.pos.autoCreate(s.tenantId, null, { alertIds: urgent.map((a) => a.id) });
-      this.logger.log(`Auto-PO for ${s.ingredientName}: ${res.created.length} PO(s), ${res.skipped.length} skipped`);
+      const res = await this.pos.autoCreate(s.tenantId, null, {
+        alertIds: urgent.map((a) => a.id),
+      });
+      this.logger.log(
+        `Auto-PO for ${s.ingredientName}: ${res.created.length} PO(s), ${res.skipped.length} skipped`,
+      );
     }
   }
 
@@ -54,7 +61,11 @@ export class ProcurementEventHandlers {
     const e = env.data;
     if (!e.sourcePurchaseOrderId) return;
     const status: PurchaseOrderStatus =
-      env.type === EventTypes.B2bOrderConfirmed ? (e.status === 'PARTIALLY_CONFIRMED' ? 'PARTIALLY_CONFIRMED' : 'CONFIRMED') : STATUS_MAP[env.type]!;
+      env.type === EventTypes.B2bOrderConfirmed
+        ? e.status === 'PARTIALLY_CONFIRMED'
+          ? 'PARTIALLY_CONFIRMED'
+          : 'CONFIRMED'
+        : STATUS_MAP[env.type]!;
     await this.pos.applySupplierUpdate(e.sourcePurchaseOrderId, {
       status,
       note: e.note ?? null,
@@ -63,7 +74,8 @@ export class ProcurementEventHandlers {
       tracking: e.trackingInfo ?? null,
       expectedDeliveryAt: e.expectedDeliveryAt ?? null,
       billed:
-        (env.type === EventTypes.B2bOrderPlaced || env.type === EventTypes.B2bOrderConfirmed) && e.subtotal !== undefined
+        (env.type === EventTypes.B2bOrderPlaced || env.type === EventTypes.B2bOrderConfirmed) &&
+        e.subtotal !== undefined
           ? {
               subtotal: Number(e.subtotal),
               discount: Number(e.discount ?? 0),

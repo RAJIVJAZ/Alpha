@@ -18,9 +18,13 @@ export class ProjectionsService {
     const placedAt = o.placedAt ? new Date(o.placedAt) : new Date();
     const date = dateOnly(istDate(placedAt));
     const discount = Number(o.discount);
-    const merchantGross = Number(o.subtotal) + Number(o.packagingCharge) - Number(o.merchantDiscount);
-    const commission = round2((merchantGross * Number(o.commissionRate ?? DEFAULT_COMMISSION_PCT)) / 100);
-    const channelRevenue = o.channel === 'POS' ? 0 : commission + Number(o.deliveryFee) + Number(o.platformFee);
+    const merchantGross =
+      Number(o.subtotal) + Number(o.packagingCharge) - Number(o.merchantDiscount);
+    const commission = round2(
+      (merchantGross * Number(o.commissionRate ?? DEFAULT_COMMISSION_PCT)) / 100,
+    );
+    const channelRevenue =
+      o.channel === 'POS' ? 0 : commission + Number(o.deliveryFee) + Number(o.platformFee);
     const data = {
       orderNumber: o.orderNumber,
       date,
@@ -52,7 +56,12 @@ export class ProjectionsService {
     const existing = await this.prisma.orderFact.findUnique({ where: { orderId: o.orderId } });
     const isFirstOrder =
       existing?.isFirstOrder ??
-      (o.isFirstOrder ?? (o.customerId ? (await this.prisma.orderFact.count({ where: { customerId: o.customerId, orderId: { not: o.orderId } } })) === 0 : false));
+      o.isFirstOrder ??
+      (o.customerId
+        ? (await this.prisma.orderFact.count({
+            where: { customerId: o.customerId, orderId: { not: o.orderId } },
+          })) === 0
+        : false);
     await this.prisma.orderFact.upsert({
       where: { orderId: o.orderId },
       create: { orderId: o.orderId, ...data, isFirstOrder },
@@ -125,19 +134,46 @@ export class ProjectionsService {
     });
   }
 
-  async riderDelivered(riderId: string, at: Date, earnings: number, distanceKm: number, deliveryMins: number | null) {
+  async riderDelivered(
+    riderId: string,
+    at: Date,
+    earnings: number,
+    distanceKm: number,
+    deliveryMins: number | null,
+  ) {
     const date = dateOnly(istDate(at));
-    const current = await this.prisma.dailyRiderStats.findUnique({ where: { riderId_date: { riderId, date } } });
+    const current = await this.prisma.dailyRiderStats.findUnique({
+      where: { riderId_date: { riderId, date } },
+    });
     const n = (current?.deliveries ?? 0) + 1;
-    const avg = deliveryMins == null ? current?.avgDeliveryMins ?? null : ((current?.avgDeliveryMins ?? deliveryMins) * (n - 1) + deliveryMins) / n;
+    const avg =
+      deliveryMins == null
+        ? (current?.avgDeliveryMins ?? null)
+        : ((current?.avgDeliveryMins ?? deliveryMins) * (n - 1) + deliveryMins) / n;
     await this.prisma.dailyRiderStats.upsert({
       where: { riderId_date: { riderId, date } },
       create: { riderId, date, deliveries: 1, earnings, distanceKm, avgDeliveryMins: deliveryMins },
-      update: { deliveries: { increment: 1 }, earnings: { increment: earnings }, distanceKm: { increment: distanceKm }, avgDeliveryMins: avg },
+      update: {
+        deliveries: { increment: 1 },
+        earnings: { increment: earnings },
+        distanceKm: { increment: distanceKm },
+        avgDeliveryMins: avg,
+      },
     });
   }
 
-  async supplierEvent(tenantId: string, at: Date, patch: { orders?: number; gmv?: number; units?: number; delivered?: number; onTime?: number; rejected?: number }) {
+  async supplierEvent(
+    tenantId: string,
+    at: Date,
+    patch: {
+      orders?: number;
+      gmv?: number;
+      units?: number;
+      delivered?: number;
+      onTime?: number;
+      rejected?: number;
+    },
+  ) {
     const date = dateOnly(istDate(at));
     await this.prisma.dailySupplierStats.upsert({
       where: { tenantId_date: { tenantId, date } },

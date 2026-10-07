@@ -13,7 +13,9 @@ import { ZonesService } from '../zones/zones.service';
 
 const OFFER_TTL_SECONDS = 45;
 const MAX_ATTEMPTS = 8;
-const offersSent = businessCounter('delivery_offers_total', 'Delivery offers sent to riders', ['outcome']);
+const offersSent = businessCounter('delivery_offers_total', 'Delivery offers sent to riders', [
+  'outcome',
+]);
 
 /**
  * Rider dispatch: creates the delivery when the restaurant accepts the order,
@@ -43,7 +45,17 @@ export class DispatchService {
     const distanceKm = o.distanceKm ?? round2(estimateRoadKm(pickup, drop));
     const surge = zone ? await this.zones.surge(zone) : 1;
     const earning = zone
-      ? riderEarning({ baseFee: Number(zone.baseFee), perKmFee: Number(zone.perKmFee), freeKm: zone.freeKm, riderBasePay: Number(zone.riderBasePay), riderPerKm: Number(zone.riderPerKm) }, distanceKm, surge)
+      ? riderEarning(
+          {
+            baseFee: Number(zone.baseFee),
+            perKmFee: Number(zone.perKmFee),
+            freeKm: zone.freeKm,
+            riderBasePay: Number(zone.riderBasePay),
+            riderPerKm: Number(zone.riderPerKm),
+          },
+          distanceKm,
+          surge,
+        )
       : riderEarning(DEFAULT_TARIFF, distanceKm, surge);
     const a = o.deliveryAddress;
     const delivery = await this.prisma.delivery.create({
@@ -83,13 +95,23 @@ export class DispatchService {
 
   /** Offers the delivery to the next best rider. Returns the offered rider id, if any. */
   async dispatch(deliveryId: string): Promise<string | null> {
-    const delivery = await this.prisma.delivery.findUnique({ where: { id: deliveryId }, include: { offers: true } });
+    const delivery = await this.prisma.delivery.findUnique({
+      where: { id: deliveryId },
+      include: { offers: true },
+    });
     if (!delivery || !['UNASSIGNED', 'SEARCHING'].includes(delivery.status)) return null;
-    if (delivery.offers.some((o) => o.status === 'PENDING' && o.expiresAt > new Date())) return null;
+    if (delivery.offers.some((o) => o.status === 'PENDING' && o.expiresAt > new Date()))
+      return null;
     if (delivery.searchAttempts >= MAX_ATTEMPTS) {
       if (delivery.status !== 'UNASSIGNED') {
-        await this.prisma.delivery.update({ where: { id: deliveryId }, data: { status: 'UNASSIGNED' } });
-        this.gateway.toOps('delivery:unassigned', { deliveryId, orderNumber: delivery.orderNumber });
+        await this.prisma.delivery.update({
+          where: { id: deliveryId },
+          data: { status: 'UNASSIGNED' },
+        });
+        this.gateway.toOps('delivery:unassigned', {
+          deliveryId,
+          orderNumber: delivery.orderNumber,
+        });
       }
       return null;
     }
@@ -105,7 +127,12 @@ export class DispatchService {
             isOnline: true,
             lastLocationAt: { gte: new Date(Date.now() - 5 * 60_000) },
           },
-          include: { deliveries: { where: { status: { in: ['ASSIGNED', 'AT_PICKUP', 'PICKED_UP', 'AT_DROP'] } }, select: { id: true } } },
+          include: {
+            deliveries: {
+              where: { status: { in: ['ASSIGNED', 'AT_PICKUP', 'PICKED_UP', 'AT_DROP'] } },
+              select: { id: true },
+            },
+          },
         })
       : [];
     const lastDone = await this.prisma.delivery.groupBy({
@@ -128,7 +155,10 @@ export class DispatchService {
       tried,
     );
 
-    await this.prisma.delivery.update({ where: { id: deliveryId }, data: { searchAttempts: { increment: 1 }, status: 'SEARCHING' } });
+    await this.prisma.delivery.update({
+      where: { id: deliveryId },
+      data: { searchAttempts: { increment: 1 }, status: 'SEARCHING' },
+    });
     const best = ranked[0];
     if (!best) return null;
     const offer = await this.prisma.deliveryOffer.create({
@@ -146,7 +176,12 @@ export class DispatchService {
       offerId: offer.id,
       deliveryId,
       orderNumber: delivery.orderNumber,
-      pickup: { name: delivery.pickupName, address: delivery.pickupAddress, lat: delivery.pickupLat, lng: delivery.pickupLng },
+      pickup: {
+        name: delivery.pickupName,
+        address: delivery.pickupAddress,
+        lat: delivery.pickupLat,
+        lng: delivery.pickupLng,
+      },
       drop: { address: delivery.dropAddress, lat: delivery.dropLat, lng: delivery.dropLng },
       distanceKm: delivery.distanceKm,
       distanceToPickupKm: offer.distanceToPickupKm,
@@ -163,7 +198,12 @@ export class DispatchService {
           channel: 'PUSH',
           app: 'RIDER',
           templateKey: 'rider.offer',
-          data: { orderNumber: delivery.orderNumber, earning: Number(delivery.riderEarning).toFixed(0), distance: delivery.distanceKm.toFixed(1), offerId: offer.id },
+          data: {
+            orderNumber: delivery.orderNumber,
+            earning: Number(delivery.riderEarning).toFixed(0),
+            distance: delivery.distanceKm.toFixed(1),
+            offerId: offer.id,
+          },
         })
         .catch(() => undefined);
     }
@@ -176,15 +216,28 @@ export class DispatchService {
     const result = await this.prisma.$transaction(async (tx) => {
       const offer = await tx.deliveryOffer.findUnique({ where: { id: offerId } });
       if (!offer || offer.riderId !== rider.id) throw notFound('Offer', offerId);
-      if (offer.status !== 'PENDING' || offer.expiresAt < new Date()) throw conflict('This offer has expired', 'OFFER_EXPIRED');
+      if (offer.status !== 'PENDING' || offer.expiresAt < new Date())
+        throw conflict('This offer has expired', 'OFFER_EXPIRED');
       const assigned = await tx.delivery.updateMany({
         where: { id: offer.deliveryId, status: { in: ['UNASSIGNED', 'SEARCHING'] } },
         data: { status: 'ASSIGNED', riderId: rider.id, assignedAt: new Date() },
       });
       if (!assigned.count) throw conflict('Delivery already assigned', 'ALREADY_ASSIGNED');
-      await tx.deliveryOffer.update({ where: { id: offerId }, data: { status: 'ACCEPTED', respondedAt: new Date() } });
-      await tx.deliveryOffer.updateMany({ where: { deliveryId: offer.deliveryId, status: 'PENDING', id: { not: offerId } }, data: { status: 'CANCELLED' } });
-      await tx.riderProfile.update({ where: { id: rider.id }, data: { isOnDelivery: true, acceptanceRate: updateAcceptanceRate(rider.acceptanceRate, true) } });
+      await tx.deliveryOffer.update({
+        where: { id: offerId },
+        data: { status: 'ACCEPTED', respondedAt: new Date() },
+      });
+      await tx.deliveryOffer.updateMany({
+        where: { deliveryId: offer.deliveryId, status: 'PENDING', id: { not: offerId } },
+        data: { status: 'CANCELLED' },
+      });
+      await tx.riderProfile.update({
+        where: { id: rider.id },
+        data: {
+          isOnDelivery: true,
+          acceptanceRate: updateAcceptanceRate(rider.acceptanceRate, true),
+        },
+      });
       const delivery = await tx.delivery.findUniqueOrThrow({ where: { id: offer.deliveryId } });
       await this.outbox.enqueue<DeliveryEvent>(tx, {
         stream: 'delivery',
@@ -197,7 +250,10 @@ export class DispatchService {
       return delivery;
     });
     offersSent.inc({ outcome: 'accepted' });
-    this.gateway.toOrder(result.orderId, 'delivery:status', { status: 'ASSIGNED', rider: { name: rider.name, phone: rider.phone } });
+    this.gateway.toOrder(result.orderId, 'delivery:status', {
+      status: 'ASSIGNED',
+      rider: { name: rider.name, phone: rider.phone },
+    });
     return result;
   }
 
@@ -208,8 +264,14 @@ export class DispatchService {
     if (!offer || offer.riderId !== rider.id) throw notFound('Offer', offerId);
     if (offer.status !== 'PENDING') throw conflict('Offer is no longer pending', 'OFFER_CLOSED');
     await this.prisma.$transaction([
-      this.prisma.deliveryOffer.update({ where: { id: offerId }, data: { status: 'REJECTED', respondedAt: new Date(), rejectReason: reason } }),
-      this.prisma.riderProfile.update({ where: { id: rider.id }, data: { acceptanceRate: updateAcceptanceRate(rider.acceptanceRate, false) } }),
+      this.prisma.deliveryOffer.update({
+        where: { id: offerId },
+        data: { status: 'REJECTED', respondedAt: new Date(), rejectReason: reason },
+      }),
+      this.prisma.riderProfile.update({
+        where: { id: rider.id },
+        data: { acceptanceRate: updateAcceptanceRate(rider.acceptanceRate, false) },
+      }),
     ]);
     offersSent.inc({ outcome: 'rejected' });
     await this.dispatch(offer.deliveryId);
@@ -219,17 +281,34 @@ export class DispatchService {
   /** Expires stale offers and re-dispatches searching deliveries (runs every 10s). */
   async sweep() {
     const now = new Date();
-    const expired = await this.prisma.deliveryOffer.findMany({ where: { status: 'PENDING', expiresAt: { lt: now } }, select: { id: true, riderId: true, deliveryId: true } });
+    const expired = await this.prisma.deliveryOffer.findMany({
+      where: { status: 'PENDING', expiresAt: { lt: now } },
+      select: { id: true, riderId: true, deliveryId: true },
+    });
     if (expired.length) {
-      await this.prisma.deliveryOffer.updateMany({ where: { id: { in: expired.map((e) => e.id) } }, data: { status: 'EXPIRED' } });
+      await this.prisma.deliveryOffer.updateMany({
+        where: { id: { in: expired.map((e) => e.id) } },
+        data: { status: 'EXPIRED' },
+      });
       for (const e of expired) {
         const r = await this.prisma.riderProfile.findUnique({ where: { id: e.riderId } });
-        if (r) await this.prisma.riderProfile.update({ where: { id: r.id }, data: { acceptanceRate: updateAcceptanceRate(r.acceptanceRate, false, 0.05) } });
+        if (r)
+          await this.prisma.riderProfile.update({
+            where: { id: r.id },
+            data: { acceptanceRate: updateAcceptanceRate(r.acceptanceRate, false, 0.05) },
+          });
         offersSent.inc({ outcome: 'expired' });
       }
     }
-    const searching = await this.prisma.delivery.findMany({ where: { status: { in: ['SEARCHING', 'UNASSIGNED'] }, searchAttempts: { lt: MAX_ATTEMPTS } }, select: { id: true }, take: 200 });
-    for (const d of searching) await this.dispatch(d.id).catch((err: Error) => this.logger.warn(`dispatch ${d.id}: ${err.message}`));
+    const searching = await this.prisma.delivery.findMany({
+      where: { status: { in: ['SEARCHING', 'UNASSIGNED'] }, searchAttempts: { lt: MAX_ATTEMPTS } },
+      select: { id: true },
+      take: 200,
+    });
+    for (const d of searching)
+      await this.dispatch(d.id).catch((err: Error) =>
+        this.logger.warn(`dispatch ${d.id}: ${err.message}`),
+      );
     return { expired: expired.length, searching: searching.length };
   }
 
@@ -237,16 +316,38 @@ export class DispatchService {
   async reassign(deliveryId: string, riderId: string) {
     const delivery = await this.prisma.delivery.findUnique({ where: { id: deliveryId } });
     if (!delivery) throw notFound('Delivery', deliveryId);
-    if (['PICKED_UP', 'AT_DROP', 'DELIVERED'].includes(delivery.status)) throw conflict('Delivery already picked up', 'PICKED_UP');
+    if (['PICKED_UP', 'AT_DROP', 'DELIVERED'].includes(delivery.status))
+      throw conflict('Delivery already picked up', 'PICKED_UP');
     await this.prisma.$transaction(async (tx) => {
-      if (delivery.riderId) await tx.riderProfile.update({ where: { id: delivery.riderId }, data: { isOnDelivery: false } });
-      await tx.deliveryOffer.updateMany({ where: { deliveryId, status: 'PENDING' }, data: { status: 'CANCELLED' } });
-      await tx.delivery.update({ where: { id: deliveryId }, data: { riderId: null, status: 'SEARCHING', searchAttempts: 0 } });
+      if (delivery.riderId)
+        await tx.riderProfile.update({
+          where: { id: delivery.riderId },
+          data: { isOnDelivery: false },
+        });
+      await tx.deliveryOffer.updateMany({
+        where: { deliveryId, status: 'PENDING' },
+        data: { status: 'CANCELLED' },
+      });
+      await tx.delivery.update({
+        where: { id: deliveryId },
+        data: { riderId: null, status: 'SEARCHING', searchAttempts: 0 },
+      });
       await tx.deliveryOffer.create({
-        data: { deliveryId, riderId, score: 1, distanceToPickupKm: 0, estimatedEarning: delivery.riderEarning, expiresAt: new Date(Date.now() + 120_000) },
+        data: {
+          deliveryId,
+          riderId,
+          score: 1,
+          distanceToPickupKm: 0,
+          estimatedEarning: delivery.riderEarning,
+          expiresAt: new Date(Date.now() + 120_000),
+        },
       });
     });
-    this.gateway.toRider(riderId, 'offer:new', { deliveryId, orderNumber: delivery.orderNumber, forced: true });
+    this.gateway.toRider(riderId, 'offer:new', {
+      deliveryId,
+      orderNumber: delivery.orderNumber,
+      forced: true,
+    });
     return { reassigned: true };
   }
 }

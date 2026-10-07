@@ -9,13 +9,20 @@ export interface AuctionCandidate {
 }
 
 /** Bayesian CTR estimate (prior 2% worth 100 impressions) avoids cold-start bias. */
-export function estimateCtr(impressions: number, clicks: number, priorCtr = 0.02, priorWeight = 100): number {
+export function estimateCtr(
+  impressions: number,
+  clicks: number,
+  priorCtr = 0.02,
+  priorWeight = 100,
+): number {
   return (clicks + priorCtr * priorWeight) / (impressions + priorWeight);
 }
 
 /** Expected value per 1000 impressions (eCPM) — the auction ranking key. */
 export function ecpm(c: AuctionCandidate): number {
-  return c.bidType === 'CPM' ? c.bidAmount : c.bidAmount * estimateCtr(c.impressions, c.clicks) * 1000;
+  return c.bidType === 'CPM'
+    ? c.bidAmount
+    : c.bidAmount * estimateCtr(c.impressions, c.clicks) * 1000;
 }
 
 export interface AuctionWinner extends AuctionCandidate {
@@ -49,7 +56,13 @@ export function runAuction(candidates: AuctionCandidate[], slots: number): Aucti
 
 /** Whether a campaign can still spend `amount` today and in total. */
 export function hasBudget(
-  c: { totalBudget: number; spent: number; dailyBudget: number; spentToday: number; spentTodayDate: string | null },
+  c: {
+    totalBudget: number;
+    spent: number;
+    dailyBudget: number;
+    spentToday: number;
+    spentTodayDate: string | null;
+  },
   amount: number,
   today: string,
 ): boolean {

@@ -44,28 +44,39 @@ describe('DeliveriesService.complete geofence', () => {
   const proof = { otp: '4821' };
 
   it('refuses to complete without a known rider position', async () => {
-    await expect(service(null).complete('user-1', 'del-1', proof)).rejects.toMatchObject({ code: 'LOCATION_REQUIRED', status: 409 });
+    await expect(service(null).complete('user-1', 'del-1', proof)).rejects.toMatchObject({
+      code: 'LOCATION_REQUIRED',
+      status: 409,
+    });
   });
 
   it('refuses a position older than five minutes, even at the drop point', async () => {
-    await expect(service(fix(DROP.lat, DROP.lng, 6 * 60_000)).complete('user-1', 'del-1', proof)).rejects.toMatchObject({
+    await expect(
+      service(fix(DROP.lat, DROP.lng, 6 * 60_000)).complete('user-1', 'del-1', proof),
+    ).rejects.toMatchObject({
       code: 'LOCATION_REQUIRED',
     });
   });
 
   it('refuses a fresh position away from the drop point', async () => {
     // ~1.1 km north of the drop
-    await expect(service(fix(DROP.lat + 0.01, DROP.lng, 10_000)).complete('user-1', 'del-1', proof)).rejects.toMatchObject({
+    await expect(
+      service(fix(DROP.lat + 0.01, DROP.lng, 10_000)).complete('user-1', 'del-1', proof),
+    ).rejects.toMatchObject({
       code: 'TOO_FAR_FROM_DROP',
     });
   });
 
   it('accepts a fresh position at the drop point', async () => {
-    await expect(service(fix(DROP.lat + 0.001, DROP.lng, 10_000)).complete('user-1', 'del-1', proof)).rejects.toBe(PASSED_CHECKS);
+    await expect(
+      service(fix(DROP.lat + 0.001, DROP.lng, 10_000)).complete('user-1', 'del-1', proof),
+    ).rejects.toBe(PASSED_CHECKS);
   });
 
   it('checks the OTP before anything else', async () => {
-    await expect(service(null).complete('user-1', 'del-1', { otp: '0000' })).rejects.toMatchObject({ code: 'OTP_MISMATCH' });
+    await expect(service(null).complete('user-1', 'del-1', { otp: '0000' })).rejects.toMatchObject({
+      code: 'OTP_MISMATCH',
+    });
   });
 });
 

@@ -66,18 +66,31 @@ export class DirectOrderService {
       if (!item.isAvailable) throw conflict(`${item.name} is unavailable`, 'ITEM_UNAVAILABLE');
       validateOptions(item, line.variantId, line.addonIds ?? []);
       const variant = line.variantId ? item.variants.find((v) => v.id === line.variantId)! : null;
-      const addons = item.addonGroups.flatMap((g) => g.addons).filter((a) => line.addonIds?.includes(a.id));
+      const addons = item.addonGroups
+        .flatMap((g) => g.addons)
+        .filter((a) => line.addonIds?.includes(a.id));
       return { line, item, variant, addons, price: unitPrice(item, variant, addons) };
     });
 
-    const discount = Math.min(input.discount ?? 0, resolved.reduce((s, r) => s + r.price * r.line.quantity, 0));
+    const discount = Math.min(
+      input.discount ?? 0,
+      resolved.reduce((s, r) => s + r.price * r.line.quantity, 0),
+    );
     const pricing = computePricing({
-      lines: resolved.map((r) => ({ menuItemId: r.item.id, quantity: r.line.quantity, unitPrice: r.price, gstRate: Number(r.item.gstRate) })),
+      lines: resolved.map((r) => ({
+        menuItemId: r.item.id,
+        quantity: r.line.quantity,
+        unitPrice: r.price,
+        gstRate: Number(r.item.gstRate),
+      })),
       packagingCharge: input.type === 'DINE_IN' ? 0 : Number(input.outlet.packagingCharge),
       deliveryFee: 0,
       platformFee: 0,
       tip: 0,
-      coupon: discount > 0 ? { code: 'MANUAL', type: 'FLAT', value: discount, maxDiscount: null, minOrderValue: 0 } : null,
+      coupon:
+        discount > 0
+          ? { code: 'MANUAL', type: 'FLAT', value: discount, maxDiscount: null, minOrderValue: 0 }
+          : null,
       interState: false,
     });
 
@@ -114,7 +127,8 @@ export class DirectOrderService {
           deliveryAddress: input.deliveryAddress,
           deliveryLat: input.deliveryLat,
           deliveryLng: input.deliveryLng,
-          deliveryOtp: input.type === 'DELIVERY' ? String(Math.floor(1000 + Math.random() * 9000)) : null,
+          deliveryOtp:
+            input.type === 'DELIVERY' ? String(Math.floor(1000 + Math.random() * 9000)) : null,
           mealSubscriptionId: input.mealSubscriptionId,
           idempotencyKey: input.idempotencyKey,
           scheduledFor: input.scheduledFor,
@@ -125,7 +139,11 @@ export class DirectOrderService {
               name: r.item.name,
               variantId: r.variant?.id,
               variant: r.variant?.name,
-              addons: r.addons.map((a) => ({ id: a.id, name: a.name, price: Number(a.price).toFixed(2) })),
+              addons: r.addons.map((a) => ({
+                id: a.id,
+                name: a.name,
+                price: Number(a.price).toFixed(2),
+              })),
               quantity: r.line.quantity,
               unitPrice: r.price,
               totalPrice: round2(r.price * r.line.quantity),
@@ -136,7 +154,9 @@ export class DirectOrderService {
               kdsStation: r.item.kdsStation,
             })),
           },
-          events: { create: { toStatus: initial, actorType: input.actorType, actorId: input.actorId } },
+          events: {
+            create: { toStatus: initial, actorType: input.actorType, actorId: input.actorId },
+          },
         },
         include: { items: true, outlet: true },
       });
@@ -146,7 +166,9 @@ export class DirectOrderService {
         return this.lifecycle.transitionInTx(tx, created.id, 'ACCEPTED', {
           actorType: input.actorType,
           actorId: input.actorId,
-          data: { estimatedReadyAt: new Date(now.getTime() + input.outlet.avgPrepTimeMins * 60_000) },
+          data: {
+            estimatedReadyAt: new Date(now.getTime() + input.outlet.avgPrepTimeMins * 60_000),
+          },
         });
       }
       return created;

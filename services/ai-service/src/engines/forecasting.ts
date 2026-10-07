@@ -47,7 +47,14 @@ interface HwState {
 }
 
 /** Additive Holt-Winters with damped trend; returns the state after the last observation. */
-export function fitHoltWinters(y: number[], m: number, alpha: number, beta: number, gamma: number, phi: number): HwState {
+export function fitHoltWinters(
+  y: number[],
+  m: number,
+  alpha: number,
+  beta: number,
+  gamma: number,
+  phi: number,
+): HwState {
   const first = y.slice(0, m);
   const second = y.slice(m, 2 * m);
   let level = mean(first);
@@ -147,7 +154,9 @@ export function forecastDemand(input: ForecastInput): ForecastResult {
       const hold = 2 * m;
       const train = y.slice(0, n - hold);
       const s = fitHoltWinters(train, m, best.alpha, best.beta, best.gamma, PHI);
-      const predicted = Array.from({ length: hold }, (_, i) => Math.max(0, hwForecast(s, train.length, m, i + 1, PHI)));
+      const predicted = Array.from({ length: hold }, (_, i) =>
+        Math.max(0, hwForecast(s, train.length, m, i + 1, PHI)),
+      );
       holdoutMape = round2(mape(y.slice(n - hold), predicted));
     }
   } else if (n >= m) {
@@ -186,16 +195,25 @@ export function forecastDemand(input: ForecastInput): ForecastResult {
  * Walks the forecast until cumulative demand exceeds stock. Returns the
  * fractional days of cover and the depletion date (null if beyond horizon).
  */
-export function predictDepletion(currentStock: number, points: Pick<ForecastPoint, 'date' | 'value'>[]) {
+export function predictDepletion(
+  currentStock: number,
+  points: Pick<ForecastPoint, 'date' | 'value'>[],
+) {
   if (currentStock <= 0) return { daysOfCover: 0, depletionDate: points[0]?.date ?? null };
   let remaining = currentStock;
   for (let i = 0; i < points.length; i++) {
     const demand = points[i]!.value;
     if (demand >= remaining) {
-      return { daysOfCover: round2(i + (demand > 0 ? remaining / demand : 0)), depletionDate: points[i]!.date };
+      return {
+        daysOfCover: round2(i + (demand > 0 ? remaining / demand : 0)),
+        depletionDate: points[i]!.date,
+      };
     }
     remaining -= demand;
   }
   const avg = mean(points.map((p) => p.value));
-  return { daysOfCover: avg > 0 ? round2(points.length + remaining / avg) : Number.POSITIVE_INFINITY, depletionDate: null };
+  return {
+    daysOfCover: avg > 0 ? round2(points.length + remaining / avg) : Number.POSITIVE_INFINITY,
+    depletionDate: null,
+  };
 }

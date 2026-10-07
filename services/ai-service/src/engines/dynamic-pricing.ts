@@ -45,7 +45,9 @@ export interface PricePoint {
 }
 
 /** Log-log OLS price elasticity of demand with r². */
-export function estimateElasticity(points: PricePoint[]): { elasticity: number; r2: number; n: number } | null {
+export function estimateElasticity(
+  points: PricePoint[],
+): { elasticity: number; r2: number; n: number } | null {
   const valid = points.filter((p) => p.price > 0 && p.quantity > 0);
   const distinct = new Set(valid.map((p) => p.price));
   if (valid.length < 5 || distinct.size < 2) return null;
@@ -93,7 +95,11 @@ const DEFAULT_ELASTICITY = -1.2;
  * bounded by a ±guardrail around the current price and a minimum margin.
  * Inelastic items (|e| ≤ 1) get a modest increase within the guardrail.
  */
-export function suggestMenuPrice(item: MenuPricingInput, guardrailPct = 10, minMarginPct = 60): PriceSuggestion {
+export function suggestMenuPrice(
+  item: MenuPricingInput,
+  guardrailPct = 10,
+  minMarginPct = 60,
+): PriceSuggestion {
   const est = estimateElasticity(item.history);
   const e = clamp(est?.elasticity ?? DEFAULT_ELASTICITY, -3, -0.3);
   const lo = item.price * (1 - guardrailPct / 100);
@@ -115,7 +121,9 @@ export function suggestMenuPrice(item: MenuPricingInput, guardrailPct = 10, minM
   // charm pricing: end in 9 for consumer menus
   const bounded = clamp(target, lo, hi);
   const suggested = Math.max(9, Math.round(bounded / 10) * 10 - 1);
-  const confidence = est ? round2(clamp(0.3 + 0.5 * est.r2 + Math.min(0.2, est.n / 200), 0, 0.95)) : 0.35;
+  const confidence = est
+    ? round2(clamp(0.3 + 0.5 * est.r2 + Math.min(0.2, est.n / 200), 0, 0.95))
+    : 0.35;
   return {
     id: item.id,
     name: item.name,
@@ -141,7 +149,8 @@ export interface MarkdownInput {
 export function markdown(i: MarkdownInput) {
   const sellable = i.avgDailySales * Math.max(0, i.daysToExpiry);
   const unsold = Math.max(0, i.stockQty - sellable);
-  if (unsold <= 0 || i.stockQty <= 0) return { id: i.id, discountPct: 0, suggestedPrice: i.price, projectedUnsold: 0 };
+  if (unsold <= 0 || i.stockQty <= 0)
+    return { id: i.id, discountPct: 0, suggestedPrice: i.price, projectedUnsold: 0 };
   const discountPct = round2(clamp((unsold / i.stockQty) * 50, 5, 40));
   const suggestedPrice = round2(Math.max(i.minPrice ?? 0, i.price * (1 - discountPct / 100)));
   return { id: i.id, discountPct, suggestedPrice, projectedUnsold: round2(unsold) };

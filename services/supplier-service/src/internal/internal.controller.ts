@@ -37,7 +37,10 @@ export class InternalController {
 
   @Get('orders/:id')
   async order(@Param('id') id: string) {
-    const order = await this.prisma.b2bOrder.findUnique({ where: { id }, include: { items: true } });
+    const order = await this.prisma.b2bOrder.findUnique({
+      where: { id },
+      include: { items: true },
+    });
     if (!order) throw notFound('B2B order', id);
     return order;
   }
@@ -51,14 +54,26 @@ export class InternalController {
       amount: order.total.toString(),
       userId: null,
       tenantId: order.buyerTenantId,
-      payable: order.paymentStatus === 'PENDING' && ['CONFIRMED', 'PARTIALLY_CONFIRMED', 'PACKED', 'DISPATCHED', 'IN_TRANSIT', 'DELIVERED'].includes(order.status),
+      payable:
+        order.paymentStatus === 'PENDING' &&
+        [
+          'CONFIRMED',
+          'PARTIALLY_CONFIRMED',
+          'PACKED',
+          'DISPATCHED',
+          'IN_TRANSIT',
+          'DELIVERED',
+        ].includes(order.status),
       description: `${order.orderNumber} — ${order.sellerName}`,
     };
   }
 
   @Get('products/:id')
   async product(@Param('id') id: string) {
-    const product = await this.prisma.product.findUnique({ where: { id }, include: { priceTiers: true } });
+    const product = await this.prisma.product.findUnique({
+      where: { id },
+      include: { priceTiers: true },
+    });
     if (!product) throw notFound('Product', id);
     return product;
   }

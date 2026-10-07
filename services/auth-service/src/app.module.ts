@@ -4,6 +4,9 @@ import { AuthFeatureModule } from './auth/auth.module';
 import { SERVICE_NAME, SUBSCRIBED_STREAMS } from './service.config';
 
 @Module({
-  imports: [CoreModule.forRoot({ serviceName: SERVICE_NAME, subscribe: SUBSCRIBED_STREAMS }), AuthFeatureModule],
+  imports: [
+    CoreModule.forRoot({ serviceName: SERVICE_NAME, subscribe: SUBSCRIBED_STREAMS }),
+    AuthFeatureModule,
+  ],
 })
 export class AppModule {}

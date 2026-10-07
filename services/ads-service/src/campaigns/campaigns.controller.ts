@@ -1,7 +1,14 @@
 import { Body, Controller, Get, HttpCode, Param, Patch, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Permissions } from '@foodgrid/auth';
-import { CurrentUser, OptionalUser, Public, RequirePermissions, RequireTenant, TenantId } from '@foodgrid/auth/nest';
+import {
+  CurrentUser,
+  OptionalUser,
+  Public,
+  RequirePermissions,
+  RequireTenant,
+  TenantId,
+} from '@foodgrid/auth/nest';
 import type { CampaignStatus } from '@foodgrid/database';
 import type { AccessTokenClaims } from '@foodgrid/types';
 import { ServingService } from '../serving/serving.service';
@@ -26,7 +33,11 @@ export class CampaignsController {
     return this.campaigns.create(user, dto);
   }
   @Patch(':id')
-  update(@CurrentUser() user: AccessTokenClaims, @Param('id') id: string, @Body() dto: UpdateCampaignDto) {
+  update(
+    @CurrentUser() user: AccessTokenClaims,
+    @Param('id') id: string,
+    @Body() dto: UpdateCampaignDto,
+  ) {
     return this.campaigns.update(user, id, dto);
   }
   @Post(':id/submit')

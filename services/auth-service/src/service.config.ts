@@ -9,6 +9,7 @@ export const SUBSCRIBED_STREAMS: EventStream[] = [];
 export const SERVICE: ServiceBootstrapOptions = {
   name: SERVICE_NAME,
   title: 'FoodGrid Auth Service',
-  description: 'OTP, Google and password login; JWT access/refresh token lifecycle; tenant switching; JWKS.',
+  description:
+    'OTP, Google and password login; JWT access/refresh token lifecycle; tenant switching; JWKS.',
   defaultPort: 4001,
 };

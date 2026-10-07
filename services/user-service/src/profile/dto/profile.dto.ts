@@ -16,7 +16,9 @@ export class UpdateProfileDto {
   @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(120) name?: string;
   @ApiPropertyOptional() @IsOptional() @IsEmail() email?: string;
   @ApiPropertyOptional() @IsOptional() @IsUrl({ require_tld: false }) avatarUrl?: string;
-  @ApiPropertyOptional({ description: '{ "veg": true, "cuisines": ["South Indian"], "spiceLevel": 2 }' })
+  @ApiPropertyOptional({
+    description: '{ "veg": true, "cuisines": ["South Indian"], "spiceLevel": 2 }',
+  })
   @IsOptional()
   @IsObject()
   preferences?: Record<string, unknown>;
@@ -26,7 +28,10 @@ export class AddressDto {
   @ApiProperty({ example: 'Home' }) @IsString() @MaxLength(40) label!: string;
   @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(80) contactName?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(20) contactPhone?: string;
-  @ApiProperty({ example: '221B, 4th Cross, Indiranagar' }) @IsString() @MaxLength(200) line1!: string;
+  @ApiProperty({ example: '221B, 4th Cross, Indiranagar' })
+  @IsString()
+  @MaxLength(200)
+  line1!: string;
   @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(200) line2?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(120) landmark?: string;
   @ApiProperty({ example: 'Bengaluru' }) @IsString() @MaxLength(80) city!: string;

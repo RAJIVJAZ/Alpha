@@ -34,7 +34,13 @@ export class AnalyticsJobsService implements OnApplicationBootstrap {
   onApplicationBootstrap() {
     if (process.env.JEST_WORKER_ID) return;
     // give the services this job calls time to come up
-    setTimeout(() => void this.catchUp().catch((err: Error) => this.logger.warn(`score catch-up: ${err.message}`)), 30_000).unref();
+    setTimeout(
+      () =>
+        void this.catchUp().catch((err: Error) =>
+          this.logger.warn(`score catch-up: ${err.message}`),
+        ),
+      30_000,
+    ).unref();
   }
 
   @Cron('0 4 * * 1', { timeZone: 'Asia/Kolkata' })
@@ -49,13 +55,20 @@ export class AnalyticsJobsService implements OnApplicationBootstrap {
 
   async scoreOutlets() {
     const { from, to } = lastCompleteWeek();
-    const outlets = await this.prisma.orderFact.findMany({ where: { date: { gte: from, lte: to } }, distinct: ['outletId'], select: { outletId: true } });
+    const outlets = await this.prisma.orderFact.findMany({
+      where: { date: { gte: from, lte: to } },
+      distinct: ['outletId'],
+      select: { outletId: true },
+    });
     let scored = 0;
     for (const { outletId } of outlets) {
       const m = await this.reports.outletScoringMetrics(outletId, from, to);
       if (!m.tenantId || m.orders < 5) continue;
       const outlet = await this.internal
-        .get<{ ratingAvg: number; ratingCount: number; avgPrepTimeMins: number }>('order', `internal/outlets/${outletId}`)
+        .get<{ ratingAvg: number; ratingCount: number; avgPrepTimeMins: number }>(
+          'order',
+          `internal/outlets/${outletId}`,
+        )
         .catch(() => null);
       await this.internal
         .post('ai', 'internal/ai/outlets/score', {
@@ -78,8 +91,15 @@ export class AnalyticsJobsService implements OnApplicationBootstrap {
         .then(() => scored++)
         .catch((err: Error) => this.logger.warn(`score ${outletId}: ${err.message}`));
     }
-    this.logger.log(`Scored ${scored}/${outlets.length} outlets for the week ending ${to.toISOString().slice(0, 10)}`);
+    this.logger.log(
+      `Scored ${scored}/${outlets.length} outlets for the week ending ${to.toISOString().slice(0, 10)}`,
+    );
     if (scored) await this.redis.set(doneKey(to), '1', 'EX', 14 * 86_400);
-    return { periodStart: from.toISOString().slice(0, 10), periodEnd: to.toISOString().slice(0, 10), scored, outlets: outlets.length };
+    return {
+      periodStart: from.toISOString().slice(0, 10),
+      periodEnd: to.toISOString().slice(0, 10),
+      scored,
+      outlets: outlets.length,
+    };
   }
 }

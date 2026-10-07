@@ -2,11 +2,25 @@ import { Injectable } from '@nestjs/common';
 import { randomBytes } from 'node:crypto';
 import { PrismaService } from '@foodgrid/database/nest';
 import type { Prisma } from '@foodgrid/database';
-import { badRequest, conflict, enumLabel, forbidden, gstinStateCode, isValidGstin, notFound } from '@foodgrid/utils';
+import {
+  badRequest,
+  conflict,
+  enumLabel,
+  forbidden,
+  gstinStateCode,
+  isValidGstin,
+  notFound,
+} from '@foodgrid/utils';
 import { ApprovalsService } from '../approvals/approvals.service';
 import { AuditService } from '../common/audit.service';
 import { normalizePhone, slugify } from '../common/phone';
-import { CreateTenantDto, InviteMemberDto, SubmitKycDto, UpdateMemberDto, UpdateTenantDto } from './dto/tenant.dto';
+import {
+  CreateTenantDto,
+  InviteMemberDto,
+  SubmitKycDto,
+  UpdateMemberDto,
+  UpdateTenantDto,
+} from './dto/tenant.dto';
 
 @Injectable()
 export class TenantsService {
@@ -18,7 +32,8 @@ export class TenantsService {
 
   /** Self-serve onboarding of a business. The creator becomes OWNER. */
   async create(userId: string, dto: CreateTenantDto) {
-    if (dto.gstin && !isValidGstin(dto.gstin)) throw badRequest('GSTIN checksum is invalid', 'INVALID_GSTIN');
+    if (dto.gstin && !isValidGstin(dto.gstin))
+      throw badRequest('GSTIN checksum is invalid', 'INVALID_GSTIN');
     const stateCode = dto.stateCode ?? (dto.gstin ? gstinStateCode(dto.gstin) : undefined);
     const slug = `${slugify(dto.name)}-${randomBytes(3).toString('hex')}`;
 
@@ -44,7 +59,13 @@ export class TenantsService {
       documents: dto.kycDocuments as unknown as Record<string, unknown>[] | undefined,
       metadata: { type: tenant.type, city: tenant.city, gstin: tenant.gstin },
     });
-    await this.audit.record({ actorId: userId, tenantId: tenant.id, action: 'tenant.create', entityType: 'Tenant', entityId: tenant.id });
+    await this.audit.record({
+      actorId: userId,
+      tenantId: tenant.id,
+      action: 'tenant.create',
+      entityType: 'Tenant',
+      entityId: tenant.id,
+    });
     return tenant;
   }
 
@@ -63,7 +84,8 @@ export class TenantsService {
   }
 
   async update(tenantId: string, actorId: string, dto: UpdateTenantDto) {
-    if (dto.gstin && !isValidGstin(dto.gstin)) throw badRequest('GSTIN checksum is invalid', 'INVALID_GSTIN');
+    if (dto.gstin && !isValidGstin(dto.gstin))
+      throw badRequest('GSTIN checksum is invalid', 'INVALID_GSTIN');
     const { kycDocuments, ...rest } = dto;
     const tenant = await this.prisma.tenant.update({
       where: { id: tenantId },
@@ -72,7 +94,14 @@ export class TenantsService {
         ...(kycDocuments ? { kycDocuments: kycDocuments as unknown as Prisma.InputJsonValue } : {}),
       },
     });
-    await this.audit.record({ actorId, tenantId, action: 'tenant.update', entityType: 'Tenant', entityId: tenantId, changes: rest });
+    await this.audit.record({
+      actorId,
+      tenantId,
+      action: 'tenant.update',
+      entityType: 'Tenant',
+      entityId: tenantId,
+      changes: rest,
+    });
     return tenant;
   }
 
@@ -82,7 +111,9 @@ export class TenantsService {
       where: { id: tenantId },
       data: {
         kycDocuments: dto.documents as unknown as Prisma.InputJsonValue,
-        ...(['REJECTED'].includes((await this.get(tenantId)).status) ? { status: 'PENDING_APPROVAL' } : {}),
+        ...(['REJECTED'].includes((await this.get(tenantId)).status)
+          ? { status: 'PENDING_APPROVAL' }
+          : {}),
       },
     });
     await this.approvals.create({
@@ -101,7 +132,18 @@ export class TenantsService {
   members(tenantId: string) {
     return this.prisma.tenantMember.findMany({
       where: { tenantId },
-      include: { user: { select: { id: true, name: true, phone: true, email: true, avatarUrl: true, lastLoginAt: true } } },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            phone: true,
+            email: true,
+            avatarUrl: true,
+            lastLoginAt: true,
+          },
+        },
+      },
       orderBy: [{ status: 'asc' }, { createdAt: 'asc' }],
     });
   }
@@ -119,22 +161,51 @@ export class TenantsService {
 
     const member = await this.prisma.tenantMember.upsert({
       where: { tenantId_userId: { tenantId, userId: user.id } },
-      create: { tenantId, userId: user.id, role: dto.role, outletIds: dto.outletIds ?? [], title: dto.title, invitedBy: actorId },
-      update: { role: dto.role, outletIds: dto.outletIds ?? [], title: dto.title, status: 'ACTIVE', invitedBy: actorId },
+      create: {
+        tenantId,
+        userId: user.id,
+        role: dto.role,
+        outletIds: dto.outletIds ?? [],
+        title: dto.title,
+        invitedBy: actorId,
+      },
+      update: {
+        role: dto.role,
+        outletIds: dto.outletIds ?? [],
+        title: dto.title,
+        status: 'ACTIVE',
+        invitedBy: actorId,
+      },
     });
-    await this.audit.record({ actorId, tenantId, action: 'member.invite', entityType: 'TenantMember', entityId: member.id, changes: { role: dto.role } });
+    await this.audit.record({
+      actorId,
+      tenantId,
+      action: 'member.invite',
+      entityType: 'TenantMember',
+      entityId: member.id,
+      changes: { role: dto.role },
+    });
     return member;
   }
 
   async updateMember(tenantId: string, memberId: string, actorId: string, dto: UpdateMemberDto) {
     const member = await this.prisma.tenantMember.findFirst({ where: { id: memberId, tenantId } });
     if (!member) throw notFound('Member', memberId);
-    const demotingOwner = member.role === 'OWNER' && ((dto.role && dto.role !== 'OWNER') || dto.status === 'REVOKED');
+    const demotingOwner =
+      member.role === 'OWNER' && ((dto.role && dto.role !== 'OWNER') || dto.status === 'REVOKED');
     if (demotingOwner) await this.assertAnotherOwner(tenantId, memberId);
-    if (member.userId === actorId && dto.status === 'REVOKED') throw forbidden('You cannot remove yourself');
+    if (member.userId === actorId && dto.status === 'REVOKED')
+      throw forbidden('You cannot remove yourself');
 
     const updated = await this.prisma.tenantMember.update({ where: { id: memberId }, data: dto });
-    await this.audit.record({ actorId, tenantId, action: 'member.update', entityType: 'TenantMember', entityId: memberId, changes: dto });
+    await this.audit.record({
+      actorId,
+      tenantId,
+      action: 'member.update',
+      entityType: 'TenantMember',
+      entityId: memberId,
+      changes: dto,
+    });
     return updated;
   }
 

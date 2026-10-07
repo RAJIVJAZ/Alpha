@@ -21,12 +21,17 @@ export class ProfileService {
   constructor(private readonly prisma: PrismaService) {}
 
   get(userId: string) {
-    return this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: PUBLIC_USER_FIELDS });
+    return this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: PUBLIC_USER_FIELDS,
+    });
   }
 
   async update(userId: string, dto: UpdateProfileDto) {
     if (dto.email) {
-      const taken = await this.prisma.user.findFirst({ where: { email: dto.email.toLowerCase(), NOT: { id: userId } } });
+      const taken = await this.prisma.user.findFirst({
+        where: { email: dto.email.toLowerCase(), NOT: { id: userId } },
+      });
       if (taken) throw conflict('Email already in use', 'EMAIL_TAKEN');
     }
     return this.prisma.user.update({
@@ -42,14 +47,18 @@ export class ProfileService {
   }
 
   listAddresses(userId: string) {
-    return this.prisma.address.findMany({ where: { userId }, orderBy: [{ isDefault: 'desc' }, { updatedAt: 'desc' }] });
+    return this.prisma.address.findMany({
+      where: { userId },
+      orderBy: [{ isDefault: 'desc' }, { updatedAt: 'desc' }],
+    });
   }
 
   async addAddress(userId: string, dto: AddressDto) {
     const count = await this.prisma.address.count({ where: { userId } });
     const makeDefault = dto.isDefault || count === 0;
     return this.prisma.$transaction(async (tx) => {
-      if (makeDefault) await tx.address.updateMany({ where: { userId }, data: { isDefault: false } });
+      if (makeDefault)
+        await tx.address.updateMany({ where: { userId }, data: { isDefault: false } });
       return tx.address.create({ data: { ...dto, userId, isDefault: makeDefault } });
     });
   }
@@ -58,7 +67,8 @@ export class ProfileService {
     const existing = await this.prisma.address.findFirst({ where: { id, userId } });
     if (!existing) throw notFound('Address', id);
     return this.prisma.$transaction(async (tx) => {
-      if (dto.isDefault) await tx.address.updateMany({ where: { userId }, data: { isDefault: false } });
+      if (dto.isDefault)
+        await tx.address.updateMany({ where: { userId }, data: { isDefault: false } });
       return tx.address.update({ where: { id }, data: dto });
     });
   }
@@ -68,8 +78,12 @@ export class ProfileService {
     if (!existing) throw notFound('Address', id);
     await this.prisma.address.delete({ where: { id } });
     if (existing.isDefault) {
-      const next = await this.prisma.address.findFirst({ where: { userId }, orderBy: { updatedAt: 'desc' } });
-      if (next) await this.prisma.address.update({ where: { id: next.id }, data: { isDefault: true } });
+      const next = await this.prisma.address.findFirst({
+        where: { userId },
+        orderBy: { updatedAt: 'desc' },
+      });
+      if (next)
+        await this.prisma.address.update({ where: { id: next.id }, data: { isDefault: true } });
     }
   }
 }

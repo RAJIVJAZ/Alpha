@@ -12,7 +12,12 @@ const ymd = (d: Date) => d.toISOString().slice(0, 10);
  * Meal delivery dates for a subscription: every served weekday from the start
  * date, skipping paused dates, until `mealsTotal` meals are scheduled.
  */
-export function scheduleMeals(start: Date, daysOfWeek: number[], mealsTotal: number, pausedDates: Date[] = []): Date[] {
+export function scheduleMeals(
+  start: Date,
+  daysOfWeek: number[],
+  mealsTotal: number,
+  pausedDates: Date[] = [],
+): Date[] {
   if (!daysOfWeek.length || mealsTotal <= 0) return [];
   const paused = new Set(pausedDates.map(ymd));
   const out: Date[] = [];

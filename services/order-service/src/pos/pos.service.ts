@@ -19,7 +19,9 @@ export class PosService {
   async createOrder(user: AccessTokenClaims, dto: PosOrderDto) {
     const outlet = await assertOutletAccess(this.prisma, user, dto.outletId);
     if (dto.tableId) {
-      const table = await this.prisma.diningTable.findFirst({ where: { id: dto.tableId, outletId: outlet.id } });
+      const table = await this.prisma.diningTable.findFirst({
+        where: { id: dto.tableId, outletId: outlet.id },
+      });
       if (!table) throw notFound('Table', dto.tableId);
     }
     const order = await this.direct.create({
@@ -42,20 +44,38 @@ export class PosService {
   }
 
   async complete(user: AccessTokenClaims, orderId: string) {
-    const order = await this.prisma.forTenant(user.tenantId!).order.findUnique({ where: { id: orderId } });
+    const order = await this.prisma
+      .forTenant(user.tenantId!)
+      .order.findUnique({ where: { id: orderId } });
     if (!order) throw notFound('Order', orderId);
     await assertOutletAccess(this.prisma, user, order.outletId);
     if (['ACCEPTED', 'PREPARING'].includes(order.status)) {
-      await this.lifecycle.transition(orderId, 'READY', { actorType: 'MERCHANT', actorId: user.sub });
+      await this.lifecycle.transition(orderId, 'READY', {
+        actorType: 'MERCHANT',
+        actorId: user.sub,
+      });
     }
-    return this.lifecycle.transition(orderId, 'COMPLETED', { actorType: 'MERCHANT', actorId: user.sub });
+    return this.lifecycle.transition(orderId, 'COMPLETED', {
+      actorType: 'MERCHANT',
+      actorId: user.sub,
+    });
   }
 
   receipt(order: Awaited<ReturnType<DirectOrderService['create']>>) {
     return {
       orderNumber: order.orderNumber,
-      outlet: { name: order.outlet.name, address: order.outlet.addressLine1, gstin: order.outlet.gstin, fssai: order.outlet.fssaiNumber },
-      items: order.items.map((i) => ({ name: i.variant ? `${i.name} (${i.variant})` : i.name, qty: i.quantity, rate: i.unitPrice, amount: i.totalPrice })),
+      outlet: {
+        name: order.outlet.name,
+        address: order.outlet.addressLine1,
+        gstin: order.outlet.gstin,
+        fssai: order.outlet.fssaiNumber,
+      },
+      items: order.items.map((i) => ({
+        name: i.variant ? `${i.name} (${i.variant})` : i.name,
+        qty: i.quantity,
+        rate: i.unitPrice,
+        amount: i.totalPrice,
+      })),
       subtotal: order.subtotal,
       discount: order.couponDiscount,
       packaging: order.packagingCharge,

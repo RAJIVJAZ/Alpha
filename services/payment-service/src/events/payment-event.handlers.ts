@@ -25,7 +25,11 @@ export class PaymentEventHandlers {
   /** Cancelled / rejected orders are refunded to the original instrument. */
   @OnDomainEvent(EventTypes.OrderCancelled, EventTypes.OrderRejected)
   async refundOrder(env: EventEnvelope<string, OrderStatusChangedEvent>) {
-    const n = await this.payments.refundAllFor('ORDER', env.data.orderId, env.data.reason ?? `Order ${env.data.status.toLowerCase()}`);
+    const n = await this.payments.refundAllFor(
+      'ORDER',
+      env.data.orderId,
+      env.data.reason ?? `Order ${env.data.status.toLowerCase()}`,
+    );
     if (n) this.logger.log(`Refunded ${n} payment(s) for order ${env.data.orderNumber}`);
   }
 
@@ -39,12 +43,29 @@ export class PaymentEventHandlers {
   async riderEarnings(env: EventEnvelope<string, DeliveryEvent>) {
     const d = env.data;
     if (!d.riderUserId) return;
-    const base = { ownerType: 'RIDER' as const, ownerId: d.riderUserId, referenceType: 'DELIVERY', referenceId: d.deliveryId };
+    const base = {
+      ownerType: 'RIDER' as const,
+      ownerId: d.riderUserId,
+      referenceType: 'DELIVERY',
+      referenceId: d.deliveryId,
+    };
     if (Number(d.riderEarning) > 0) {
-      await this.ledger.credit({ ...base, amount: Number(d.riderEarning), reason: 'DELIVERY_EARNING', idempotencyKey: `earning:${d.deliveryId}`, description: `Delivery ${d.orderNumber}` });
+      await this.ledger.credit({
+        ...base,
+        amount: Number(d.riderEarning),
+        reason: 'DELIVERY_EARNING',
+        idempotencyKey: `earning:${d.deliveryId}`,
+        description: `Delivery ${d.orderNumber}`,
+      });
     }
     if (Number(d.tipAmount) > 0) {
-      await this.ledger.credit({ ...base, amount: Number(d.tipAmount), reason: 'TIP', idempotencyKey: `tip:${d.deliveryId}`, description: `Tip for ${d.orderNumber}` });
+      await this.ledger.credit({
+        ...base,
+        amount: Number(d.tipAmount),
+        reason: 'TIP',
+        idempotencyKey: `tip:${d.deliveryId}`,
+        description: `Tip for ${d.orderNumber}`,
+      });
     }
     if (d.isCod && Number(d.codAmount) > 0) {
       await this.ledger.debit({
@@ -79,6 +100,10 @@ export class PaymentEventHandlers {
 
   @OnDomainEvent(EventTypes.B2bOrderRejected)
   async b2bRejected(env: EventEnvelope<string, B2bOrderEvent>) {
-    await this.payments.refundAllFor('B2B_ORDER', env.data.b2bOrderId, env.data.note ?? 'Supplier rejected the order');
+    await this.payments.refundAllFor(
+      'B2B_ORDER',
+      env.data.b2bOrderId,
+      env.data.note ?? 'Supplier rejected the order',
+    );
   }
 }

@@ -55,12 +55,13 @@ export interface RankedOffer {
   rank: number;
 }
 
-export const STRATEGY_WEIGHTS: Record<Strategy, { cost: number; speed: number; quality: number }> = {
-  LOWEST_COST: { cost: 1, speed: 0, quality: 0 },
-  FASTEST: { cost: 0, speed: 1, quality: 0 },
-  BEST_RATED: { cost: 0, speed: 0, quality: 1 },
-  BALANCED: { cost: 0.5, speed: 0.2, quality: 0.3 },
-};
+export const STRATEGY_WEIGHTS: Record<Strategy, { cost: number; speed: number; quality: number }> =
+  {
+    LOWEST_COST: { cost: 1, speed: 0, quality: 0 },
+    FASTEST: { cost: 0, speed: 1, quality: 0 },
+    BEST_RATED: { cost: 0, speed: 0, quality: 1 },
+    BALANCED: { cost: 0.5, speed: 0.2, quality: 0.3 },
+  };
 
 /** Bayesian-smoothed rating (prior 4.0 with 10 virtual reviews). */
 const smoothRating = (rating: number, count: number) => (rating * count + 4 * 10) / (count + 10);
@@ -69,11 +70,14 @@ function costOffer(o: SupplierOffer, quantity: number) {
   const step = o.stepQty > 0 ? o.stepQty : 1;
   const needed = Math.ceil(quantity / o.baseQtyPerPack / step) * step;
   const packs = Math.max(o.moq, needed);
-  const tier = (o.tiers ?? []).filter((t) => packs >= t.minQty).sort((a, b) => b.minQty - a.minQty)[0];
+  const tier = (o.tiers ?? [])
+    .filter((t) => packs >= t.minQty)
+    .sort((a, b) => b.minQty - a.minQty)[0];
   const unitPrice = tier ? tier.unitPrice : o.unitPrice;
   const subtotal = round2(packs * unitPrice);
   const tax = round2((subtotal * o.gstRate) / 100);
-  const delivery = o.freeDeliveryAbove != null && subtotal >= o.freeDeliveryAbove ? 0 : o.deliveryCharge;
+  const delivery =
+    o.freeDeliveryAbove != null && subtotal >= o.freeDeliveryAbove ? 0 : o.deliveryCharge;
   const landed = round2(subtotal + tax + delivery);
   const delivered = packs * o.baseQtyPerPack;
   return {
@@ -97,7 +101,11 @@ function costOffer(o: SupplierOffer, quantity: number) {
  * rate, fill rate). Out-of-stock offers are never recommended; heavy
  * over-buying caused by large MOQs is penalised.
  */
-export function rankSuppliers(offers: SupplierOffer[], quantity: number, strategy: Strategy): RankedOffer[] {
+export function rankSuppliers(
+  offers: SupplierOffer[],
+  quantity: number,
+  strategy: Strategy,
+): RankedOffer[] {
   if (!offers.length || quantity <= 0) return [];
   const costed = offers.map((o) => ({ o, c: costOffer(o, quantity) }));
   const feasible = costed.filter((x) => x.c.feasible);
@@ -109,7 +117,8 @@ export function rankSuppliers(offers: SupplierOffer[], quantity: number, strateg
   const w = STRATEGY_WEIGHTS[strategy];
 
   const ranked = costed.map(({ o, c }) => {
-    const quality = 0.5 * (smoothRating(o.rating, o.ratingCount) / 5) + 0.3 * o.onTimeRate + 0.2 * o.fillRate;
+    const quality =
+      0.5 * (smoothRating(o.rating, o.ratingCount) / 5) + 0.3 * o.onTimeRate + 0.2 * o.fillRate;
     const scores = {
       cost: round2(normalize(c.costPerBaseUnit, minCost, maxCost, true)),
       speed: round2(normalize(o.leadTimeHours, minLead, maxLead, true)),
@@ -151,7 +160,10 @@ export function rankSuppliers(offers: SupplierOffer[], quantity: number, strateg
 }
 
 /** Best feasible offer for every strategy (used for the comparison cards). */
-export function bestByStrategy(offers: SupplierOffer[], quantity: number): Record<Strategy, RankedOffer | null> {
+export function bestByStrategy(
+  offers: SupplierOffer[],
+  quantity: number,
+): Record<Strategy, RankedOffer | null> {
   return Object.fromEntries(
     STRATEGIES.map((s) => [s, rankSuppliers(offers, quantity, s).find((r) => r.feasible) ?? null]),
   ) as Record<Strategy, RankedOffer | null>;

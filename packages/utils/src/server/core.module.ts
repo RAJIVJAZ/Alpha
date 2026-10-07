@@ -25,7 +25,6 @@ export interface CoreModuleConfig {
   env?: BaseEnv;
 }
 
-
 function canResolve(mod: string): boolean {
   try {
     require.resolve(mod);
@@ -61,9 +60,16 @@ export class CoreModule {
             // (production images ship without it; JSON logs go to the collector)
             transport:
               env.NODE_ENV === 'development' && canResolve('pino-pretty')
-                ? { target: 'pino-pretty', options: { singleLine: true, translateTime: 'SYS:HH:MM:ss' } }
+                ? {
+                    target: 'pino-pretty',
+                    options: { singleLine: true, translateTime: 'SYS:HH:MM:ss' },
+                  }
                 : undefined,
-            redact: ['req.headers.authorization', 'req.headers.cookie', 'req.headers["x-service-token"]'],
+            redact: [
+              'req.headers.authorization',
+              'req.headers.cookie',
+              'req.headers["x-service-token"]',
+            ],
             customProps: () => ({ service: config.serviceName }),
             genReqId: (req: IncomingMessage, res: ServerResponse) => {
               const id = (req.headers['x-request-id'] as string | undefined) ?? randomUUID();
@@ -71,10 +77,15 @@ export class CoreModule {
               return id;
             },
             autoLogging: {
-              ignore: (req: IncomingMessage) => !!req.url && (req.url.startsWith('/health') || req.url === '/metrics'),
+              ignore: (req: IncomingMessage) =>
+                !!req.url && (req.url.startsWith('/health') || req.url === '/metrics'),
             },
             serializers: {
-              req: (req: { id: string; method: string; url: string }) => ({ id: req.id, method: req.method, url: req.url }),
+              req: (req: { id: string; method: string; url: string }) => ({
+                id: req.id,
+                method: req.method,
+                url: req.url,
+              }),
               res: (res: { statusCode: number }) => ({ statusCode: res.statusCode }),
             },
           },
@@ -102,7 +113,11 @@ export class CoreModule {
       providers: [
         {
           provide: CORE_MODULE_OPTIONS,
-          useValue: { serviceName: config.serviceName, internalSecret: env.INTERNAL_SERVICE_SECRET, subscribe },
+          useValue: {
+            serviceName: config.serviceName,
+            internalSecret: env.INTERNAL_SERVICE_SECRET,
+            subscribe,
+          },
         },
         { provide: APP_INTERCEPTOR, useClass: MetricsInterceptor },
         InternalHttpService,

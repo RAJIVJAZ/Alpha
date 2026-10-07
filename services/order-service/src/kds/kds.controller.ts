@@ -14,7 +14,10 @@ class KdsBoardQuery {
   @ApiPropertyOptional() @IsOptional() @IsString() outletId?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() station?: string;
   @ApiPropertyOptional({ description: 'Comma separated statuses' })
-  @IsOptional() @ToArray() @IsArray() @IsIn(KDS_STATUSES, { each: true })
+  @IsOptional()
+  @ToArray()
+  @IsArray()
+  @IsIn(KDS_STATUSES, { each: true })
   statuses?: KdsStatus[];
 }
 
@@ -64,10 +67,17 @@ export class KdsController {
       const res = await this.kds.setStatus(tx, id, status);
       const order = await tx.order.findUniqueOrThrow({ where: { id: res.orderId } });
       if (res.firstStart && order.status === 'ACCEPTED') {
-        await this.lifecycle.transitionInTx(tx, order.id, 'PREPARING', { actorType: 'MERCHANT', actorId: user.sub });
+        await this.lifecycle.transitionInTx(tx, order.id, 'PREPARING', {
+          actorType: 'MERCHANT',
+          actorId: user.sub,
+        });
       }
       if (res.allReady && ['ACCEPTED', 'PREPARING'].includes(order.status)) {
-        await this.lifecycle.transitionInTx(tx, order.id, 'READY', { actorType: 'MERCHANT', actorId: user.sub, note: 'All stations ready' });
+        await this.lifecycle.transitionInTx(tx, order.id, 'READY', {
+          actorType: 'MERCHANT',
+          actorId: user.sub,
+          note: 'All stations ready',
+        });
       }
       return { ticketId: id, status, orderReady: res.allReady };
     });

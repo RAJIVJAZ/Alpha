@@ -9,6 +9,7 @@ export const SUBSCRIBED_STREAMS: EventStream[] = ['order', 'identity'];
 export const SERVICE: ServiceBootstrapOptions = {
   name: SERVICE_NAME,
   title: 'FoodGrid Delivery Service',
-  description: 'Riders, dispatch & offers, live tracking, navigation routes, proof of delivery, attendance, earnings, incentives and heat maps.',
+  description:
+    'Riders, dispatch & offers, live tracking, navigation routes, proof of delivery, attendance, earnings, incentives and heat maps.',
   defaultPort: 4007,
 };

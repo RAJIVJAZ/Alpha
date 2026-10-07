@@ -77,7 +77,13 @@ export function assessIngredient(i: AssessmentInput): Assessment {
 
   const cover = Number.isFinite(daysOfCover) ? daysOfCover : 999;
   const severity: Severity =
-    i.currentStock <= 0 || cover < 1 ? 'CRITICAL' : cover < L ? 'HIGH' : cover < L + 2 ? 'MEDIUM' : 'LOW';
+    i.currentStock <= 0 || cover < 1
+      ? 'CRITICAL'
+      : cover < L
+        ? 'HIGH'
+        : cover < L + 2
+          ? 'MEDIUM'
+          : 'LOW';
 
   return {
     avgDailyUsage,

@@ -26,7 +26,8 @@ export function buildOpenApiDocument(app: INestApplication, opts: SwaggerOptions
   return document;
 }
 
-const operationId = (controller: string, method: string) => `${controller.replace(/Controller$/, '')}_${method}`;
+const operationId = (controller: string, method: string) =>
+  `${controller.replace(/Controller$/, '')}_${method}`;
 
 /**
  * Derives each operation's security requirement from the same metadata the
@@ -43,8 +44,12 @@ function applyRouteSecurity(app: INestApplication, document: OpenAPIObject) {
       for (const name of Object.getOwnPropertyNames(proto)) {
         const handler = proto[name];
         if (name === 'constructor' || typeof handler !== 'function') continue;
-        const flag = (key: string) => Reflect.getMetadata(key, handler) ?? Reflect.getMetadata(key, cls);
-        access.set(operationId(cls.name, name), flag(IS_INTERNAL_KEY) ? 'internal' : flag(IS_PUBLIC_KEY) ? 'public' : 'bearer');
+        const flag = (key: string) =>
+          Reflect.getMetadata(key, handler) ?? Reflect.getMetadata(key, cls);
+        access.set(
+          operationId(cls.name, name),
+          flag(IS_INTERNAL_KEY) ? 'internal' : flag(IS_PUBLIC_KEY) ? 'public' : 'bearer',
+        );
       }
     }
   }
@@ -52,7 +57,8 @@ function applyRouteSecurity(app: INestApplication, document: OpenAPIObject) {
     for (const op of Object.values(item)) {
       if (!op || typeof op !== 'object' || !('responses' in op)) continue;
       const kind = access.get((op as { operationId?: string }).operationId ?? '') ?? 'bearer';
-      (op as { security?: Record<string, string[]>[] }).security = kind === 'public' ? [] : kind === 'internal' ? [{ 'service-token': [] }] : [{ bearer: [] }];
+      (op as { security?: Record<string, string[]>[] }).security =
+        kind === 'public' ? [] : kind === 'internal' ? [{ 'service-token': [] }] : [{ bearer: [] }];
     }
   }
 }

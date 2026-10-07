@@ -30,7 +30,11 @@ export class DeliveryJobsService {
   async staleRiders() {
     await withLock(this.redis, 'delivery:stale-riders', 240, async () => {
       await this.prisma.riderProfile.updateMany({
-        where: { isOnline: true, isOnDelivery: false, lastLocationAt: { lt: new Date(Date.now() - 10 * 60_000) } },
+        where: {
+          isOnline: true,
+          isOnDelivery: false,
+          lastLocationAt: { lt: new Date(Date.now() - 10 * 60_000) },
+        },
         data: { isOnline: false },
       });
     });

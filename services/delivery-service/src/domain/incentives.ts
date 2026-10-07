@@ -10,7 +10,11 @@ export interface SchemeLike {
 }
 
 /** Progress increment a completed delivery contributes to a scheme. */
-export function deliveryContribution(s: SchemeLike, deliveredAt: Date, riderRating: number): number {
+export function deliveryContribution(
+  s: SchemeLike,
+  deliveredAt: Date,
+  riderRating: number,
+): number {
   if (deliveredAt < s.startsAt || deliveredAt > s.endsAt) return 0;
   if (s.minRating && riderRating < s.minRating) return 0;
   switch (s.type) {

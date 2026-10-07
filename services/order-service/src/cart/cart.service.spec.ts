@@ -17,13 +17,27 @@ const item: any = {
         { id: 'cheese-burst', price: 99, isAvailable: true },
       ],
     },
-    { name: 'Toppings', minSelect: 0, maxSelect: 2, addons: [{ id: 'olives', price: 40, isAvailable: true }, { id: 'jalapeno', price: 40, isAvailable: true }, { id: 'corn', price: 30, isAvailable: false }] },
+    {
+      name: 'Toppings',
+      minSelect: 0,
+      maxSelect: 2,
+      addons: [
+        { id: 'olives', price: 40, isAvailable: true },
+        { id: 'jalapeno', price: 40, isAvailable: true },
+        { id: 'corn', price: 30, isAvailable: false },
+      ],
+    },
   ],
 };
 
 describe('cart option validation', () => {
   it('prices variant + add-ons', () => {
-    expect(unitPrice(item, item.variants[1], [item.addonGroups[0].addons[1], item.addonGroups[1].addons[0]])).toBe(588);
+    expect(
+      unitPrice(item, item.variants[1], [
+        item.addonGroups[0].addons[1],
+        item.addonGroups[1].addons[0],
+      ]),
+    ).toBe(588);
   });
   it('enforces group min/max', () => {
     expect(() => validateOptions(item, undefined, [])).toThrow(/Crust/);

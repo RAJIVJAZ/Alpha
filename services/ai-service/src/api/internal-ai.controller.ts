@@ -44,7 +44,9 @@ export class InternalAiController {
 
   @Post('forecast/demand')
   @HttpCode(200)
-  @ApiOperation({ summary: 'Daily demand forecast (Holt-Winters + festival/weather signals) and depletion date' })
+  @ApiOperation({
+    summary: 'Daily demand forecast (Holt-Winters + festival/weather signals) and depletion date',
+  })
   async forecast(@Body() dto: DemandForecastDto) {
     const series = [...dto.series].sort((a, b) => a.date.localeCompare(b.date));
     const startDate = series[0]?.date.slice(0, 10) ?? new Date().toISOString().slice(0, 10);
@@ -59,11 +61,23 @@ export class InternalAiController {
           startDate,
           horizon: dto.horizonDays,
           category: dto.category,
-          signals: signals.map((s) => ({ date: s.date.toISOString().slice(0, 10), impact: s.impact, name: s.name, categories: s.categories })),
+          signals: signals.map((s) => ({
+            date: s.date.toISOString().slice(0, 10),
+            impact: s.impact,
+            name: s.name,
+            categories: s.categories,
+          })),
         });
-        return dto.currentStock === undefined ? result : { ...result, depletion: predictDepletion(dto.currentStock, result.points) };
+        return dto.currentStock === undefined
+          ? result
+          : { ...result, depletion: predictDepletion(dto.currentStock, result.points) };
       },
-      (r) => ({ model: r.model, mape: r.mape, horizon: dto.horizonDays, observations: series.length }),
+      (r) => ({
+        model: r.model,
+        mape: r.mape,
+        horizon: dto.horizonDays,
+        observations: series.length,
+      }),
     );
   }
 
@@ -74,8 +88,12 @@ export class InternalAiController {
     return this.runs.track(
       'INVENTORY_OPTIMIZATION',
       dto.tenantId,
-      () => abcClassify(dto.items.map((i) => optimizeItem(i, dto.serviceLevel, dto.reviewPeriodDays))),
-      (r) => ({ items: r.length, atRisk: r.filter((p) => p.flags.includes('STOCKOUT_RISK')).length }),
+      () =>
+        abcClassify(dto.items.map((i) => optimizeItem(i, dto.serviceLevel, dto.reviewPeriodDays))),
+      (r) => ({
+        items: r.length,
+        atRisk: r.filter((p) => p.flags.includes('STOCKOUT_RISK')).length,
+      }),
     );
   }
 
@@ -86,15 +104,27 @@ export class InternalAiController {
     return this.runs.track(
       'SUPPLIER_RECOMMENDATION',
       dto.tenantId,
-      () => ({ options: rankSuppliers(dto.offers, dto.quantity, dto.strategy), best: bestByStrategy(dto.offers, dto.quantity) }),
-      (r) => ({ offers: dto.offers.length, strategy: dto.strategy, winner: r.options[0]?.supplierTenantId }),
+      () => ({
+        options: rankSuppliers(dto.offers, dto.quantity, dto.strategy),
+        best: bestByStrategy(dto.offers, dto.quantity),
+      }),
+      (r) => ({
+        offers: dto.offers.length,
+        strategy: dto.strategy,
+        winner: r.options[0]?.supplierTenantId,
+      }),
     );
   }
 
   @Post('pricing/delivery-surge')
   @HttpCode(200)
   surge(@Body() dto: SurgeDto) {
-    return this.runs.track('DYNAMIC_PRICING', null, () => deliverySurge(dto), (r) => ({ multiplier: r.multiplier }));
+    return this.runs.track(
+      'DYNAMIC_PRICING',
+      null,
+      () => deliverySurge(dto),
+      (r) => ({ multiplier: r.multiplier }),
+    );
   }
 
   @Post('pricing/markdown')
@@ -107,7 +137,12 @@ export class InternalAiController {
   @HttpCode(200)
   @ApiOperation({ summary: 'Order risk score with decision (ALLOW / REVIEW / BLOCK) and reasons' })
   async fraud(@Body() dto: FraudScoreDto) {
-    const result = await this.runs.track('FRAUD_DETECTION', null, () => scoreOrderRisk(dto.features), (r) => ({ score: r.score, decision: r.decision }));
+    const result = await this.runs.track(
+      'FRAUD_DETECTION',
+      null,
+      () => scoreOrderRisk(dto.features),
+      (r) => ({ score: r.score, decision: r.decision }),
+    );
     await this.prisma.fraudAssessment.create({
       data: {
         entityType: dto.entityType,
@@ -116,7 +151,10 @@ export class InternalAiController {
         score: result.score,
         decision: result.decision,
         reasons: result.reasons,
-        features: { ...dto.features, contributions: result.contributions } as unknown as Prisma.InputJsonValue,
+        features: {
+          ...dto.features,
+          contributions: result.contributions,
+        } as unknown as Prisma.InputJsonValue,
       },
     });
     return result;
@@ -125,7 +163,9 @@ export class InternalAiController {
   @Post('fraud/rider-trajectory')
   @HttpCode(200)
   async trajectory(@Body() dto: TrajectoryDto) {
-    const result = await this.runs.track('FRAUD_DETECTION', null, () => analyseTrajectory(dto.pings, dto.drop));
+    const result = await this.runs.track('FRAUD_DETECTION', null, () =>
+      analyseTrajectory(dto.pings, dto.drop),
+    );
     if (result.decision !== 'ALLOW') {
       await this.prisma.fraudAssessment.create({
         data: {
@@ -135,7 +175,10 @@ export class InternalAiController {
           score: result.score,
           decision: result.decision,
           reasons: [...result.reasons],
-          features: { anomalies: result.anomalies, distanceFromDropM: result.distanceFromDropM } as Prisma.InputJsonValue,
+          features: {
+            anomalies: result.anomalies,
+            distanceFromDropM: result.distanceFromDropM,
+          } as Prisma.InputJsonValue,
         },
       });
     }
@@ -146,39 +189,78 @@ export class InternalAiController {
   @HttpCode(200)
   @ApiOperation({ summary: 'Pickup & drop route optimisation (precedence-constrained, 2-opt)' })
   route(@Body() dto: RouteDto) {
-    return this.runs.track('ROUTE_OPTIMIZATION', null, () => optimizeRoute(dto), (r) => ({ stops: r.stops.length, km: r.totalKm, savedKm: r.improvedByKm }));
+    return this.runs.track(
+      'ROUTE_OPTIMIZATION',
+      null,
+      () => optimizeRoute(dto),
+      (r) => ({ stops: r.stops.length, km: r.totalKm, savedKm: r.improvedByKm }),
+    );
   }
 
   @Post('recommendations/outlets')
   @HttpCode(200)
   outlets(@Body() dto: OutletRecoDto) {
-    return this.runs.track('CUSTOMER_RECOMMENDATION', null, () => rankOutlets(dto.history, dto.candidates), (r) => ({ candidates: r.length, coldStart: dto.history.length < 2 }));
+    return this.runs.track(
+      'CUSTOMER_RECOMMENDATION',
+      null,
+      () => rankOutlets(dto.history, dto.candidates),
+      (r) => ({ candidates: r.length, coldStart: dto.history.length < 2 }),
+    );
   }
 
   @Post('recommendations/items')
   @HttpCode(200)
   items(@Body() dto: ItemRecoDto) {
-    return this.runs.track('CUSTOMER_RECOMMENDATION', null, () => recommendItems(dto.baskets, dto.seedItemIds, dto.limit));
+    return this.runs.track('CUSTOMER_RECOMMENDATION', null, () =>
+      recommendItems(dto.baskets, dto.seedItemIds, dto.limit),
+    );
   }
 
   @Post('outlets/score')
   @HttpCode(200)
   @ApiOperation({ summary: 'Restaurant performance score (0-100, grade A–E) with tips' })
   async score(@Body() dto: OutletScoreDto) {
-    const result = await this.runs.track('OUTLET_SCORING', dto.tenantId, () => scoreOutlet(dto.metrics), (r) => ({ score: r.score, grade: r.grade }));
+    const result = await this.runs.track(
+      'OUTLET_SCORING',
+      dto.tenantId,
+      () => scoreOutlet(dto.metrics),
+      (r) => ({ score: r.score, grade: r.grade }),
+    );
     const periodStart = dateOnly(dto.periodStart.slice(0, 10));
     const periodEnd = dateOnly(dto.periodEnd.slice(0, 10));
     await this.prisma.outletScore.upsert({
       where: { outletId_periodStart_periodEnd: { outletId: dto.outletId, periodStart, periodEnd } },
-      create: { tenantId: dto.tenantId, outletId: dto.outletId, periodStart, periodEnd, score: result.score, grade: result.grade, components: result.components, recommendations: result.recommendations },
-      update: { score: result.score, grade: result.grade, components: result.components, recommendations: result.recommendations },
+      create: {
+        tenantId: dto.tenantId,
+        outletId: dto.outletId,
+        periodStart,
+        periodEnd,
+        score: result.score,
+        grade: result.grade,
+        components: result.components,
+        recommendations: result.recommendations,
+      },
+      update: {
+        score: result.score,
+        grade: result.grade,
+        components: result.components,
+        recommendations: result.recommendations,
+      },
     });
     return result;
   }
 
   @Get('signals')
   @ApiOperation({ summary: 'Festival / weather / event signals for a city and window' })
-  listSignals(@Query('city') city: string | undefined, @Query('from') from: string, @Query('to') to: string) {
-    return this.signals.between(city ?? null, dateOnly(from.slice(0, 10)), dateOnly(to.slice(0, 10)));
+  listSignals(
+    @Query('city') city: string | undefined,
+    @Query('from') from: string,
+    @Query('to') to: string,
+  ) {
+    return this.signals.between(
+      city ?? null,
+      dateOnly(from.slice(0, 10)),
+      dateOnly(to.slice(0, 10)),
+    );
   }
 }

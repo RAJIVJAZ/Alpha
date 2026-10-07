@@ -1,7 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@foodgrid/database/nest';
 import { notFound } from '@foodgrid/utils';
-import { BannerQueryDto, CmsBannerDto, CmsPageDto, UpdateCmsBannerDto, UpdateCmsPageDto } from './dto/cms.dto';
+import {
+  BannerQueryDto,
+  CmsBannerDto,
+  CmsPageDto,
+  UpdateCmsBannerDto,
+  UpdateCmsPageDto,
+} from './dto/cms.dto';
 
 @Injectable()
 export class CmsService {
@@ -36,7 +42,11 @@ export class CmsService {
 
   createPage(dto: CmsPageDto, actorId: string) {
     return this.prisma.cmsPage.create({
-      data: { ...dto, updatedBy: actorId, publishedAt: dto.status === 'PUBLISHED' ? new Date() : null },
+      data: {
+        ...dto,
+        updatedBy: actorId,
+        publishedAt: dto.status === 'PUBLISHED' ? new Date() : null,
+      },
     });
   }
 
@@ -48,7 +58,8 @@ export class CmsService {
       data: {
         ...dto,
         updatedBy: actorId,
-        publishedAt: dto.status === 'PUBLISHED' && page.status !== 'PUBLISHED' ? new Date() : undefined,
+        publishedAt:
+          dto.status === 'PUBLISHED' && page.status !== 'PUBLISHED' ? new Date() : undefined,
       },
     });
   }
@@ -58,7 +69,9 @@ export class CmsService {
   }
 
   listBanners() {
-    return this.prisma.cmsBanner.findMany({ orderBy: [{ placement: 'asc' }, { sortOrder: 'asc' }] });
+    return this.prisma.cmsBanner.findMany({
+      orderBy: [{ placement: 'asc' }, { sortOrder: 'asc' }],
+    });
   }
 
   createBanner(dto: CmsBannerDto) {

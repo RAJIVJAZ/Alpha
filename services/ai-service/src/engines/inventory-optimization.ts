@@ -34,7 +34,11 @@ export interface InventoryPolicy {
  *   S   = d·(L+R) + z·σd·√(L+R)
  *   EOQ = √(2·D·K / h)       (capped by shelf life for perishables)
  */
-export function optimizeItem(item: InventoryItemInput, serviceLevel = 0.95, reviewPeriodDays = 7): InventoryPolicy {
+export function optimizeItem(
+  item: InventoryItemInput,
+  serviceLevel = 0.95,
+  reviewPeriodDays = 7,
+): InventoryPolicy {
   const z = inverseNormalCdf(Math.min(0.999, Math.max(0.5, serviceLevel)));
   const d = Math.max(0, item.avgDailyDemand);
   const sigma = Math.max(0, item.demandStdDev);
@@ -45,7 +49,8 @@ export function optimizeItem(item: InventoryItemInput, serviceLevel = 0.95, revi
   const orderUpTo = d * (L + R) + z * sigma * Math.sqrt(L + R);
   const annualDemand = d * 365;
   const holding = Math.max(0.01, item.unitCost * (item.holdingCostPct ?? 0.25));
-  let eoq = annualDemand > 0 ? Math.sqrt((2 * annualDemand * (item.orderingCost ?? 150)) / holding) : 0;
+  let eoq =
+    annualDemand > 0 ? Math.sqrt((2 * annualDemand * (item.orderingCost ?? 150)) / holding) : 0;
   const shelfCap = item.shelfLifeDays ? d * item.shelfLifeDays : Number.POSITIVE_INFINITY;
   eoq = Math.min(eoq, shelfCap);
   const suggested = Math.min(Math.max(0, orderUpTo - item.currentStock), shelfCap);

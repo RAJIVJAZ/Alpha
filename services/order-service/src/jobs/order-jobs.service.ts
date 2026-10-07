@@ -25,13 +25,19 @@ export class OrderJobsService {
   async expireUnpaid() {
     await withLock(this.redis, 'order:expire-unpaid', 55, async () => {
       const stale = await this.prisma.order.findMany({
-        where: { status: 'PENDING_PAYMENT', createdAt: { lt: new Date(Date.now() - UNPAID_TIMEOUT_MIN * 60_000) } },
+        where: {
+          status: 'PENDING_PAYMENT',
+          createdAt: { lt: new Date(Date.now() - UNPAID_TIMEOUT_MIN * 60_000) },
+        },
         select: { id: true },
         take: 200,
       });
       for (const o of stale) {
         await this.lifecycle
-          .transition(o.id, 'CANCELLED', { actorType: 'SYSTEM', note: 'Payment not completed in time' })
+          .transition(o.id, 'CANCELLED', {
+            actorType: 'SYSTEM',
+            note: 'Payment not completed in time',
+          })
           .catch((err: Error) => this.logger.warn(`expire ${o.id}: ${err.message}`));
       }
       if (stale.length) this.logger.log(`Expired ${stale.length} unpaid orders`);
@@ -47,14 +53,20 @@ export class OrderJobsService {
           status: 'PLACED',
           placedAt: { lt: cutoff },
           channel: { in: ['APP', 'WEB'] },
-          OR: [{ scheduledFor: null }, { scheduledFor: { lt: new Date(Date.now() + 30 * 60_000) } }],
+          OR: [
+            { scheduledFor: null },
+            { scheduledFor: { lt: new Date(Date.now() + 30 * 60_000) } },
+          ],
         },
         select: { id: true },
         take: 200,
       });
       for (const o of stale) {
         await this.lifecycle
-          .transition(o.id, 'REJECTED', { actorType: 'SYSTEM', note: 'Restaurant did not respond in time' })
+          .transition(o.id, 'REJECTED', {
+            actorType: 'SYSTEM',
+            note: 'Restaurant did not respond in time',
+          })
           .catch((err: Error) => this.logger.warn(`auto-reject ${o.id}: ${err.message}`));
       }
     });

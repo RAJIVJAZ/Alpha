@@ -16,8 +16,17 @@ import { SERVICE_NAME, SUBSCRIBED_STREAMS } from './service.config';
 import { StockService } from './stock/stock.service';
 
 @Module({
-  imports: [CoreModule.forRoot({ serviceName: SERVICE_NAME, subscribe: SUBSCRIBED_STREAMS }), ScheduleModule.forRoot()],
-  controllers: [InventoryController, RecipesController, CostingController, ProductionController, InternalController],
+  imports: [
+    CoreModule.forRoot({ serviceName: SERVICE_NAME, subscribe: SUBSCRIBED_STREAMS }),
+    ScheduleModule.forRoot(),
+  ],
+  controllers: [
+    InventoryController,
+    RecipesController,
+    CostingController,
+    ProductionController,
+    InternalController,
+  ],
   providers: [
     StockService,
     IngredientsService,

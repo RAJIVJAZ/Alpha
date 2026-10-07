@@ -8,9 +8,16 @@ describe('meal plan scheduling', () => {
   });
   it('skips non-served and paused days', () => {
     const dates = scheduleMeals(monday, [1, 3, 5], 4, [new Date('2026-10-07T00:00:00Z')]);
-    expect(dates.map((d) => d.toISOString().slice(0, 10))).toEqual(['2026-10-05', '2026-10-09', '2026-10-12', '2026-10-14']);
+    expect(dates.map((d) => d.toISOString().slice(0, 10))).toEqual([
+      '2026-10-05',
+      '2026-10-09',
+      '2026-10-12',
+      '2026-10-14',
+    ]);
   });
   it('computes the IST business day', () => {
-    expect(todayIst(new Date('2026-10-06T20:00:00Z')).toISOString().slice(0, 10)).toBe('2026-10-07');
+    expect(todayIst(new Date('2026-10-06T20:00:00Z')).toISOString().slice(0, 10)).toBe(
+      '2026-10-07',
+    );
   });
 });

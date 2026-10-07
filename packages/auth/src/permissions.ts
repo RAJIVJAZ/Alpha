@@ -99,7 +99,13 @@ export const PLATFORM_ROLE_PERMISSIONS: Record<PlatformRole, readonly Permission
   ADMIN: ALL_PLATFORM,
   SUPPORT: [P.PlatformUsersRead, P.PlatformFraud],
   FINANCE: [P.PlatformFinance, P.PlatformAnalytics, P.PlatformUsersRead],
-  OPS: [P.PlatformApprovals, P.PlatformRiders, P.PlatformUsersRead, P.PlatformAnalytics, P.PlatformContent],
+  OPS: [
+    P.PlatformApprovals,
+    P.PlatformRiders,
+    P.PlatformUsersRead,
+    P.PlatformAnalytics,
+    P.PlatformContent,
+  ],
 };
 
 /** Back-office staff roles (have access to admin-web). */
@@ -140,6 +146,9 @@ export const TENANT_APP: Record<TenantType, string> = {
 };
 
 /** Outlet-level restriction check for staff assigned to specific outlets. */
-export function canAccessOutlet(claims: Pick<AccessTokenClaims, 'outletIds'>, outletId: string): boolean {
+export function canAccessOutlet(
+  claims: Pick<AccessTokenClaims, 'outletIds'>,
+  outletId: string,
+): boolean {
   return !claims.outletIds?.length || claims.outletIds.includes(outletId);
 }

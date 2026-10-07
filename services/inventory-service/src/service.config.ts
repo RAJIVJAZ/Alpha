@@ -9,6 +9,7 @@ export const SUBSCRIBED_STREAMS: EventStream[] = ['order', 'procurement'];
 export const SERVICE: ServiceBootstrapOptions = {
   name: SERVICE_NAME,
   title: 'FoodGrid Inventory Service',
-  description: 'Ingredients, FEFO stock batches, stock ledger, consumption tracking, recipes, costing and production planning.',
+  description:
+    'Ingredients, FEFO stock batches, stock ledger, consumption tracking, recipes, costing and production planning.',
   defaultPort: 4005,
 };

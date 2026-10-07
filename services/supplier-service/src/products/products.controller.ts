@@ -3,7 +3,14 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Permissions } from '@foodgrid/auth';
 import { CurrentUser, Public, RequirePermissions, RequireTenant } from '@foodgrid/auth/nest';
 import type { AccessTokenClaims } from '@foodgrid/types';
-import { BulkProductsDto, CatalogQueryDto, PriceTiersDto, ProductDto, StockUpdateDto, UpdateProductDto } from './dto/product.dto';
+import {
+  BulkProductsDto,
+  CatalogQueryDto,
+  PriceTiersDto,
+  ProductDto,
+  StockUpdateDto,
+  UpdateProductDto,
+} from './dto/product.dto';
 import { ProductsService } from './products.service';
 
 @ApiTags('marketplace')
@@ -13,7 +20,10 @@ export class CatalogController {
 
   @Public()
   @Get('categories')
-  @ApiOperation({ summary: 'Dairy, Flour, Sugar, Rice, Vegetables, Fruits, Packaging, Spices, Beverages, Frozen …' })
+  @ApiOperation({
+    summary:
+      'Dairy, Flour, Sugar, Rice, Vegetables, Fruits, Packaging, Spices, Beverages, Frozen …',
+  })
   categories() {
     return this.products.categories();
   }
@@ -47,7 +57,10 @@ export class SellerProductsController {
 
   @Post()
   @RequirePermissions(Permissions.CatalogManage)
-  @ApiOperation({ summary: 'List a product (name, SKU, brand, images, price, MOQ, unit, GST, delivery time, stock)' })
+  @ApiOperation({
+    summary:
+      'List a product (name, SKU, brand, images, price, MOQ, unit, GST, delivery time, stock)',
+  })
   create(@CurrentUser() user: AccessTokenClaims, @Body() dto: ProductDto) {
     return this.products.create(user, dto);
   }
@@ -61,20 +74,32 @@ export class SellerProductsController {
 
   @Patch(':id')
   @RequirePermissions(Permissions.CatalogManage)
-  update(@CurrentUser() user: AccessTokenClaims, @Param('id') id: string, @Body() dto: UpdateProductDto) {
+  update(
+    @CurrentUser() user: AccessTokenClaims,
+    @Param('id') id: string,
+    @Body() dto: UpdateProductDto,
+  ) {
     return this.products.update(user, id, dto);
   }
 
   @Patch(':id/stock')
   @RequirePermissions(Permissions.CatalogManage)
-  stock(@CurrentUser() user: AccessTokenClaims, @Param('id') id: string, @Body() dto: StockUpdateDto) {
+  stock(
+    @CurrentUser() user: AccessTokenClaims,
+    @Param('id') id: string,
+    @Body() dto: StockUpdateDto,
+  ) {
     return this.products.setStock(user, id, dto.stockQty);
   }
 
   @Put(':id/price-tiers')
   @RequirePermissions(Permissions.PricingManage)
   @ApiOperation({ summary: 'Bulk pricing tiers (optionally per buyer segment)' })
-  tiers(@CurrentUser() user: AccessTokenClaims, @Param('id') id: string, @Body() dto: PriceTiersDto) {
+  tiers(
+    @CurrentUser() user: AccessTokenClaims,
+    @Param('id') id: string,
+    @Body() dto: PriceTiersDto,
+  ) {
     return this.products.setTiers(user, id, dto);
   }
 }

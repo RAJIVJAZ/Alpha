@@ -3,7 +3,13 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Permissions } from '@foodgrid/auth';
 import { CurrentUser, RequirePermissions, RequireTenant } from '@foodgrid/auth/nest';
 import type { AccessTokenClaims } from '@foodgrid/types';
-import { BulkAvailabilityDto, CategoryDto, MenuItemDto, UpdateCategoryDto, UpdateMenuItemDto } from './dto/menu.dto';
+import {
+  BulkAvailabilityDto,
+  CategoryDto,
+  MenuItemDto,
+  UpdateCategoryDto,
+  UpdateMenuItemDto,
+} from './dto/menu.dto';
 import { MenuService } from './menu.service';
 
 @ApiTags('merchant')
@@ -22,13 +28,21 @@ export class MenuController {
 
   @Post('outlets/:outletId/categories')
   @RequirePermissions(Permissions.MenuManage)
-  createCategory(@CurrentUser() user: AccessTokenClaims, @Param('outletId') outletId: string, @Body() dto: CategoryDto) {
+  createCategory(
+    @CurrentUser() user: AccessTokenClaims,
+    @Param('outletId') outletId: string,
+    @Body() dto: CategoryDto,
+  ) {
     return this.menu.createCategory(user, outletId, dto);
   }
 
   @Patch('categories/:id')
   @RequirePermissions(Permissions.MenuManage)
-  updateCategory(@CurrentUser() user: AccessTokenClaims, @Param('id') id: string, @Body() dto: UpdateCategoryDto) {
+  updateCategory(
+    @CurrentUser() user: AccessTokenClaims,
+    @Param('id') id: string,
+    @Body() dto: UpdateCategoryDto,
+  ) {
     return this.menu.updateCategory(user, id, dto);
   }
 
@@ -42,13 +56,21 @@ export class MenuController {
   @Post('outlets/:outletId/items')
   @RequirePermissions(Permissions.MenuManage)
   @ApiOperation({ summary: 'Create a menu item with variants and add-on groups' })
-  createItem(@CurrentUser() user: AccessTokenClaims, @Param('outletId') outletId: string, @Body() dto: MenuItemDto) {
+  createItem(
+    @CurrentUser() user: AccessTokenClaims,
+    @Param('outletId') outletId: string,
+    @Body() dto: MenuItemDto,
+  ) {
     return this.menu.createItem(user, outletId, dto);
   }
 
   @Patch('items/:id')
   @RequirePermissions(Permissions.MenuManage)
-  updateItem(@CurrentUser() user: AccessTokenClaims, @Param('id') id: string, @Body() dto: UpdateMenuItemDto) {
+  updateItem(
+    @CurrentUser() user: AccessTokenClaims,
+    @Param('id') id: string,
+    @Body() dto: UpdateMenuItemDto,
+  ) {
     return this.menu.updateItem(user, id, dto);
   }
 

@@ -31,7 +31,11 @@ export interface RankedOutlet {
  * the customer's history, loyalty with recency decay, Bayesian rating,
  * distance and ETA. Cold-start users fall back to popularity.
  */
-export function rankOutlets(history: HistoryOrder[], candidates: CandidateOutlet[], now = new Date()): RankedOutlet[] {
+export function rankOutlets(
+  history: HistoryOrder[],
+  candidates: CandidateOutlet[],
+  now = new Date(),
+): RankedOutlet[] {
   const cuisineWeight = new Map<string, number>();
   const outletLoyalty = new Map<string, number>();
   let spend = 0;
@@ -46,7 +50,9 @@ export function rankOutlets(history: HistoryOrder[], candidates: CandidateOutlet
   const avgSpend = history.length ? spend / history.length : 0;
   const maxPopularity = Math.max(1, ...candidates.map((c) => c.ratingCount));
   const cold = history.length < 2;
-  const vegOnly = history.length >= 3 && history.every((h) => candidates.find((c) => c.outletId === h.outletId)?.isPureVeg ?? false);
+  const vegOnly =
+    history.length >= 3 &&
+    history.every((h) => candidates.find((c) => c.outletId === h.outletId)?.isPureVeg ?? false);
 
   return candidates
     .map((c) => {
@@ -61,10 +67,20 @@ export function rankOutlets(history: HistoryOrder[], candidates: CandidateOutlet
         score = 0.4 * ratingScore + 0.3 * popularity + 0.2 * distanceScore + 0.1 * etaScore;
         if (popularity > 0.6) reasons.push('Popular near you');
       } else {
-        const cuisineMatch = Math.max(0, ...c.cuisines.map((x) => (cuisineWeight.get(x) ?? 0) / maxCuisine));
-        const priceFit = avgSpend > 0 ? Math.exp(-Math.abs(c.costForTwo - avgSpend) / avgSpend) : 0.5;
+        const cuisineMatch = Math.max(
+          0,
+          ...c.cuisines.map((x) => (cuisineWeight.get(x) ?? 0) / maxCuisine),
+        );
+        const priceFit =
+          avgSpend > 0 ? Math.exp(-Math.abs(c.costForTwo - avgSpend) / avgSpend) : 0.5;
         const loyalty = Math.min(1, (outletLoyalty.get(c.outletId) ?? 0) / 3);
-        score = 0.35 * cuisineMatch + 0.2 * ratingScore + 0.15 * distanceScore + 0.15 * priceFit + 0.1 * loyalty + 0.05 * etaScore;
+        score =
+          0.35 * cuisineMatch +
+          0.2 * ratingScore +
+          0.15 * distanceScore +
+          0.15 * priceFit +
+          0.1 * loyalty +
+          0.05 * etaScore;
         if (cuisineMatch > 0.5) {
           const top = c.cuisines.find((x) => (cuisineWeight.get(x) ?? 0) / maxCuisine > 0.5);
           if (top) reasons.push(`Because you like ${top}`);
@@ -83,7 +99,11 @@ export function rankOutlets(history: HistoryOrder[], candidates: CandidateOutlet
  * Item-item collaborative filtering on order baskets (cosine similarity of
  * co-occurrence). Without seeds, returns the most frequent items.
  */
-export function recommendItems(baskets: string[][], seedItemIds: string[], limit = 6): { itemId: string; score: number }[] {
+export function recommendItems(
+  baskets: string[][],
+  seedItemIds: string[],
+  limit = 6,
+): { itemId: string; score: number }[] {
   const count = new Map<string, number>();
   const co = new Map<string, Map<string, number>>();
   for (const basket of baskets) {
@@ -101,7 +121,10 @@ export function recommendItems(baskets: string[][], seedItemIds: string[], limit
   const seeds = new Set(seedItemIds);
   const scores = new Map<string, number>();
   if (!seeds.size) {
-    return [...count.entries()].sort((a, b) => b[1] - a[1]).slice(0, limit).map(([itemId, n]) => ({ itemId, score: n }));
+    return [...count.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, limit)
+      .map(([itemId, n]) => ({ itemId, score: n }));
   }
   for (const seed of seeds) {
     for (const [j, c] of co.get(seed) ?? []) {

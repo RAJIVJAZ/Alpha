@@ -22,7 +22,11 @@ export class ApprovalsService {
 
   async create(dto: CreateApprovalDto) {
     const open = await this.prisma.approvalRequest.findFirst({
-      where: { entityType: dto.entityType, entityId: dto.entityId, status: { in: ['PENDING', 'CHANGES_REQUESTED'] } },
+      where: {
+        entityType: dto.entityType,
+        entityId: dto.entityId,
+        status: { in: ['PENDING', 'CHANGES_REQUESTED'] },
+      },
     });
     const data = {
       title: dto.title,
@@ -32,9 +36,14 @@ export class ApprovalsService {
       metadata: (dto.metadata ?? {}) as Prisma.InputJsonValue,
     };
     if (open) {
-      return this.prisma.approvalRequest.update({ where: { id: open.id }, data: { ...data, status: 'PENDING' } });
+      return this.prisma.approvalRequest.update({
+        where: { id: open.id },
+        data: { ...data, status: 'PENDING' },
+      });
     }
-    return this.prisma.approvalRequest.create({ data: { ...data, entityType: dto.entityType, entityId: dto.entityId } });
+    return this.prisma.approvalRequest.create({
+      data: { ...data, entityType: dto.entityType, entityId: dto.entityId },
+    });
   }
 
   async list(q: ListApprovalsDto) {
@@ -53,7 +62,9 @@ export class ApprovalsService {
   async get(id: string) {
     const approval = await this.prisma.approvalRequest.findUnique({ where: { id } });
     if (!approval) throw notFound('Approval', id);
-    const tenant = approval.tenantId ? await this.prisma.tenant.findUnique({ where: { id: approval.tenantId } }) : null;
+    const tenant = approval.tenantId
+      ? await this.prisma.tenant.findUnique({ where: { id: approval.tenantId } })
+      : null;
     return { ...approval, tenant };
   }
 
@@ -67,7 +78,12 @@ export class ApprovalsService {
     const result = await this.prisma.$transaction(async (tx) => {
       const updated = await tx.approvalRequest.update({
         where: { id },
-        data: { status: dto.decision, reviewedBy: reviewerId, reviewedAt: new Date(), reviewNotes: dto.notes },
+        data: {
+          status: dto.decision,
+          reviewedBy: reviewerId,
+          reviewedAt: new Date(),
+          reviewNotes: dto.notes,
+        },
       });
 
       if (approval.entityType === 'TENANT' && dto.decision !== 'CHANGES_REQUESTED') {
@@ -75,7 +91,12 @@ export class ApprovalsService {
           where: { id: approval.entityId },
           data:
             dto.decision === 'APPROVED'
-              ? { status: 'ACTIVE', approvedAt: new Date(), approvedBy: reviewerId, rejectionReason: null }
+              ? {
+                  status: 'ACTIVE',
+                  approvedAt: new Date(),
+                  approvedBy: reviewerId,
+                  rejectionReason: null,
+                }
               : { status: 'REJECTED', rejectionReason: dto.notes ?? 'Rejected' },
         });
         await this.outbox.enqueue<TenantStatusChangedEvent>(tx, {
@@ -84,7 +105,12 @@ export class ApprovalsService {
           aggregateType: 'Tenant',
           aggregateId: tenant.id,
           tenantId: tenant.id,
-          data: { tenantId: tenant.id, tenantType: tenant.type, status: tenant.status, reason: dto.notes ?? null },
+          data: {
+            tenantId: tenant.id,
+            tenantType: tenant.type,
+            status: tenant.status,
+            reason: dto.notes ?? null,
+          },
         });
       }
 
@@ -93,7 +119,10 @@ export class ApprovalsService {
         if (userId) {
           const user = await tx.user.findUnique({ where: { id: userId } });
           if (user && !user.roles.includes('RIDER')) {
-            await tx.user.update({ where: { id: userId }, data: { roles: { set: [...user.roles, 'RIDER'] } } });
+            await tx.user.update({
+              where: { id: userId },
+              data: { roles: { set: [...user.roles, 'RIDER'] } },
+            });
           }
         }
       }

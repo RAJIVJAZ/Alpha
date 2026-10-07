@@ -10,7 +10,9 @@ class ReplyDto {
   @ApiProperty() @IsString() @MaxLength(1000) reply!: string;
 }
 class ModerateDto {
-  @ApiProperty({ enum: ['PUBLISHED', 'HIDDEN', 'FLAGGED'] }) @IsIn(['PUBLISHED', 'HIDDEN', 'FLAGGED']) status!: 'PUBLISHED' | 'HIDDEN' | 'FLAGGED';
+  @ApiProperty({ enum: ['PUBLISHED', 'HIDDEN', 'FLAGGED'] })
+  @IsIn(['PUBLISHED', 'HIDDEN', 'FLAGGED'])
+  status!: 'PUBLISHED' | 'HIDDEN' | 'FLAGGED';
 }
 
 @ApiTags('reviews')
@@ -28,7 +30,11 @@ export class ReviewsController {
   @RequireTenant('RESTAURANT', 'FOOD_CART')
   @RequirePermissions(Permissions.OrdersRead)
   @Get('merchant/reviews')
-  merchant(@CurrentUser() user: AccessTokenClaims, @Query('outletId') outletId?: string, @Query('page') page?: number) {
+  merchant(
+    @CurrentUser() user: AccessTokenClaims,
+    @Query('outletId') outletId?: string,
+    @Query('page') page?: number,
+  ) {
     return this.reviews.forMerchant(user, outletId, Number(page) || 1);
   }
 

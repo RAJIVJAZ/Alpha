@@ -13,7 +13,11 @@ class HomeQuery {
 }
 class DishQuery {
   @ApiProperty() @IsString() outletId!: string;
-  @ApiPropertyOptional({ description: 'Comma separated item ids in the cart' }) @IsOptional() @ToArray() @IsArray() itemIds?: string[];
+  @ApiPropertyOptional({ description: 'Comma separated item ids in the cart' })
+  @IsOptional()
+  @ToArray()
+  @IsArray()
+  itemIds?: string[];
 }
 
 @ApiTags('recommendations')

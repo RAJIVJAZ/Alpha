@@ -12,7 +12,9 @@ async function main() {
   app.useWebSocketAdapter(adapter);
   const port = Number(process.env.PORT ?? SERVICE.defaultPort);
   await app.listen(port, '0.0.0.0');
-  new Logger('Bootstrap').log(`${SERVICE.name} listening on :${port} (websocket /ws, namespace /tracking)`);
+  new Logger('Bootstrap').log(
+    `${SERVICE.name} listening on :${port} (websocket /ws, namespace /tracking)`,
+  );
 }
 
 void main();

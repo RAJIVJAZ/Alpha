@@ -55,14 +55,19 @@ export class IngredientsService {
     if (!outlet || outlet.tenantId !== tenantId) throw notFound('Outlet', dto.outletId);
     const { openingStock, openingUnitCost, ...data } = dto;
     return this.prisma.$transaction(async (tx) => {
-      const exists = await tx.ingredient.findUnique({ where: { outletId_sku: { outletId: dto.outletId, sku: dto.sku } } });
+      const exists = await tx.ingredient.findUnique({
+        where: { outletId_sku: { outletId: dto.outletId, sku: dto.sku } },
+      });
       if (exists) throw conflict(`SKU ${dto.sku} already exists at this outlet`, 'DUPLICATE_SKU');
       const created = await tx.ingredient.create({
         data: {
           ...data,
           tenantId,
-          marketplaceCategory: dto.marketplaceCategory ?? DEFAULT_MARKETPLACE_CATEGORY[dto.category] ?? null,
-          isPerishable: dto.isPerishable ?? ['DAIRY', 'VEGETABLES', 'FRUITS', 'MEAT_SEAFOOD', 'BAKERY'].includes(dto.category),
+          marketplaceCategory:
+            dto.marketplaceCategory ?? DEFAULT_MARKETPLACE_CATEGORY[dto.category] ?? null,
+          isPerishable:
+            dto.isPerishable ??
+            ['DAIRY', 'VEGETABLES', 'FRUITS', 'MEAT_SEAFOOD', 'BAKERY'].includes(dto.category),
         },
       });
       if (openingStock && openingStock > 0) {
@@ -82,9 +87,18 @@ export class IngredientsService {
       outletId: q.outletId,
       category: q.category,
       isActive: true,
-      ...(q.q ? { OR: [{ name: { contains: q.q, mode: 'insensitive' } }, { sku: { contains: q.q.toUpperCase() } }] } : {}),
+      ...(q.q
+        ? {
+            OR: [
+              { name: { contains: q.q, mode: 'insensitive' } },
+              { sku: { contains: q.q.toUpperCase() } },
+            ],
+          }
+        : {}),
     };
-    const rows = await this.prisma.forTenant(tenantId).ingredient.findMany({ where, orderBy: [{ category: 'asc' }, { name: 'asc' }] });
+    const rows = await this.prisma
+      .forTenant(tenantId)
+      .ingredient.findMany({ where, orderBy: [{ category: 'asc' }, { name: 'asc' }] });
     const views = rows.map(toIngredientView).filter((v) => !q.status || v.status === q.status);
     const { page, pageSize, skip } = normalizePage(q, 500);
     return paginate(views.slice(skip, skip + pageSize), views.length, page, pageSize);
@@ -94,7 +108,10 @@ export class IngredientsService {
     const ing = await this.prisma.forTenant(tenantId).ingredient.findUnique({
       where: { id },
       include: {
-        batches: { where: { remainingQty: { gt: 0 } }, orderBy: [{ expiresAt: 'asc' }, { receivedAt: 'asc' }] },
+        batches: {
+          where: { remainingQty: { gt: 0 } },
+          orderBy: [{ expiresAt: 'asc' }, { receivedAt: 'asc' }],
+        },
         movements: { orderBy: { createdAt: 'desc' }, take: 20 },
         consumption: { orderBy: { date: 'desc' }, take: 30 },
       },
@@ -112,11 +129,22 @@ export class IngredientsService {
   /** Inventory dashboard: value and health per category, expiring batches. */
   async summary(tenantId: string, outletId?: string) {
     const db = this.prisma.forTenant(tenantId);
-    const ingredients = await db.ingredient.findMany({ where: { isActive: true, ...(outletId ? { outletId } : {}) } });
-    const byCategory = new Map<string, { category: string; items: number; value: number; low: number; out: number }>();
+    const ingredients = await db.ingredient.findMany({
+      where: { isActive: true, ...(outletId ? { outletId } : {}) },
+    });
+    const byCategory = new Map<
+      string,
+      { category: string; items: number; value: number; low: number; out: number }
+    >();
     for (const i of ingredients) {
       const v = toIngredientView(i);
-      const c = byCategory.get(i.category) ?? { category: i.category, items: 0, value: 0, low: 0, out: 0 };
+      const c = byCategory.get(i.category) ?? {
+        category: i.category,
+        items: 0,
+        value: 0,
+        low: 0,
+        out: 0,
+      };
       c.items += 1;
       c.value = round2(c.value + Number(v.stockValue));
       if (v.status === 'LOW') c.low += 1;
@@ -125,7 +153,11 @@ export class IngredientsService {
     }
     const soon = new Date(Date.now() + 3 * 86_400_000);
     const expiring = await db.stockBatch.findMany({
-      where: { remainingQty: { gt: 0 }, expiresAt: { lte: soon }, ...(outletId ? { ingredient: { outletId } } : {}) },
+      where: {
+        remainingQty: { gt: 0 },
+        expiresAt: { lte: soon },
+        ...(outletId ? { ingredient: { outletId } } : {}),
+      },
       include: { ingredient: { select: { name: true, unit: true } } },
       orderBy: { expiresAt: 'asc' },
       take: 50,

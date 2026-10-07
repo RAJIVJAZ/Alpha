@@ -1,4 +1,11 @@
-import { ArgumentsHost, Catch, ExceptionFilter, HttpException, HttpStatus, Logger } from '@nestjs/common';
+import {
+  ArgumentsHost,
+  Catch,
+  ExceptionFilter,
+  HttpException,
+  HttpStatus,
+  Logger,
+} from '@nestjs/common';
 import { Prisma } from '@foodgrid/database';
 import { TenantScopeViolationError } from '@foodgrid/database';
 import type { ApiErrorBody } from '@foodgrid/types';
@@ -40,10 +47,18 @@ export class AllExceptionsFilter implements ExceptionFilter {
     res.status(status).json(body);
   }
 
-  private describe(e: unknown): { status: number; message: string | string[]; code?: string; details?: unknown } {
-    if (e instanceof AppError) return { status: e.status, message: e.message, code: e.code, details: e.details };
-    if (e instanceof TenantScopeViolationError) return { status: 403, message: e.message, code: 'TENANT_SCOPE' };
-    if (e instanceof UnitConversionError) return { status: 422, message: e.message, code: 'UNIT_MISMATCH' };
+  private describe(e: unknown): {
+    status: number;
+    message: string | string[];
+    code?: string;
+    details?: unknown;
+  } {
+    if (e instanceof AppError)
+      return { status: e.status, message: e.message, code: e.code, details: e.details };
+    if (e instanceof TenantScopeViolationError)
+      return { status: 403, message: e.message, code: 'TENANT_SCOPE' };
+    if (e instanceof UnitConversionError)
+      return { status: 422, message: e.message, code: 'UNIT_MISMATCH' };
     if (e instanceof HttpException) {
       const status = e.getStatus();
       const r = e.getResponse();
@@ -53,7 +68,12 @@ export class AllExceptionsFilter implements ExceptionFilter {
       const obj = r as Record<string, unknown>;
       if (status === 400 && Array.isArray(obj.message) && obj.code === undefined) {
         // class-validator failures from the global ValidationPipe
-        return { status, message: 'Validation failed', code: 'VALIDATION_FAILED', details: { errors: obj.message } };
+        return {
+          status,
+          message: 'Validation failed',
+          code: 'VALIDATION_FAILED',
+          details: { errors: obj.message },
+        };
       }
       return {
         status,
@@ -65,13 +85,27 @@ export class AllExceptionsFilter implements ExceptionFilter {
     if (e instanceof Prisma.PrismaClientKnownRequestError) {
       switch (e.code) {
         case 'P2002':
-          return { status: 409, message: 'Resource already exists', code: 'DUPLICATE', details: e.meta };
+          return {
+            status: 409,
+            message: 'Resource already exists',
+            code: 'DUPLICATE',
+            details: e.meta,
+          };
         case 'P2025':
           return { status: 404, message: 'Resource not found', code: 'NOT_FOUND' };
         case 'P2003':
-          return { status: 409, message: 'Related resource missing', code: 'FK_VIOLATION', details: e.meta };
+          return {
+            status: 409,
+            message: 'Related resource missing',
+            code: 'FK_VIOLATION',
+            details: e.meta,
+          };
         case 'P2034':
-          return { status: 409, message: 'Concurrent update, please retry', code: 'WRITE_CONFLICT' };
+          return {
+            status: 409,
+            message: 'Concurrent update, please retry',
+            code: 'WRITE_CONFLICT',
+          };
         default:
           return { status: 500, message: 'Database error', code: e.code };
       }

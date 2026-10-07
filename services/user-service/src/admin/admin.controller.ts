@@ -47,13 +47,21 @@ export class AdminController {
   @RequirePermissions(Permissions.PlatformUsersManage)
   @Patch('users/:id/status')
   @ApiOperation({ summary: 'Block / unblock a user (revokes sessions when blocking)' })
-  setStatus(@Param('id') id: string, @CurrentUser('sub') actor: string, @Body() dto: UpdateUserStatusDto) {
+  setStatus(
+    @Param('id') id: string,
+    @CurrentUser('sub') actor: string,
+    @Body() dto: UpdateUserStatusDto,
+  ) {
     return this.admin.setUserStatus(id, actor, dto);
   }
 
   @Roles('ADMIN')
   @Patch('users/:id/roles')
-  setRoles(@Param('id') id: string, @CurrentUser('sub') actor: string, @Body() dto: UpdateUserRolesDto) {
+  setRoles(
+    @Param('id') id: string,
+    @CurrentUser('sub') actor: string,
+    @Body() dto: UpdateUserRolesDto,
+  ) {
     return this.admin.setUserRoles(id, actor, dto);
   }
 
@@ -79,7 +87,11 @@ export class AdminController {
   @RequirePermissions(Permissions.PlatformApprovals)
   @Patch('tenants/:id')
   @ApiOperation({ summary: 'Suspend / reactivate a business or override its commission' })
-  updateTenant(@Param('id') id: string, @CurrentUser('sub') actor: string, @Body() dto: UpdateTenantAdminDto) {
+  updateTenant(
+    @Param('id') id: string,
+    @CurrentUser('sub') actor: string,
+    @Body() dto: UpdateTenantAdminDto,
+  ) {
     return this.admin.updateTenant(id, actor, dto);
   }
 
@@ -99,7 +111,11 @@ export class AdminController {
   @RequirePermissions(Permissions.PlatformApprovals)
   @Post('approvals/:id/decision')
   @ApiOperation({ summary: 'Approve / reject / request changes' })
-  decide(@Param('id') id: string, @CurrentUser('sub') actor: string, @Body() dto: ApprovalDecisionDto) {
+  decide(
+    @Param('id') id: string,
+    @CurrentUser('sub') actor: string,
+    @Body() dto: ApprovalDecisionDto,
+  ) {
     return this.approvals.decide(id, dto, actor);
   }
 

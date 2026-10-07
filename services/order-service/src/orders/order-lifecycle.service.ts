@@ -24,7 +24,11 @@ const EVENT_FOR_STATUS: Partial<Record<OrderStatus, string>> = {
   REJECTED: EventTypes.OrderRejected,
 };
 
-const ordersTransitioned = businessCounter('orders_status_transitions_total', 'Order status transitions', ['to', 'channel']);
+const ordersTransitioned = businessCounter(
+  'orders_status_transitions_total',
+  'Order status transitions',
+  ['to', 'channel'],
+);
 
 export interface TransitionOptions {
   actorType: ActorType;
@@ -48,14 +52,26 @@ export class OrderLifecycleService {
     private readonly kds: KdsService,
   ) {}
 
-  async transition(orderId: string, to: OrderStatus, opts: TransitionOptions): Promise<OrderWithItems> {
+  async transition(
+    orderId: string,
+    to: OrderStatus,
+    opts: TransitionOptions,
+  ): Promise<OrderWithItems> {
     return this.prisma.$transaction((tx) => this.transitionInTx(tx, orderId, to, opts));
   }
 
-  async transitionInTx(tx: Tx, orderId: string, to: OrderStatus, opts: TransitionOptions): Promise<OrderWithItems> {
+  async transitionInTx(
+    tx: Tx,
+    orderId: string,
+    to: OrderStatus,
+    opts: TransitionOptions,
+  ): Promise<OrderWithItems> {
     // Row lock prevents two concurrent transitions (e.g. merchant accept vs customer cancel).
     await tx.$queryRaw`SELECT id FROM "commerce"."Order" WHERE id = ${orderId} FOR UPDATE`;
-    const current = await tx.order.findUnique({ where: { id: orderId }, include: { items: true, outlet: true } });
+    const current = await tx.order.findUnique({
+      where: { id: orderId },
+      include: { items: true, outlet: true },
+    });
     if (!current) throw notFound('Order', orderId);
     if (current.status === to) return current;
     orderStateMachine.assert(current.status, to);
@@ -72,7 +88,13 @@ export class OrderLifecycleService {
           ? { cancelledBy: opts.actorType, cancelReason: opts.note ?? undefined }
           : {}),
         events: {
-          create: { fromStatus: current.status, toStatus: to, actorType: opts.actorType, actorId: opts.actorId, note: opts.note },
+          create: {
+            fromStatus: current.status,
+            toStatus: to,
+            actorType: opts.actorType,
+            actorId: opts.actorId,
+            note: opts.note,
+          },
         },
       },
       include: { items: true, outlet: true },
@@ -89,10 +111,17 @@ export class OrderLifecycleService {
     return updated;
   }
 
-  async emit(tx: Tx, order: OrderWithItems, previous: OrderStatus | null, reason?: string | null, typeOverride?: string) {
+  async emit(
+    tx: Tx,
+    order: OrderWithItems,
+    previous: OrderStatus | null,
+    reason?: string | null,
+    typeOverride?: string,
+  ) {
     const type = typeOverride ?? EVENT_FOR_STATUS[order.status];
     if (!type) return;
-    const minutes = (a?: Date | null, b?: Date | null) => (a && b ? Math.round((b.getTime() - a.getTime()) / 60000) : null);
+    const minutes = (a?: Date | null, b?: Date | null) =>
+      a && b ? Math.round((b.getTime() - a.getTime()) / 60000) : null;
     await this.outbox.enqueue<OrderStatusChangedEvent>(tx, {
       stream: 'order',
       type,
@@ -116,6 +145,9 @@ export class OrderLifecycleService {
     const redemption = await tx.couponRedemption.findUnique({ where: { orderId: order.id } });
     if (!redemption) return;
     await tx.couponRedemption.delete({ where: { id: redemption.id } });
-    await tx.coupon.update({ where: { id: redemption.couponId }, data: { usedCount: { decrement: 1 } } });
+    await tx.coupon.update({
+      where: { id: redemption.couponId },
+      data: { usedCount: { decrement: 1 } },
+    });
   }
 }

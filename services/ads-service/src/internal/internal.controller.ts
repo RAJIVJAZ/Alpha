@@ -26,6 +26,13 @@ export class InternalController {
   async payable(@Param('id') id: string) {
     const c = await this.prisma.adCampaign.findUnique({ where: { id } });
     if (!c) throw notFound('Campaign', id);
-    return { referenceId: id, amount: c.totalBudget.toString(), userId: null, tenantId: c.tenantId, payable: c.status === 'DRAFT', description: `Ad budget: ${c.name}` };
+    return {
+      referenceId: id,
+      amount: c.totalBudget.toString(),
+      userId: null,
+      tenantId: c.tenantId,
+      payable: c.status === 'DRAFT',
+      description: `Ad budget: ${c.name}`,
+    };
   }
 }

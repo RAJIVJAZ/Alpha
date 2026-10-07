@@ -4,7 +4,15 @@ import { Permissions } from '@foodgrid/auth';
 import { CurrentUser, RequirePermissions, RequireTenant, TenantId } from '@foodgrid/auth/nest';
 import type { AccessTokenClaims } from '@foodgrid/types';
 import { B2bOrdersService } from './b2b-orders.service';
-import { ConfirmB2bOrderDto, DispatchDto, ListB2bOrdersDto, LocationDto, PlaceB2bOrderDto, RateSellerDto, RejectDto } from './dto/b2b-order.dto';
+import {
+  ConfirmB2bOrderDto,
+  DispatchDto,
+  ListB2bOrdersDto,
+  LocationDto,
+  PlaceB2bOrderDto,
+  RateSellerDto,
+  RejectDto,
+} from './dto/b2b-order.dto';
 
 @ApiTags('marketplace')
 @ApiBearerAuth()
@@ -56,7 +64,9 @@ export class SellerOrdersController {
   constructor(private readonly orders: B2bOrdersService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Incoming orders (incl. auto-generated purchase orders from restaurants)' })
+  @ApiOperation({
+    summary: 'Incoming orders (incl. auto-generated purchase orders from restaurants)',
+  })
   list(@TenantId() tenantId: string, @Query() q: ListB2bOrdersDto) {
     return this.orders.list('seller', tenantId, q);
   }

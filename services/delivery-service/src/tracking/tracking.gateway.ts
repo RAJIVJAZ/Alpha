@@ -21,7 +21,11 @@ export const OPS_ROOM = 'ops';
  * their order; riders receive offers in their private room; ops staff see
  * every rider. Scales horizontally through the Redis adapter.
  */
-@WebSocketGateway({ namespace: '/tracking', cors: { origin: true, credentials: true }, path: '/ws' })
+@WebSocketGateway({
+  namespace: '/tracking',
+  cors: { origin: true, credentials: true },
+  path: '/ws',
+})
 export class TrackingGateway implements OnGatewayConnection {
   private readonly logger = new Logger(TrackingGateway.name);
   @WebSocketServer() server!: Server;
@@ -32,18 +36,24 @@ export class TrackingGateway implements OnGatewayConnection {
   ) {}
 
   async handleConnection(client: Socket) {
-    const raw = (client.handshake.auth?.token as string | undefined) ?? extractBearer(client.handshake.headers.authorization);
+    const raw =
+      (client.handshake.auth?.token as string | undefined) ??
+      extractBearer(client.handshake.headers.authorization);
     try {
       const user = this.tokens.verify(raw ?? '');
       client.data.user = user;
       if (user.roles.includes('RIDER')) {
-        const rider = await this.prisma.riderProfile.findUnique({ where: { userId: user.sub }, select: { id: true } });
+        const rider = await this.prisma.riderProfile.findUnique({
+          where: { userId: user.sub },
+          select: { id: true },
+        });
         if (rider) {
           client.data.riderId = rider.id;
           await client.join(riderRoom(rider.id));
         }
       }
-      if (user.roles.some((r) => ['ADMIN', 'OPS', 'SUPPORT'].includes(r))) await client.join(OPS_ROOM);
+      if (user.roles.some((r) => ['ADMIN', 'OPS', 'SUPPORT'].includes(r)))
+        await client.join(OPS_ROOM);
     } catch {
       client.emit('error', { code: 'UNAUTHORIZED' });
       client.disconnect(true);
@@ -51,10 +61,16 @@ export class TrackingGateway implements OnGatewayConnection {
   }
 
   @SubscribeMessage('order:subscribe')
-  async subscribeOrder(@ConnectedSocket() client: Socket, @MessageBody() body: { orderId: string }) {
+  async subscribeOrder(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() body: { orderId: string },
+  ) {
     const user = client.data.user as AccessTokenClaims | undefined;
     if (!user || !body?.orderId) return { ok: false };
-    const delivery = await this.prisma.delivery.findUnique({ where: { orderId: body.orderId }, select: { customerId: true, tenantId: true } });
+    const delivery = await this.prisma.delivery.findUnique({
+      where: { orderId: body.orderId },
+      select: { customerId: true, tenantId: true },
+    });
     const allowed =
       !!delivery &&
       (delivery.customerId === user.sub ||
@@ -66,7 +82,10 @@ export class TrackingGateway implements OnGatewayConnection {
   }
 
   @SubscribeMessage('order:unsubscribe')
-  async unsubscribeOrder(@ConnectedSocket() client: Socket, @MessageBody() body: { orderId: string }) {
+  async unsubscribeOrder(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() body: { orderId: string },
+  ) {
     await client.leave(orderRoom(body.orderId));
     return { ok: true };
   }

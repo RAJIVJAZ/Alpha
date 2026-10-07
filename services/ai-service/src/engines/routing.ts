@@ -35,7 +35,11 @@ export function isFeasible(seq: Stop[]): boolean {
   const picked = new Set<string>();
   for (const s of seq) {
     if (s.type === 'PICKUP') picked.add(s.orderId);
-    else if (!picked.has(s.orderId) && seq.some((x) => x.type === 'PICKUP' && x.orderId === s.orderId)) return false;
+    else if (
+      !picked.has(s.orderId) &&
+      seq.some((x) => x.type === 'PICKUP' && x.orderId === s.orderId)
+    )
+      return false;
   }
   return true;
 }
@@ -58,7 +62,9 @@ function nearestNeighbour(start: LatLng, stops: Stop[]): Stop[] {
   const route: Stop[] = [];
   let cur: LatLng = start;
   while (remaining.length) {
-    const candidates = remaining.filter((s) => s.type === 'PICKUP' || !hasPickup.has(s.orderId) || picked.has(s.orderId));
+    const candidates = remaining.filter(
+      (s) => s.type === 'PICKUP' || !hasPickup.has(s.orderId) || picked.has(s.orderId),
+    );
     candidates.sort((a, b) => estimateRoadKm(cur, a) - estimateRoadKm(cur, b));
     const next = candidates[0]!;
     route.push(next);
@@ -77,7 +83,11 @@ function improve(start: LatLng, route: Stop[], maxIterations = 200): Stop[] {
     improved = false;
     for (let i = 0; i < best.length - 1; i++) {
       for (let j = i + 1; j < best.length; j++) {
-        const reversed = [...best.slice(0, i), ...best.slice(i, j + 1).reverse(), ...best.slice(j + 1)];
+        const reversed = [
+          ...best.slice(0, i),
+          ...best.slice(i, j + 1).reverse(),
+          ...best.slice(j + 1),
+        ];
         const len = routeLength(start, reversed);
         if (len + 1e-9 < bestLen && isFeasible(reversed)) {
           best = reversed;
@@ -122,11 +132,20 @@ export function optimizeRoute(input: RouteInput): RouteResult {
     const eta = Math.round(minutes);
     minutes += service[s.type];
     prev = s;
-    return { ...s, sequence: idx + 1, legKm: round2(legKm), cumulativeKm: round2(cumulativeKm), etaMins: eta };
+    return {
+      ...s,
+      sequence: idx + 1,
+      legKm: round2(legKm),
+      cumulativeKm: round2(cumulativeKm),
+      etaMins: eta,
+    };
   });
 
   const destination = route[route.length - 1];
-  const waypoints = route.slice(0, -1).map((s) => `${s.lat},${s.lng}`).join('|');
+  const waypoints = route
+    .slice(0, -1)
+    .map((s) => `${s.lat},${s.lng}`)
+    .join('|');
   const navigationUrl = destination
     ? `https://www.google.com/maps/dir/?api=1&origin=${input.start.lat},${input.start.lng}&destination=${destination.lat},${destination.lng}${waypoints ? `&waypoints=${encodeURIComponent(waypoints)}` : ''}&travelmode=two-wheeler`
     : '';

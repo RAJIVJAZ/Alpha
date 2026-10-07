@@ -1,4 +1,10 @@
-import { Inject, Injectable, Logger, OnApplicationBootstrap, OnApplicationShutdown } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  Logger,
+  OnApplicationBootstrap,
+  OnApplicationShutdown,
+} from '@nestjs/common';
 import { PrismaService } from '@foodgrid/database/nest';
 import type { EventEnvelope, EventStream } from '@foodgrid/types';
 import { EVENTS_MODULE_OPTIONS } from './constants';

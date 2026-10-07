@@ -32,7 +32,9 @@ describe('forecastDemand', () => {
       startDate: '2026-07-27',
       horizon: 3,
       category: 'SUGAR',
-      signals: [{ date: target, impact: 1.6, name: 'Raksha Bandhan', categories: ['SUGAR', 'DAIRY'] }],
+      signals: [
+        { date: target, impact: 1.6, name: 'Raksha Bandhan', categories: ['SUGAR', 'DAIRY'] },
+      ],
     });
     expect(withSignal.points[1]!.value).toBeCloseTo(base.points[1]!.value * 1.6, 1);
     expect(withSignal.points[1]!.signals).toEqual(['Raksha Bandhan']);
@@ -61,8 +63,14 @@ describe('forecastDemand', () => {
 
   it('degrades gracefully on short or empty history', () => {
     expect(forecastDemand({ series: [], startDate: '2026-10-01', horizon: 3 }).model).toBe('ZERO');
-    expect(forecastDemand({ series: [5, 6, 7], startDate: '2026-10-01', horizon: 3 }).model).toBe('MOVING_AVERAGE');
-    const sn = forecastDemand({ series: [1, 2, 3, 4, 5, 6, 7, 1, 2, 3], startDate: '2026-10-01', horizon: 2 });
+    expect(forecastDemand({ series: [5, 6, 7], startDate: '2026-10-01', horizon: 3 }).model).toBe(
+      'MOVING_AVERAGE',
+    );
+    const sn = forecastDemand({
+      series: [1, 2, 3, 4, 5, 6, 7, 1, 2, 3],
+      startDate: '2026-10-01',
+      horizon: 2,
+    });
     expect(sn.model).toBe('SEASONAL_NAIVE');
     expect(sn.points.every((p) => p.value >= 0)).toBe(true);
   });
@@ -74,7 +82,10 @@ describe('forecastDemand', () => {
 });
 
 describe('predictDepletion', () => {
-  const pts = ['2026-10-07', '2026-10-08', '2026-10-09', '2026-10-10'].map((date) => ({ date, value: 10 }));
+  const pts = ['2026-10-07', '2026-10-08', '2026-10-09', '2026-10-10'].map((date) => ({
+    date,
+    value: 10,
+  }));
   it('finds the day stock runs out', () => {
     expect(predictDepletion(25, pts)).toEqual({ daysOfCover: 2.5, depletionDate: '2026-10-09' });
   });

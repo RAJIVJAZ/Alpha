@@ -49,13 +49,15 @@ export function scoreOrderRisk(f: OrderRiskFeatures): RiskAssessment {
   if (f.accountsOnDevice >= 3) add('Many accounts on one device', 1.5);
   else if (f.accountsOnDevice === 2) add('Shared device', 0.6);
   if (f.firstOrderCoupon && f.accountsOnDevice >= 2) add('First-order coupon reuse', 1.5);
-  if (f.addressDistanceFromUsualKm !== null && f.addressDistanceFromUsualKm > 30) add('Unusual delivery location', 0.4);
+  if (f.addressDistanceFromUsualKm !== null && f.addressDistanceFromUsualKm > 30)
+    add('Unusual delivery location', 0.4);
   if (f.hourOfDay >= 1 && f.hourOfDay < 5) add('Late-night order', 0.3);
   if (f.completedOrders >= 10) add('Established customer', -1.0);
 
   const z = BIAS + Object.values(c).reduce((a, b) => a + b, 0);
   const score = round2(sigmoid(z));
-  let decision: RiskAssessment['decision'] = score >= 0.85 ? 'BLOCK' : score >= 0.6 ? 'REVIEW' : 'ALLOW';
+  let decision: RiskAssessment['decision'] =
+    score >= 0.85 ? 'BLOCK' : score >= 0.6 ? 'REVIEW' : 'ALLOW';
   if (f.accountsOnDevice >= 5) decision = 'BLOCK';
   const reasons = Object.entries(c)
     .filter(([, w]) => w > 0)
@@ -71,24 +73,38 @@ export interface Ping {
 }
 
 /** GPS spoofing / teleport detection on a rider trail. */
-export function analyseTrajectory(pings: Ping[], drop?: { lat: number; lng: number }, maxSpeedKmph = 120) {
+export function analyseTrajectory(
+  pings: Ping[],
+  drop?: { lat: number; lng: number },
+  maxSpeedKmph = 120,
+) {
   const sorted = [...pings].sort((a, b) => a.at.localeCompare(b.at));
   const anomalies: { at: string; speedKmph: number }[] = [];
   let distanceKm = 0;
   for (let i = 1; i < sorted.length; i++) {
     const d = haversineKm(sorted[i - 1]!, sorted[i]!);
     distanceKm += d;
-    const hours = (new Date(sorted[i]!.at).getTime() - new Date(sorted[i - 1]!.at).getTime()) / 3_600_000;
+    const hours =
+      (new Date(sorted[i]!.at).getTime() - new Date(sorted[i - 1]!.at).getTime()) / 3_600_000;
     const speed = hours > 0 ? d / hours : d > 0.05 ? Number.POSITIVE_INFINITY : 0;
-    if (speed > maxSpeedKmph) anomalies.push({ at: sorted[i]!.at, speedKmph: Number.isFinite(speed) ? round2(speed) : -1 });
+    if (speed > maxSpeedKmph)
+      anomalies.push({ at: sorted[i]!.at, speedKmph: Number.isFinite(speed) ? round2(speed) : -1 });
   }
   const last = sorted[sorted.length - 1];
   const distanceFromDropM = drop && last ? Math.round(haversineKm(last, drop) * 1000) : null;
   const reasons: string[] = [];
   if (anomalies.length) reasons.push(`${anomalies.length} impossible jump(s) in GPS trail`);
-  if (distanceFromDropM !== null && distanceFromDropM > 300) reasons.push(`Marked delivered ${distanceFromDropM} m from the drop point`);
+  if (distanceFromDropM !== null && distanceFromDropM > 300)
+    reasons.push(`Marked delivered ${distanceFromDropM} m from the drop point`);
   if (sorted.length < 3) reasons.push('Too few location updates');
-  const score = round2(Math.min(1, anomalies.length * 0.3 + (distanceFromDropM && distanceFromDropM > 300 ? 0.4 : 0) + (sorted.length < 3 ? 0.2 : 0)));
+  const score = round2(
+    Math.min(
+      1,
+      anomalies.length * 0.3 +
+        (distanceFromDropM && distanceFromDropM > 300 ? 0.4 : 0) +
+        (sorted.length < 3 ? 0.2 : 0),
+    ),
+  );
   return {
     score,
     decision: score >= 0.7 ? 'BLOCK' : score >= 0.4 ? 'REVIEW' : 'ALLOW',

@@ -1,5 +1,13 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEmail, IsNotEmpty, IsOptional, IsString, Length, Matches, MaxLength } from 'class-validator';
+import {
+  IsEmail,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  Length,
+  Matches,
+  MaxLength,
+} from 'class-validator';
 
 export class RequestOtpDto {
   @ApiProperty({ example: '9876543210', description: '10-digit Indian mobile or E.164 number' })
@@ -59,7 +67,10 @@ export class RefreshTokenDto {
 }
 
 export class SwitchTenantDto {
-  @ApiPropertyOptional({ description: 'Tenant to activate; omit/null to clear the business context', nullable: true })
+  @ApiPropertyOptional({
+    description: 'Tenant to activate; omit/null to clear the business context',
+    nullable: true,
+  })
   @IsOptional()
   @IsString()
   tenantId?: string | null;

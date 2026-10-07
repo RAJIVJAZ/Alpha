@@ -3,7 +3,13 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Permissions } from '@foodgrid/auth';
 import { CurrentUser, Internal, RequirePermissions } from '@foodgrid/auth/nest';
 import { PrismaService } from '@foodgrid/database/nest';
-import { InternalSendDto, InternalSmsDto, PreferencesDto, RegisterDeviceDto, TemplateDto } from './dto/notification.dto';
+import {
+  InternalSendDto,
+  InternalSmsDto,
+  PreferencesDto,
+  RegisterDeviceDto,
+  TemplateDto,
+} from './dto/notification.dto';
 import { NotificationsService } from './notifications.service';
 
 @ApiTags('notifications')
@@ -61,7 +67,9 @@ export class TemplatesController {
   constructor(private readonly prisma: PrismaService) {}
 
   @Get() list() {
-    return this.prisma.notificationTemplate.findMany({ orderBy: [{ key: 'asc' }, { channel: 'asc' }] });
+    return this.prisma.notificationTemplate.findMany({
+      orderBy: [{ key: 'asc' }, { channel: 'asc' }],
+    });
   }
 
   @Put()
@@ -92,7 +100,12 @@ export class InternalNotificationsController {
   @HttpCode(200)
   @ApiOperation({ summary: 'Transactional SMS (OTP)' })
   async sms(@Body() dto: InternalSmsDto) {
-    const [n] = await this.notifications.send({ channel: 'SMS', recipient: dto.phone, templateKey: dto.templateKey, data: dto.data });
+    const [n] = await this.notifications.send({
+      channel: 'SMS',
+      recipient: dto.phone,
+      templateKey: dto.templateKey,
+      data: dto.data,
+    });
     return { status: n?.status ?? 'SKIPPED' };
   }
 }

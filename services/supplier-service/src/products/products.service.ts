@@ -4,9 +4,22 @@ import type { Prisma, SellerType } from '@foodgrid/database';
 import type { AccessTokenClaims } from '@foodgrid/types';
 import { badRequest, conflict, normalizePage, notFound, paginate } from '@foodgrid/utils';
 import { TenantDirectory } from '../common/tenant-directory.service';
-import { BulkProductsDto, CatalogQueryDto, PriceTiersDto, ProductDto, UpdateProductDto } from './dto/product.dto';
+import {
+  BulkProductsDto,
+  CatalogQueryDto,
+  PriceTiersDto,
+  ProductDto,
+  UpdateProductDto,
+} from './dto/product.dto';
 
-const slugify = (v: string) => v.toLowerCase().normalize('NFKD').replace(/[^\w\s-]/g, '').trim().replace(/[\s_-]+/g, '-').slice(0, 80);
+const slugify = (v: string) =>
+  v
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[^\w\s-]/g, '')
+    .trim()
+    .replace(/[\s_-]+/g, '-')
+    .slice(0, 80);
 
 export function stockStatusFor(qty: number, threshold: number) {
   return qty <= 0 ? 'OUT_OF_STOCK' : qty <= threshold ? 'LOW_STOCK' : 'IN_STOCK';
@@ -37,14 +50,18 @@ export class ProductsService {
     const existing = await this.prisma.sellerMetrics.findUnique({ where: { tenantId } });
     if (existing) return;
     const t = await this.tenants.get(tenantId);
-    await this.prisma.sellerMetrics.create({ data: { tenantId, sellerName: t.name } }).catch(() => undefined);
+    await this.prisma.sellerMetrics
+      .create({ data: { tenantId, sellerName: t.name } })
+      .catch(() => undefined);
   }
 
   // ─── seller ────────────────────────────────────────────────────────────────
   async create(user: AccessTokenClaims, dto: ProductDto) {
     const tenantId = user.tenantId!;
     const { categoryCode, ...data } = dto;
-    const exists = await this.prisma.product.findUnique({ where: { tenantId_sku: { tenantId, sku: dto.sku } } });
+    const exists = await this.prisma.product.findUnique({
+      where: { tenantId_sku: { tenantId, sku: dto.sku } },
+    });
     if (exists) throw conflict(`SKU ${dto.sku} already exists`, 'DUPLICATE_SKU');
     await this.ensureSellerMetrics(tenantId);
     const stockQty = dto.stockQty ?? 0;
@@ -65,7 +82,9 @@ export class ProductsService {
     let created = 0;
     let updated = 0;
     for (const p of dto.products) {
-      const existing = await this.prisma.product.findUnique({ where: { tenantId_sku: { tenantId: user.tenantId!, sku: p.sku } } });
+      const existing = await this.prisma.product.findUnique({
+        where: { tenantId_sku: { tenantId: user.tenantId!, sku: p.sku } },
+      });
       if (existing) {
         const { sku: _sku, ...rest } = p;
         await this.update(user, existing.id, rest);
@@ -79,7 +98,9 @@ export class ProductsService {
   }
 
   async update(user: AccessTokenClaims, id: string, dto: UpdateProductDto) {
-    const product = await this.prisma.forTenant(user.tenantId!).product.findUnique({ where: { id } });
+    const product = await this.prisma
+      .forTenant(user.tenantId!)
+      .product.findUnique({ where: { id } });
     if (!product) throw notFound('Product', id);
     const { categoryCode, ...data } = dto;
     const stockQty = dto.stockQty ?? Number(product.stockQty);
@@ -96,7 +117,9 @@ export class ProductsService {
   }
 
   async setStock(user: AccessTokenClaims, id: string, stockQty: number) {
-    const product = await this.prisma.forTenant(user.tenantId!).product.findUnique({ where: { id } });
+    const product = await this.prisma
+      .forTenant(user.tenantId!)
+      .product.findUnique({ where: { id } });
     if (!product) throw notFound('Product', id);
     return this.prisma.product.update({
       where: { id },
@@ -105,10 +128,13 @@ export class ProductsService {
   }
 
   async setTiers(user: AccessTokenClaims, id: string, dto: PriceTiersDto) {
-    const product = await this.prisma.forTenant(user.tenantId!).product.findUnique({ where: { id } });
+    const product = await this.prisma
+      .forTenant(user.tenantId!)
+      .product.findUnique({ where: { id } });
     if (!product) throw notFound('Product', id);
     for (const t of dto.tiers) {
-      if (t.unitPrice > Number(product.price)) throw badRequest('Bulk tier price cannot exceed the base price', 'INVALID_TIER');
+      if (t.unitPrice > Number(product.price))
+        throw badRequest('Bulk tier price cannot exceed the base price', 'INVALID_TIER');
     }
     return this.prisma.$transaction(async (tx) => {
       await tx.priceTier.deleteMany({ where: { productId: id } });
@@ -123,19 +149,35 @@ export class ProductsService {
           validTo: t.validTo ? new Date(t.validTo) : null,
         })),
       });
-      return tx.product.findUniqueOrThrow({ where: { id }, include: { priceTiers: { orderBy: { minQty: 'asc' } } } });
+      return tx.product.findUniqueOrThrow({
+        where: { id },
+        include: { priceTiers: { orderBy: { minQty: 'asc' } } },
+      });
     });
   }
 
   async sellerList(user: AccessTokenClaims, q: CatalogQueryDto) {
     const { page, pageSize, skip, take } = normalizePage(q, 200);
     const where: Prisma.ProductWhereInput = {
-      ...(q.q ? { OR: [{ name: { contains: q.q, mode: 'insensitive' } }, { sku: { contains: q.q.toUpperCase() } }] } : {}),
+      ...(q.q
+        ? {
+            OR: [
+              { name: { contains: q.q, mode: 'insensitive' } },
+              { sku: { contains: q.q.toUpperCase() } },
+            ],
+          }
+        : {}),
       ...(q.category ? { category: { code: q.category } } : {}),
     };
     const db = this.prisma.forTenant(user.tenantId!);
     const [rows, total] = await Promise.all([
-      db.product.findMany({ where, skip, take, orderBy: { updatedAt: 'desc' }, include: { category: true, priceTiers: true } }),
+      db.product.findMany({
+        where,
+        skip,
+        take,
+        orderBy: { updatedAt: 'desc' },
+        include: { category: true, priceTiers: true },
+      }),
       db.product.count({ where }),
     ]);
     return paginate(rows, total, page, pageSize);
@@ -151,9 +193,17 @@ export class ProductsService {
       ...(q.category ? { category: { code: q.category } } : {}),
       ...(q.brand ? { brand: { equals: q.brand, mode: 'insensitive' } } : {}),
       ...(q.inStock ? { stockStatus: { not: 'OUT_OF_STOCK' } } : {}),
-      ...(q.minPrice !== undefined || q.maxPrice !== undefined ? { price: { gte: q.minPrice, lte: q.maxPrice } } : {}),
+      ...(q.minPrice !== undefined || q.maxPrice !== undefined
+        ? { price: { gte: q.minPrice, lte: q.maxPrice } }
+        : {}),
       ...(q.q
-        ? { OR: [{ name: { contains: q.q, mode: 'insensitive' } }, { brand: { contains: q.q, mode: 'insensitive' } }, { tags: { has: q.q.toLowerCase() } }] }
+        ? {
+            OR: [
+              { name: { contains: q.q, mode: 'insensitive' } },
+              { brand: { contains: q.q, mode: 'insensitive' } },
+              { tags: { has: q.q.toLowerCase() } },
+            ],
+          }
         : {}),
     };
     const orderBy: Prisma.ProductOrderByWithRelationInput[] =
@@ -167,13 +217,27 @@ export class ProductsService {
               ? [{ deliveryTimeHours: 'asc' }]
               : [{ stockStatus: 'asc' }, { rating: 'desc' }, { updatedAt: 'desc' }];
     const [rows, total] = await Promise.all([
-      this.prisma.product.findMany({ where, skip, take, orderBy, include: { category: { select: { code: true, name: true } }, priceTiers: { orderBy: { minQty: 'asc' } } } }),
+      this.prisma.product.findMany({
+        where,
+        skip,
+        take,
+        orderBy,
+        include: {
+          category: { select: { code: true, name: true } },
+          priceTiers: { orderBy: { minQty: 'asc' } },
+        },
+      }),
       this.prisma.product.count({ where }),
     ]);
-    const sellers = await this.prisma.sellerMetrics.findMany({ where: { tenantId: { in: [...new Set(rows.map((r) => r.tenantId))] } } });
+    const sellers = await this.prisma.sellerMetrics.findMany({
+      where: { tenantId: { in: [...new Set(rows.map((r) => r.tenantId))] } },
+    });
     const sellerById = new Map(sellers.map((s) => [s.tenantId, s]));
     return paginate(
-      rows.map((r) => ({ ...r, seller: sellerById.get(r.tenantId) ?? { tenantId: r.tenantId, sellerName: 'Seller' } })),
+      rows.map((r) => ({
+        ...r,
+        seller: sellerById.get(r.tenantId) ?? { tenantId: r.tenantId, sellerName: 'Seller' },
+      })),
       total,
       page,
       pageSize,
@@ -186,8 +250,20 @@ export class ProductsService {
       include: { category: true, priceTiers: { orderBy: { minQty: 'asc' } } },
     });
     if (!product) throw notFound('Product', id);
-    const seller = await this.prisma.sellerMetrics.findUnique({ where: { tenantId: product.tenantId } });
-    const zones = await this.prisma.sellerDeliveryZone.findMany({ where: { tenantId: product.tenantId, isActive: true }, select: { name: true, pincodes: true, deliveryCharge: true, freeDeliveryAbove: true, leadTimeHours: true, minOrderValue: true } });
+    const seller = await this.prisma.sellerMetrics.findUnique({
+      where: { tenantId: product.tenantId },
+    });
+    const zones = await this.prisma.sellerDeliveryZone.findMany({
+      where: { tenantId: product.tenantId, isActive: true },
+      select: {
+        name: true,
+        pincodes: true,
+        deliveryCharge: true,
+        freeDeliveryAbove: true,
+        leadTimeHours: true,
+        minOrderValue: true,
+      },
+    });
     return { ...product, seller, deliveryZones: zones };
   }
 }

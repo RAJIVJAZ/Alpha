@@ -2,10 +2,23 @@ import { canAccessOutlet, hasPermission, isPlatformStaff, Permissions as P } fro
 
 describe('permissions matrix', () => {
   it('only owners approve purchase orders', () => {
-    expect(hasPermission({ roles: ['CUSTOMER'], tenantId: 't', tenantRole: 'OWNER' }, P.ProcurementApprove)).toBe(true);
-    expect(hasPermission({ roles: ['CUSTOMER'], tenantId: 't', tenantRole: 'MANAGER' }, P.ProcurementApprove)).toBe(false);
     expect(
-      hasPermission({ roles: ['CUSTOMER'], tenantId: 't', tenantRole: 'PROCUREMENT_MANAGER' }, P.ProcurementManage),
+      hasPermission(
+        { roles: ['CUSTOMER'], tenantId: 't', tenantRole: 'OWNER' },
+        P.ProcurementApprove,
+      ),
+    ).toBe(true);
+    expect(
+      hasPermission(
+        { roles: ['CUSTOMER'], tenantId: 't', tenantRole: 'MANAGER' },
+        P.ProcurementApprove,
+      ),
+    ).toBe(false);
+    expect(
+      hasPermission(
+        { roles: ['CUSTOMER'], tenantId: 't', tenantRole: 'PROCUREMENT_MANAGER' },
+        P.ProcurementManage,
+      ),
     ).toBe(true);
   });
 

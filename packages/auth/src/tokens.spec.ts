@@ -27,7 +27,13 @@ describe('AccessTokenService', () => {
   const svc = new AccessTokenService(config);
 
   it('round-trips claims', () => {
-    const token = svc.sign({ sub: 'u1', roles: ['CUSTOMER'], sid: 's1', tenantId: 't1', tenantRole: 'OWNER' });
+    const token = svc.sign({
+      sub: 'u1',
+      roles: ['CUSTOMER'],
+      sid: 's1',
+      tenantId: 't1',
+      tenantRole: 'OWNER',
+    });
     const claims = svc.verify(token);
     expect(claims.sub).toBe('u1');
     expect(claims.tenantId).toBe('t1');
@@ -40,7 +46,11 @@ describe('AccessTokenService', () => {
       publicKeyEncoding: { type: 'spki', format: 'pem' },
       privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
     });
-    const forged = new AccessTokenService({ ...config, privateKey: other.privateKey, publicKey: other.publicKey });
+    const forged = new AccessTokenService({
+      ...config,
+      privateKey: other.privateKey,
+      publicKey: other.publicKey,
+    });
     const token = forged.sign({ sub: 'attacker', roles: ['ADMIN'], sid: 'x' });
     expect(() => svc.verify(token)).toThrow(TokenError);
   });
@@ -70,7 +80,10 @@ describe('AccessTokenService', () => {
 describe('service tokens', () => {
   it('verifies with the shared secret only', () => {
     const token = signServiceToken('secret', 'order-service', { tenantId: 't1' });
-    expect(verifyServiceToken('secret', token)).toMatchObject({ sub: 'order-service', typ: 'service' });
+    expect(verifyServiceToken('secret', token)).toMatchObject({
+      sub: 'order-service',
+      typ: 'service',
+    });
     expect(() => verifyServiceToken('wrong', token)).toThrow(TokenError);
   });
 });

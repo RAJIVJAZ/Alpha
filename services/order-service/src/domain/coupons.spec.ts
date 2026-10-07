@@ -42,7 +42,10 @@ describe('checkCouponEligibility', () => {
     [{ membersOnly: true }, {}, 'COUPON_MEMBERS_ONLY'],
     [{ paymentMethods: ['UPI'] }, { paymentMethod: 'CARD' }, 'COUPON_PAYMENT_METHOD'],
   ] as const)('rejects %o / %o with %s', (patch, ctxPatch, code) => {
-    const res = checkCouponEligibility({ ...coupon, ...patch } as CouponRecord, { ...ctx, ...ctxPatch } as typeof ctx);
+    const res = checkCouponEligibility(
+      { ...coupon, ...patch } as CouponRecord,
+      { ...ctx, ...ctxPatch } as typeof ctx,
+    );
     expect(res).toMatchObject({ valid: false, code });
   });
 });

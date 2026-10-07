@@ -58,9 +58,15 @@ export class InternalHttpService {
     return process.env[envKey] ?? `http://localhost:${DEFAULT_PORTS[service]}`;
   }
 
-  async request<T>(service: ServiceName, method: string, path: string, opts: InternalRequestOptions = {}): Promise<T> {
+  async request<T>(
+    service: ServiceName,
+    method: string,
+    path: string,
+    opts: InternalRequestOptions = {},
+  ): Promise<T> {
     const url = new URL(`/api/v1/${path.replace(/^\//, '')}`, this.baseUrl(service));
-    for (const [k, v] of Object.entries(opts.query ?? {})) if (v !== undefined) url.searchParams.set(k, String(v));
+    for (const [k, v] of Object.entries(opts.query ?? {}))
+      if (v !== undefined) url.searchParams.set(k, String(v));
     const retries = opts.retries ?? (method === 'GET' ? 2 : 0);
 
     for (let attempt = 0; ; attempt++) {
@@ -92,8 +98,13 @@ export class InternalHttpService {
       } catch (err) {
         if (err instanceof AppError) throw err;
         if (attempt >= retries) {
-          this.logger.error(`${method} ${service}${url.pathname} failed: ${(err as Error).message}`);
-          throw new AppError('UPSTREAM_UNAVAILABLE', `${service}-service is unavailable`, 503, { service, path });
+          this.logger.error(
+            `${method} ${service}${url.pathname} failed: ${(err as Error).message}`,
+          );
+          throw new AppError('UPSTREAM_UNAVAILABLE', `${service}-service is unavailable`, 503, {
+            service,
+            path,
+          });
         }
         await new Promise((r) => setTimeout(r, 100 * 2 ** attempt));
       }

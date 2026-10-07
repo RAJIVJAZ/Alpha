@@ -1,7 +1,16 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsIn, IsString, Matches, MaxLength } from 'class-validator';
 
-export const MEDIA_FOLDERS = ['avatars', 'menu', 'outlets', 'products', 'kyc', 'delivery-proof', 'reviews', 'banners'] as const;
+export const MEDIA_FOLDERS = [
+  'avatars',
+  'menu',
+  'outlets',
+  'products',
+  'kyc',
+  'delivery-proof',
+  'reviews',
+  'banners',
+] as const;
 export type MediaFolder = (typeof MEDIA_FOLDERS)[number];
 
 export class PresignDto {

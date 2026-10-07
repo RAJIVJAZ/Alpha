@@ -16,7 +16,13 @@ export interface TierLike {
  * for the buyer's segment (falling back to ALL); segment-specific tiers win
  * over generic ones at the same break. Without a tier the base price applies.
  */
-export function tierPrice(basePrice: number, tiers: TierLike[], qty: number, segment: Segment, at = new Date()): number {
+export function tierPrice(
+  basePrice: number,
+  tiers: TierLike[],
+  qty: number,
+  segment: Segment,
+  at = new Date(),
+): number {
   const valid = tiers.filter(
     (t) =>
       (t.segment === segment || t.segment === 'ALL') &&
@@ -25,7 +31,9 @@ export function tierPrice(basePrice: number, tiers: TierLike[], qty: number, seg
       (!t.validFrom || t.validFrom <= at) &&
       (!t.validTo || t.validTo >= at),
   );
-  valid.sort((a, b) => b.minQty - a.minQty || Number(b.segment !== 'ALL') - Number(a.segment !== 'ALL'));
+  valid.sort(
+    (a, b) => b.minQty - a.minQty || Number(b.segment !== 'ALL') - Number(a.segment !== 'ALL'),
+  );
   return valid[0]?.unitPrice ?? basePrice;
 }
 
@@ -37,10 +45,12 @@ export interface QuantityRules {
 
 export function validateQuantity(qty: number, rules: QuantityRules): string | null {
   if (qty < rules.moq) return `Minimum order quantity is ${rules.moq}`;
-  if (rules.maxOrderQty != null && qty > rules.maxOrderQty) return `Maximum order quantity is ${rules.maxOrderQty}`;
+  if (rules.maxOrderQty != null && qty > rules.maxOrderQty)
+    return `Maximum order quantity is ${rules.maxOrderQty}`;
   const step = rules.stepQty > 0 ? rules.stepQty : 1;
   const units = (qty - rules.moq) / step;
-  if (Math.abs(units - Math.round(units)) > 1e-6) return `Order in multiples of ${step} above the MOQ`;
+  if (Math.abs(units - Math.round(units)) > 1e-6)
+    return `Order in multiples of ${step} above the MOQ`;
   return null;
 }
 

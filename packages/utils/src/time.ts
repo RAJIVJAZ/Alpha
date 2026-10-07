@@ -80,7 +80,10 @@ export function isWithinOpeningHours(windows: OpeningWindow[], date: Date = new 
   });
 }
 
-export function isWithinWindow(windows: { start: string; end: string }[], date: Date = new Date()): boolean {
+export function isWithinWindow(
+  windows: { start: string; end: string }[],
+  date: Date = new Date(),
+): boolean {
   const { hour, minute } = istParts(date);
   const now = hour * 60 + minute;
   return windows.some((w) => now >= hhmmToMinutes(w.start) && now < hhmmToMinutes(w.end));

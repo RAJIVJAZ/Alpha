@@ -5,7 +5,13 @@ import { RequirePermissions, RequireTenant, TenantId } from '@foodgrid/auth/nest
 import type { InvoiceType } from '@foodgrid/database';
 import { DateRangeQueryDto, DirectoryService } from '@foodgrid/utils/server';
 import { GstService } from '../gst/gst.service';
-import { CommissionRuleDto, ListSettlementsDto, MarkSettlementPaidDto, RunSettlementDto, UpdateCommissionRuleDto } from './dto/settlement.dto';
+import {
+  CommissionRuleDto,
+  ListSettlementsDto,
+  MarkSettlementPaidDto,
+  RunSettlementDto,
+  UpdateCommissionRuleDto,
+} from './dto/settlement.dto';
 import { SettlementsService } from './settlements.service';
 
 @ApiTags('settlements')
@@ -37,7 +43,10 @@ export class MerchantFinanceController {
   }
 
   @Get('gst/invoices')
-  invoices(@TenantId() tenantId: string, @Query() q: DateRangeQueryDto & { type?: InvoiceType; page?: number }) {
+  invoices(
+    @TenantId() tenantId: string,
+    @Query() q: DateRangeQueryDto & { type?: InvoiceType; page?: number },
+  ) {
     return this.gst.invoices({ ...q, tenantId });
   }
 
@@ -61,12 +70,20 @@ export class AdminFinanceController {
   @Get('commission-rules')
   async rules() {
     const rules = await this.settlements.rules();
-    const names = await this.directory.lookup('tenants', rules.flatMap((r) => (r.tenantId ? [r.tenantId] : [])));
-    return rules.map((r) => ({ ...r, tenantName: r.tenantId ? (names.get(r.tenantId)?.name ?? null) : null }));
+    const names = await this.directory.lookup(
+      'tenants',
+      rules.flatMap((r) => (r.tenantId ? [r.tenantId] : [])),
+    );
+    return rules.map((r) => ({
+      ...r,
+      tenantName: r.tenantId ? (names.get(r.tenantId)?.name ?? null) : null,
+    }));
   }
 
   @Post('commission-rules')
-  @ApiOperation({ summary: 'Commission management: create a rule (platform / tenant type / tenant / outlet)' })
+  @ApiOperation({
+    summary: 'Commission management: create a rule (platform / tenant type / tenant / outlet)',
+  })
   createRule(@Body() dto: CommissionRuleDto) {
     return this.settlements.createRule(dto);
   }
@@ -79,8 +96,14 @@ export class AdminFinanceController {
   @Get('settlements')
   async list(@Query() q: ListSettlementsDto) {
     const page = await this.settlements.list(q);
-    const names = await this.directory.lookup('tenants', page.data.map((s) => s.tenantId));
-    return { ...page, data: page.data.map((s) => ({ ...s, tenantName: names.get(s.tenantId)?.name ?? null })) };
+    const names = await this.directory.lookup(
+      'tenants',
+      page.data.map((s) => s.tenantId),
+    );
+    return {
+      ...page,
+      data: page.data.map((s) => ({ ...s, tenantName: names.get(s.tenantId)?.name ?? null })),
+    };
   }
 
   @Get('settlements/:id')
@@ -91,7 +114,10 @@ export class AdminFinanceController {
   @Post('settlements/run')
   @ApiOperation({ summary: 'Payment settlement: generate settlements for a period' })
   run(@Body() dto: RunSettlementDto) {
-    return this.settlements.run(new Date(`${dto.periodStart.slice(0, 10)}T00:00:00+05:30`), new Date(`${dto.periodEnd.slice(0, 10)}T00:00:00+05:30`));
+    return this.settlements.run(
+      new Date(`${dto.periodStart.slice(0, 10)}T00:00:00+05:30`),
+      new Date(`${dto.periodEnd.slice(0, 10)}T00:00:00+05:30`),
+    );
   }
 
   @Post('settlements/:id/mark-paid')

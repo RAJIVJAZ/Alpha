@@ -1,7 +1,13 @@
 import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Permissions } from '@foodgrid/auth';
-import { CurrentUser, OptionalUser, Public, RequirePermissions, RequireTenant } from '@foodgrid/auth/nest';
+import {
+  CurrentUser,
+  OptionalUser,
+  Public,
+  RequirePermissions,
+  RequireTenant,
+} from '@foodgrid/auth/nest';
 import type { AccessTokenClaims } from '@foodgrid/types';
 import { QrOrderDto, TableDto } from './dto/qr.dto';
 import { QrService } from './qr.service';
@@ -21,7 +27,11 @@ export class QrController {
   @Public()
   @Post('qr/:token/orders')
   @ApiOperation({ summary: 'Place a table order (pay at counter or online)' })
-  order(@Param('token') token: string, @Body() dto: QrOrderDto, @OptionalUser() user?: AccessTokenClaims) {
+  order(
+    @Param('token') token: string,
+    @Body() dto: QrOrderDto,
+    @OptionalUser() user?: AccessTokenClaims,
+  ) {
     return this.qr.order(token, dto, user?.sub);
   }
 
@@ -37,7 +47,11 @@ export class QrController {
   @RequireTenant('RESTAURANT', 'FOOD_CART')
   @RequirePermissions(Permissions.OutletManage)
   @Post('merchant/outlets/:outletId/tables')
-  createTable(@CurrentUser() user: AccessTokenClaims, @Param('outletId') outletId: string, @Body() dto: TableDto) {
+  createTable(
+    @CurrentUser() user: AccessTokenClaims,
+    @Param('outletId') outletId: string,
+    @Body() dto: TableDto,
+  ) {
     return this.qr.createTable(user, outletId, dto);
   }
 

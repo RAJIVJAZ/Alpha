@@ -43,7 +43,10 @@ export class OrdersService {
 
   async listForCustomer(userId: string, q: ListOrdersDto) {
     const { page, pageSize, skip, take } = normalizePage(q);
-    const where: Prisma.OrderWhereInput = { customerId: userId, ...(q.status?.length ? { status: { in: q.status } } : {}) };
+    const where: Prisma.OrderWhereInput = {
+      customerId: userId,
+      ...(q.status?.length ? { status: { in: q.status } } : {}),
+    };
     const [rows, total] = await Promise.all([
       this.prisma.order.findMany({
         where,
@@ -68,8 +71,13 @@ export class OrdersService {
       omit: OrdersService.CUSTOMER_OMIT,
       include: {
         items: true,
-        events: { orderBy: { createdAt: 'asc' }, select: { toStatus: true, note: true, createdAt: true } },
-        outlet: { select: { name: true, slug: true, phone: true, lat: true, lng: true, addressLine1: true } },
+        events: {
+          orderBy: { createdAt: 'asc' },
+          select: { toStatus: true, note: true, createdAt: true },
+        },
+        outlet: {
+          select: { name: true, slug: true, phone: true, lat: true, lng: true, addressLine1: true },
+        },
         review: true,
       },
     });
@@ -80,7 +88,10 @@ export class OrdersService {
   async track(userId: string, id: string): Promise<OrderTrackingView> {
     const order = await this.getForCustomer(userId, id);
     let delivery: DeliveryInfo | null = null;
-    if (order.type === 'DELIVERY' && ['ACCEPTED', 'PREPARING', 'READY', 'PICKED_UP', 'OUT_FOR_DELIVERY'].includes(order.status)) {
+    if (
+      order.type === 'DELIVERY' &&
+      ['ACCEPTED', 'PREPARING', 'READY', 'PICKED_UP', 'OUT_FOR_DELIVERY'].includes(order.status)
+    ) {
       delivery = await this.internal
         .get<DeliveryInfo>('delivery', `internal/deliveries/by-order/${id}`, { timeoutMs: 800 })
         .catch(() => null);
@@ -93,21 +104,34 @@ export class OrdersService {
       orderNumber: order.orderNumber,
       status: order.status,
       deliveryStatus: (delivery?.status as OrderTrackingView['deliveryStatus']) ?? null,
-      timeline: order.events.map((e) => ({ status: e.toStatus, at: e.createdAt.toISOString(), note: e.note })),
+      timeline: order.events.map((e) => ({
+        status: e.toStatus,
+        at: e.createdAt.toISOString(),
+        note: e.note,
+      })),
       rider: delivery?.rider ?? null,
       outlet: { name: order.outlet.name, lat: order.outlet.lat, lng: order.outlet.lng },
       drop: (order.deliveryAddress as OrderTrackingView['drop']) ?? null,
       etaMins: delivery?.etaMins ?? etaMins,
-      deliveryOtp: ['PICKED_UP', 'OUT_FOR_DELIVERY'].includes(order.status) ? order.deliveryOtp : null,
+      deliveryOtp: ['PICKED_UP', 'OUT_FOR_DELIVERY'].includes(order.status)
+        ? order.deliveryOtp
+        : null,
     };
   }
 
   async cancelByCustomer(userId: string, id: string, reason: string) {
     const order = await this.getForCustomer(userId, id);
     if (!CUSTOMER_CANCELLABLE.includes(order.status)) {
-      throw conflict('This order can no longer be cancelled from the app. Please contact support.', 'CANCEL_NOT_ALLOWED');
+      throw conflict(
+        'This order can no longer be cancelled from the app. Please contact support.',
+        'CANCEL_NOT_ALLOWED',
+      );
     }
-    return this.lifecycle.transition(id, 'CANCELLED', { actorType: 'CUSTOMER', actorId: userId, note: reason });
+    return this.lifecycle.transition(id, 'CANCELLED', {
+      actorType: 'CUSTOMER',
+      actorId: userId,
+      note: reason,
+    });
   }
 
   /** Re-adds the still-available items of a past order to the cart. */
@@ -122,16 +146,24 @@ export class OrdersService {
       .filter((i) => available.has(i.menuItemId))
       .map((i) => {
         const item = available.get(i.menuItemId)!;
-        const validAddonIds = new Set(item.addonGroups.flatMap((g) => g.addons.filter((a) => a.isAvailable).map((a) => a.id)));
+        const validAddonIds = new Set(
+          item.addonGroups.flatMap((g) => g.addons.filter((a) => a.isAvailable).map((a) => a.id)),
+        );
         return {
           menuItemId: i.menuItemId,
           quantity: i.quantity,
-          variantId: i.variantId && item.variants.some((v) => v.id === i.variantId && v.isAvailable) ? i.variantId : undefined,
-          addonIds: (i.addons as { id: string }[]).map((a) => a.id).filter((a) => validAddonIds.has(a)),
+          variantId:
+            i.variantId && item.variants.some((v) => v.id === i.variantId && v.isAvailable)
+              ? i.variantId
+              : undefined,
+          addonIds: (i.addons as { id: string }[])
+            .map((a) => a.id)
+            .filter((a) => validAddonIds.has(a)),
           notes: i.notes ?? undefined,
         };
       });
-    if (!lines.length) throw conflict('None of these items are available right now', 'REORDER_UNAVAILABLE');
+    if (!lines.length)
+      throw conflict('None of these items are available right now', 'REORDER_UNAVAILABLE');
     await this.cart.replaceWith(userId, order.outletId, lines);
     return {
       added: lines.length,
@@ -151,11 +183,20 @@ export class OrdersService {
     };
     const db = this.prisma.forTenant(user.tenantId!);
     const [rows, total, counts] = await Promise.all([
-      db.order.findMany({ where, orderBy: { createdAt: 'desc' }, skip, take, include: { items: true, outlet: { select: { name: true } } } }),
+      db.order.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take,
+        include: { items: true, outlet: { select: { name: true } } },
+      }),
       db.order.count({ where }),
       db.order.groupBy({
         by: ['status'],
-        where: { ...outletScope(user, q.outletId), createdAt: { gte: new Date(Date.now() - 86_400_000) } },
+        where: {
+          ...outletScope(user, q.outletId),
+          createdAt: { gte: new Date(Date.now() - 86_400_000) },
+        },
         _count: { _all: true },
       }),
     ]);
@@ -168,7 +209,12 @@ export class OrdersService {
   async getForMerchant(user: AccessTokenClaims, id: string) {
     const order = await this.prisma.forTenant(user.tenantId!).order.findUnique({
       where: { id },
-      include: { items: true, events: { orderBy: { createdAt: 'asc' } }, kitchenTickets: true, outlet: { select: { name: true } } },
+      include: {
+        items: true,
+        events: { orderBy: { createdAt: 'asc' } },
+        kitchenTickets: true,
+        outlet: { select: { name: true } },
+      },
     });
     if (!order) throw notFound('Order', id);
     outletScope(user, order.outletId);
@@ -185,19 +231,27 @@ export class OrdersService {
       actorId: user.sub,
       data: {
         estimatedReadyAt: readyAt,
-        ...(order.type === 'DELIVERY' && order.estimatedDeliveryAt && order.estimatedDeliveryAt < readyAt
+        ...(order.type === 'DELIVERY' &&
+        order.estimatedDeliveryAt &&
+        order.estimatedDeliveryAt < readyAt
           ? { estimatedDeliveryAt: new Date(readyAt.getTime() + 15 * 60_000) }
           : {}),
       },
     });
   }
 
-  async merchantTransition(user: AccessTokenClaims, id: string, to: 'REJECTED' | 'PREPARING' | 'READY' | 'COMPLETED' | 'CANCELLED', note?: string) {
+  async merchantTransition(
+    user: AccessTokenClaims,
+    id: string,
+    to: 'REJECTED' | 'PREPARING' | 'READY' | 'COMPLETED' | 'CANCELLED',
+    note?: string,
+  ) {
     const order = await this.getForMerchant(user, id);
     if (to === 'COMPLETED' && order.type === 'DELIVERY') {
       throw forbidden('Delivery orders complete when the rider delivers them', 'DELIVERY_ORDER');
     }
-    if ((to === 'REJECTED' || to === 'CANCELLED') && !note) throw conflict('A reason is required', 'REASON_REQUIRED');
+    if ((to === 'REJECTED' || to === 'CANCELLED') && !note)
+      throw conflict('A reason is required', 'REASON_REQUIRED');
     return this.lifecycle.transition(id, to, { actorType: 'MERCHANT', actorId: user.sub, note });
   }
 }

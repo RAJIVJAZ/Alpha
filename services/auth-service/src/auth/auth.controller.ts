@@ -102,11 +102,13 @@ export class AuthController {
   @ApiBearerAuth()
   @Delete('sessions/:sessionId')
   @HttpCode(204)
-  async revokeSession(@CurrentUser() user: AccessTokenClaims, @Param('sessionId') sessionId: string) {
+  async revokeSession(
+    @CurrentUser() user: AccessTokenClaims,
+    @Param('sessionId') sessionId: string,
+  ) {
     await this.sessions.revokeSession(user.sub, sessionId);
   }
 }
-
 
 /** Service-to-service endpoints (never routed by the public gateway). */
 @ApiTags('internal')

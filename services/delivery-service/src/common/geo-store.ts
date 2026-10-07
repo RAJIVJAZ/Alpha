@@ -56,7 +56,9 @@ export class GeoStore {
 
   /** Throttles persistent GPS pings to one per `seconds` per rider. */
   async shouldPersist(riderId: string, seconds = 30): Promise<boolean> {
-    return (await this.redis.set(`riders:ping-throttle:${riderId}`, '1', 'EX', seconds, 'NX')) === 'OK';
+    return (
+      (await this.redis.set(`riders:ping-throttle:${riderId}`, '1', 'EX', seconds, 'NX')) === 'OK'
+    );
   }
 
   /** Online-session bookkeeping for attendance (online minutes). */

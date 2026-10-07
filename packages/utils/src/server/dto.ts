@@ -1,6 +1,15 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
-import { ArrayMaxSize, IsArray, IsDateString, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import {
+  ArrayMaxSize,
+  IsArray,
+  IsDateString,
+  IsInt,
+  IsOptional,
+  IsString,
+  Max,
+  Min,
+} from 'class-validator';
 import { istDate } from '../time';
 
 /** Body of internal batch lookups: `{ ids: [...] }` (at most 500). */
@@ -24,7 +33,11 @@ export const ToBoolean = () =>
 /** Splits comma-separated query values into arrays. */
 export const ToArray = () =>
   Transform(({ value }: { value: unknown }) =>
-    value === undefined || value === '' ? undefined : Array.isArray(value) ? value : String(value).split(','),
+    value === undefined || value === ''
+      ? undefined
+      : Array.isArray(value)
+        ? value
+        : String(value).split(','),
   );
 
 export class PageQueryDto {
@@ -63,7 +76,9 @@ export class DateRangeQueryDto {
  */
 export function resolveRange(q: DateRangeQueryDto, days = 30): { from: Date; to: Date } {
   const to = q.to ? new Date(`${q.to.slice(0, 10)}T23:59:59.999Z`) : new Date();
-  const from = q.from ? new Date(`${q.from.slice(0, 10)}T00:00:00.000Z`) : new Date(to.getTime() - (days - 1) * 86_400_000);
+  const from = q.from
+    ? new Date(`${q.from.slice(0, 10)}T00:00:00.000Z`)
+    : new Date(to.getTime() - (days - 1) * 86_400_000);
   if (!q.from) from.setUTCHours(0, 0, 0, 0);
   return { from, to };
 }
@@ -77,7 +92,11 @@ const istDayStart = (ymd: string) => new Date(Date.parse(`${ymd}T00:00:00.000Z`)
  * last `days` IST days including today (ending now).
  */
 export function resolveIstRange(q: DateRangeQueryDto, days = 30): { from: Date; to: Date } {
-  const to = q.to ? new Date(istDayStart(q.to.slice(0, 10)).getTime() + 86_400_000 - 1) : new Date();
-  const fromDay = q.from ? q.from.slice(0, 10) : istDate(new Date(to.getTime() - (days - 1) * 86_400_000));
+  const to = q.to
+    ? new Date(istDayStart(q.to.slice(0, 10)).getTime() + 86_400_000 - 1)
+    : new Date();
+  const fromDay = q.from
+    ? q.from.slice(0, 10)
+    : istDate(new Date(to.getTime() - (days - 1) * 86_400_000));
   return { from: istDayStart(fromDay), to };
 }

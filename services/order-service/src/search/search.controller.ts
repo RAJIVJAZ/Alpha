@@ -1,7 +1,15 @@
 import { Controller, Get, Query } from '@nestjs/common';
 import { ApiOperation, ApiProperty, ApiPropertyOptional, ApiTags } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsIn, IsLatitude, IsLongitude, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import {
+  IsIn,
+  IsLatitude,
+  IsLongitude,
+  IsOptional,
+  IsString,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
 import { Public } from '@foodgrid/auth/nest';
 import { OUTLET_TYPES, OutletType } from '@foodgrid/types';
 import { SearchService } from './search.service';

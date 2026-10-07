@@ -16,7 +16,13 @@ import {
 import { Type } from 'class-transformer';
 import { TENANT_ROLES, TenantRole } from '@foodgrid/types';
 
-export const ONBOARDABLE_TYPES = ['RESTAURANT', 'FOOD_CART', 'SUPPLIER', 'WHOLESALER', 'RETAILER'] as const;
+export const ONBOARDABLE_TYPES = [
+  'RESTAURANT',
+  'FOOD_CART',
+  'SUPPLIER',
+  'WHOLESALER',
+  'RETAILER',
+] as const;
 
 export class KycDocumentDto {
   @ApiProperty({ example: 'FSSAI_LICENSE' }) @IsString() @MaxLength(40) kind!: string;
@@ -25,7 +31,9 @@ export class KycDocumentDto {
 }
 
 export class CreateTenantDto {
-  @ApiProperty({ enum: ONBOARDABLE_TYPES }) @IsIn(ONBOARDABLE_TYPES) type!: (typeof ONBOARDABLE_TYPES)[number];
+  @ApiProperty({ enum: ONBOARDABLE_TYPES })
+  @IsIn(ONBOARDABLE_TYPES)
+  type!: (typeof ONBOARDABLE_TYPES)[number];
   @ApiProperty({ example: 'Spice Route Kitchens' }) @IsString() @MaxLength(120) name!: string;
   @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(160) legalName?: string;
   @ApiPropertyOptional({ example: '29AABCS1234K1ZC' })
@@ -73,12 +81,23 @@ export class InviteMemberDto {
   @IsArray()
   @IsString({ each: true })
   outletIds?: string[];
-  @ApiPropertyOptional({ example: 'Head Chef' }) @IsOptional() @IsString() @MaxLength(60) title?: string;
+  @ApiPropertyOptional({ example: 'Head Chef' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(60)
+  title?: string;
 }
 
 export class UpdateMemberDto {
   @ApiPropertyOptional({ enum: TENANT_ROLES }) @IsOptional() @IsIn(TENANT_ROLES) role?: TenantRole;
-  @ApiPropertyOptional({ type: [String] }) @IsOptional() @IsArray() @IsString({ each: true }) outletIds?: string[];
+  @ApiPropertyOptional({ type: [String] })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  outletIds?: string[];
   @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(60) title?: string;
-  @ApiPropertyOptional({ enum: ['ACTIVE', 'REVOKED'] }) @IsOptional() @IsIn(['ACTIVE', 'REVOKED']) status?: 'ACTIVE' | 'REVOKED';
+  @ApiPropertyOptional({ enum: ['ACTIVE', 'REVOKED'] })
+  @IsOptional()
+  @IsIn(['ACTIVE', 'REVOKED'])
+  status?: 'ACTIVE' | 'REVOKED';
 }

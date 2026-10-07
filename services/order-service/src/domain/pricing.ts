@@ -78,7 +78,9 @@ export function computePricing(input: PricingInput): PricingResult {
   const coupon = input.coupon;
   if (coupon) {
     if (subtotal < coupon.minOrderValue) {
-      messages.push(`Add items worth ₹${round2(coupon.minOrderValue - subtotal)} more to use ${coupon.code}`);
+      messages.push(
+        `Add items worth ₹${round2(coupon.minOrderValue - subtotal)} more to use ${coupon.code}`,
+      );
     } else if (coupon.type === 'FLAT') {
       couponDiscount = Math.min(coupon.value, subtotal);
     } else if (coupon.type === 'PERCENT') {
@@ -100,12 +102,14 @@ export function computePricing(input: PricingInput): PricingResult {
     if (m.extraDiscountPct) {
       const base = subtotal - couponDiscount;
       membershipDiscount = round2((base * m.extraDiscountPct) / 100);
-      if (m.maxDiscountPerOrder != null) membershipDiscount = Math.min(membershipDiscount, m.maxDiscountPerOrder);
+      if (m.maxDiscountPerOrder != null)
+        membershipDiscount = Math.min(membershipDiscount, m.maxDiscountPerOrder);
     }
   }
 
   const itemDiscount = round2(couponDiscount + membershipDiscount);
-  const discountShares = subtotal > 0 ? allocate(itemDiscount, lineTotals) : lineTotals.map(() => 0);
+  const discountShares =
+    subtotal > 0 ? allocate(itemDiscount, lineTotals) : lineTotals.map(() => 0);
 
   // ── GST on food ──────────────────────────────────────────────────────────
   // Tax is computed per line (and kept per line for the invoice), then split
@@ -119,11 +123,15 @@ export function computePricing(input: PricingInput): PricingResult {
     return { menuItemId: line.menuItemId, taxableValue: taxable, tax: g.totalTax };
   });
   const packagingRate = input.lines.reduce((max, l) => Math.max(max, l.gstRate), 0);
-  taxPaise += Math.round(computeGst(input.packagingCharge, packagingRate, input.interState).totalTax * 100);
+  taxPaise += Math.round(
+    computeGst(input.packagingCharge, packagingRate, input.interState).totalTax * 100,
+  );
 
   // ── GST on platform services ─────────────────────────────────────────────
   const deliveryFee = round2(input.deliveryFee - deliveryFeeWaived);
-  taxPaise += Math.round(computeGst(deliveryFee + input.platformFee, serviceGstRate, input.interState).totalTax * 100);
+  taxPaise += Math.round(
+    computeGst(deliveryFee + input.platformFee, serviceGstRate, input.interState).totalTax * 100,
+  );
 
   const cgst = input.interState ? 0 : Math.floor(taxPaise / 2) / 100;
   const sgst = input.interState ? 0 : (taxPaise - Math.floor(taxPaise / 2)) / 100;

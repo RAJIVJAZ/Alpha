@@ -23,13 +23,20 @@ export class DealersController {
     return this.dealers.createTerritory(tenantId, dto);
   }
   @Patch('territories/:id')
-  updateTerritory(@TenantId() tenantId: string, @Param('id') id: string, @Body() dto: UpdateTerritoryDto) {
+  updateTerritory(
+    @TenantId() tenantId: string,
+    @Param('id') id: string,
+    @Body() dto: UpdateTerritoryDto,
+  ) {
     return this.dealers.updateTerritory(tenantId, id, dto);
   }
 
   @Get('dealers')
   @ApiOperation({ summary: 'Dealer network' })
-  list(@TenantId() tenantId: string, @Query() q: { territoryId?: string; status?: string; q?: string }) {
+  list(
+    @TenantId() tenantId: string,
+    @Query() q: { territoryId?: string; status?: string; q?: string },
+  ) {
     return this.dealers.dealers(tenantId, q);
   }
   @Post('dealers')

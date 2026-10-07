@@ -8,5 +8,7 @@ module.exports = {
   testTimeout: 30000,
   passWithNoTests: true,
   // env (test DB, keys, disabled workers) must be set before AppModule is imported
-  setupFiles: require('node:fs').existsSync(`${__dirname}/test/setup-env.ts`) ? ['<rootDir>/test/setup-env.ts'] : [],
+  setupFiles: require('node:fs').existsSync(`${__dirname}/test/setup-env.ts`)
+    ? ['<rootDir>/test/setup-env.ts']
+    : [],
 };

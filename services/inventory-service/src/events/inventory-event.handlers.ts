@@ -1,6 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '@foodgrid/database/nest';
-import { EventEnvelope, EventTypes, OrderStatusChangedEvent, PurchaseOrderReceivedEvent, StockConsumedEvent } from '@foodgrid/types';
+import {
+  EventEnvelope,
+  EventTypes,
+  OrderStatusChangedEvent,
+  PurchaseOrderReceivedEvent,
+  StockConsumedEvent,
+} from '@foodgrid/types';
 import { money, round2, Unit } from '@foodgrid/utils';
 import { OnDomainEvent, OutboxService } from '@foodgrid/utils/server';
 import { recipeRequirements } from '../domain/stock';
@@ -23,13 +29,20 @@ export class InventoryEventHandlers {
   @OnDomainEvent(EventTypes.OrderAccepted)
   async consumeForOrder(env: EventEnvelope<string, OrderStatusChangedEvent>) {
     const order = env.data;
-    const already = await this.prisma.stockMovement.count({ where: { referenceType: 'ORDER', referenceId: order.orderId } });
+    const already = await this.prisma.stockMovement.count({
+      where: { referenceType: 'ORDER', referenceId: order.orderId },
+    });
     if (already) return;
 
     const qtyByItem = new Map<string, number>();
-    for (const line of order.items) qtyByItem.set(line.menuItemId, (qtyByItem.get(line.menuItemId) ?? 0) + line.quantity);
+    for (const line of order.items)
+      qtyByItem.set(line.menuItemId, (qtyByItem.get(line.menuItemId) ?? 0) + line.quantity);
     const recipes = await this.prisma.recipe.findMany({
-      where: { tenantId: order.tenantId, menuItemId: { in: [...qtyByItem.keys()] }, isActive: true },
+      where: {
+        tenantId: order.tenantId,
+        menuItemId: { in: [...qtyByItem.keys()] },
+        isActive: true,
+      },
       include: { lines: { include: { ingredient: true } } },
     });
     if (!recipes.length) return;
@@ -38,7 +51,12 @@ export class InventoryEventHandlers {
     for (const recipe of recipes) {
       const units = new Map(recipe.lines.map((l) => [l.ingredientId, l.ingredient.unit as Unit]));
       const req = recipeRequirements(
-        recipe.lines.map((l) => ({ ingredientId: l.ingredientId, quantity: Number(l.quantity), unit: l.unit as Unit, wastagePct: Number(l.wastagePct) })),
+        recipe.lines.map((l) => ({
+          ingredientId: l.ingredientId,
+          quantity: Number(l.quantity),
+          unit: l.unit as Unit,
+          wastagePct: Number(l.wastagePct),
+        })),
         units,
         qtyByItem.get(recipe.menuItemId) ?? 0,
         Number(recipe.yieldQty),
@@ -82,7 +100,9 @@ export class InventoryEventHandlers {
   @OnDomainEvent(EventTypes.PurchaseOrderReceived)
   async receivePurchaseOrder(env: EventEnvelope<string, PurchaseOrderReceivedEvent>) {
     const po = env.data;
-    const already = await this.prisma.stockMovement.count({ where: { referenceType: 'PURCHASE_ORDER', referenceId: po.purchaseOrderId } });
+    const already = await this.prisma.stockMovement.count({
+      where: { referenceType: 'PURCHASE_ORDER', referenceId: po.purchaseOrderId },
+    });
     if (already) return;
     await this.prisma.$transaction(async (tx) => {
       for (const line of po.lines) {
@@ -90,7 +110,11 @@ export class InventoryEventHandlers {
         await this.stock.receiveInTx(
           tx,
           po.tenantId,
-          { ingredientId: line.ingredientId, quantity: Number(line.receivedQty), unitCost: Number(line.unitPrice) },
+          {
+            ingredientId: line.ingredientId,
+            quantity: Number(line.receivedQty),
+            unitCost: Number(line.unitPrice),
+          },
           {
             type: 'PURCHASE',
             referenceType: 'PURCHASE_ORDER',

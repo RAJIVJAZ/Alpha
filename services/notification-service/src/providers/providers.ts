@@ -17,7 +17,10 @@ export interface SmsProvider {
 }
 export interface PushProvider {
   readonly name: string;
-  send(token: string, msg: { title: string; body: string; data?: Record<string, string>; imageUrl?: string }): Promise<DeliveryResult>;
+  send(
+    token: string,
+    msg: { title: string; body: string; data?: Record<string, string>; imageUrl?: string },
+  ): Promise<DeliveryResult>;
 }
 export interface EmailProvider {
   readonly name: string;
@@ -65,8 +68,22 @@ export class SnsSms implements SmsProvider {
           Message: body,
           MessageAttributes: {
             'AWS.SNS.SMS.SMSType': { DataType: 'String', StringValue: 'Transactional' },
-            ...(process.env.SMS_SENDER_ID ? { 'AWS.SNS.SMS.SenderID': { DataType: 'String', StringValue: process.env.SMS_SENDER_ID } } : {}),
-            ...(process.env.SMS_DLT_ENTITY_ID ? { 'AWS.MM.SMS.EntityId': { DataType: 'String', StringValue: process.env.SMS_DLT_ENTITY_ID } } : {}),
+            ...(process.env.SMS_SENDER_ID
+              ? {
+                  'AWS.SNS.SMS.SenderID': {
+                    DataType: 'String',
+                    StringValue: process.env.SMS_SENDER_ID,
+                  },
+                }
+              : {}),
+            ...(process.env.SMS_DLT_ENTITY_ID
+              ? {
+                  'AWS.MM.SMS.EntityId': {
+                    DataType: 'String',
+                    StringValue: process.env.SMS_DLT_ENTITY_ID,
+                  },
+                }
+              : {}),
           },
         }),
       );
@@ -85,11 +102,16 @@ export class Msg91Sms implements SmsProvider {
       const res = await fetch('https://control.msg91.com/api/v5/flow/', {
         method: 'POST',
         headers: { authkey: process.env.MSG91_AUTH_KEY ?? '', 'Content-Type': 'application/json' },
-        body: JSON.stringify({ template_id: process.env.MSG91_TEMPLATE_ID, recipients: [{ mobiles: phone.replace('+', ''), message: body }] }),
+        body: JSON.stringify({
+          template_id: process.env.MSG91_TEMPLATE_ID,
+          recipients: [{ mobiles: phone.replace('+', ''), message: body }],
+        }),
         signal: AbortSignal.timeout(5000),
       });
       const json = (await res.json()) as { type?: string; message?: string };
-      return res.ok && json.type === 'success' ? { ok: true, providerMessageId: json.message } : { ok: false, error: json.message ?? `HTTP ${res.status}` };
+      return res.ok && json.type === 'success'
+        ? { ok: true, providerMessageId: json.message }
+        : { ok: false, error: json.message ?? `HTTP ${res.status}` };
     } catch (err) {
       return { ok: false, error: (err as Error).message };
     }
@@ -103,33 +125,56 @@ export class FcmPush implements PushProvider {
   private readonly auth: GoogleAuth;
 
   constructor(serviceAccountBase64: string) {
-    const credentials = JSON.parse(Buffer.from(serviceAccountBase64, 'base64').toString('utf8')) as { project_id: string };
+    const credentials = JSON.parse(
+      Buffer.from(serviceAccountBase64, 'base64').toString('utf8'),
+    ) as { project_id: string };
     this.projectId = credentials.project_id;
-    this.auth = new GoogleAuth({ credentials, scopes: ['https://www.googleapis.com/auth/firebase.messaging'] });
+    this.auth = new GoogleAuth({
+      credentials,
+      scopes: ['https://www.googleapis.com/auth/firebase.messaging'],
+    });
   }
 
-  async send(token: string, msg: { title: string; body: string; data?: Record<string, string>; imageUrl?: string }) {
+  async send(
+    token: string,
+    msg: { title: string; body: string; data?: Record<string, string>; imageUrl?: string },
+  ) {
     try {
       const client = await this.auth.getClient();
       const { token: accessToken } = await client.getAccessToken();
-      const res = await fetch(`https://fcm.googleapis.com/v1/projects/${this.projectId}/messages:send`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: {
-            token,
-            notification: { title: msg.title, body: msg.body, image: msg.imageUrl },
-            data: msg.data,
-            android: { priority: 'HIGH', notification: { channel_id: msg.data?.channel ?? 'orders' } },
-            apns: { payload: { aps: { sound: 'default' } } },
-          },
-        }),
-        signal: AbortSignal.timeout(5000),
-      });
-      const json = (await res.json()) as { name?: string; error?: { status?: string; message?: string } };
+      const res = await fetch(
+        `https://fcm.googleapis.com/v1/projects/${this.projectId}/messages:send`,
+        {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message: {
+              token,
+              notification: { title: msg.title, body: msg.body, image: msg.imageUrl },
+              data: msg.data,
+              android: {
+                priority: 'HIGH',
+                notification: { channel_id: msg.data?.channel ?? 'orders' },
+              },
+              apns: { payload: { aps: { sound: 'default' } } },
+            },
+          }),
+          signal: AbortSignal.timeout(5000),
+        },
+      );
+      const json = (await res.json()) as {
+        name?: string;
+        error?: { status?: string; message?: string };
+      };
       if (res.ok) return { ok: true, providerMessageId: json.name };
-      const invalid = ['UNREGISTERED', 'INVALID_ARGUMENT', 'NOT_FOUND'].includes(json.error?.status ?? '');
-      return { ok: false, error: json.error?.message ?? `HTTP ${res.status}`, invalidToken: invalid };
+      const invalid = ['UNREGISTERED', 'INVALID_ARGUMENT', 'NOT_FOUND'].includes(
+        json.error?.status ?? '',
+      );
+      return {
+        ok: false,
+        error: json.error?.message ?? `HTTP ${res.status}`,
+        invalidToken: invalid,
+      };
     } catch (err) {
       return { ok: false, error: (err as Error).message };
     }
@@ -159,15 +204,23 @@ export class SesEmail implements EmailProvider {
 export const providerFactories = [
   {
     provide: SMS_PROVIDER,
-    useFactory: (): SmsProvider => (process.env.SMS_PROVIDER === 'sns' ? new SnsSms() : process.env.SMS_PROVIDER === 'msg91' ? new Msg91Sms() : new ConsoleSms()),
+    useFactory: (): SmsProvider =>
+      process.env.SMS_PROVIDER === 'sns'
+        ? new SnsSms()
+        : process.env.SMS_PROVIDER === 'msg91'
+          ? new Msg91Sms()
+          : new ConsoleSms(),
   },
   {
     provide: PUSH_PROVIDER,
     useFactory: (): PushProvider =>
-      process.env.PUSH_PROVIDER === 'fcm' && process.env.FCM_SERVICE_ACCOUNT_BASE64 ? new FcmPush(process.env.FCM_SERVICE_ACCOUNT_BASE64) : new ConsolePush(),
+      process.env.PUSH_PROVIDER === 'fcm' && process.env.FCM_SERVICE_ACCOUNT_BASE64
+        ? new FcmPush(process.env.FCM_SERVICE_ACCOUNT_BASE64)
+        : new ConsolePush(),
   },
   {
     provide: EMAIL_PROVIDER,
-    useFactory: (): EmailProvider => (process.env.EMAIL_PROVIDER === 'ses' ? new SesEmail() : new ConsoleEmail()),
+    useFactory: (): EmailProvider =>
+      process.env.EMAIL_PROVIDER === 'ses' ? new SesEmail() : new ConsoleEmail(),
   },
 ];

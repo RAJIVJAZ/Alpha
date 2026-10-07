@@ -27,14 +27,32 @@ import { seedOrders } from './orders';
 import { simulate } from './simulate';
 
 // Same env resolution as prisma.config.ts: package .env first, then the monorepo root.
-config({ path: [path.resolve(__dirname, '../../.env'), path.resolve(__dirname, '../../../../.env')], quiet: true });
+config({
+  path: [path.resolve(__dirname, '../../.env'), path.resolve(__dirname, '../../../../.env')],
+  quiet: true,
+});
 
-const SCHEMAS = ['identity', 'commerce', 'payments', 'delivery', 'inventory', 'procurement', 'marketplace', 'analytics', 'ads', 'notifications', 'ai', 'platform'];
+const SCHEMAS = [
+  'identity',
+  'commerce',
+  'payments',
+  'delivery',
+  'inventory',
+  'procurement',
+  'marketplace',
+  'analytics',
+  'ads',
+  'notifications',
+  'ai',
+  'platform',
+];
 export const DEMO_PASSWORD = process.env.SEED_PASSWORD ?? 'FoodGrid@2026';
 
 async function main() {
   if (process.env.NODE_ENV === 'production' && process.env.ALLOW_PRODUCTION_SEED !== 'true') {
-    throw new Error('Refusing to seed with NODE_ENV=production (set ALLOW_PRODUCTION_SEED=true to override).');
+    throw new Error(
+      'Refusing to seed with NODE_ENV=production (set ALLOW_PRODUCTION_SEED=true to override).',
+    );
   }
   const reset = process.argv.includes('--reset');
   const prisma = createPrismaClient({ log: ['warn', 'error'] });
@@ -42,14 +60,18 @@ async function main() {
   try {
     const existing = await prisma.user.count();
     if (existing > 0 && !reset) {
-      console.log(`Database already has ${existing} users — skipping seed. Re-run with --reset to wipe and reseed.`);
+      console.log(
+        `Database already has ${existing} users — skipping seed. Re-run with --reset to wipe and reseed.`,
+      );
       return;
     }
     if (reset) {
       const tables = await prisma.$queryRaw<{ schemaname: string; tablename: string }[]>`
         SELECT schemaname, tablename FROM pg_tables WHERE schemaname = ANY(${SCHEMAS}::text[])`;
       if (tables.length) {
-        await prisma.$executeRawUnsafe(`TRUNCATE ${tables.map((t) => `"${t.schemaname}"."${t.tablename}"`).join(', ')} RESTART IDENTITY CASCADE`);
+        await prisma.$executeRawUnsafe(
+          `TRUNCATE ${tables.map((t) => `"${t.schemaname}"."${t.tablename}"`).join(', ')} RESTART IDENTITY CASCADE`,
+        );
       }
       console.log(`Reset ${tables.length} tables.`);
     }
@@ -75,8 +97,12 @@ async function main() {
     console.log(`\nDone in ${((Date.now() - started) / 1000).toFixed(1)}s.\n`);
     console.log(`Back office (password "${DEMO_PASSWORD}"):`);
     for (const u of BACK_OFFICE) console.log(`  ${u.roles.join(',').padEnd(8)} ${u.email}`);
-    console.log(`Merchants & sellers use the same password, e.g. owner@spicegarden.demo, chef@spicegarden.demo, owner@annapurna.demo, owner@bharat.demo`);
-    console.log(`Demo customer: ${DEMO_CUSTOMER_PHONE} (OTP login; set OTP_EXPOSE_IN_RESPONSE=true locally to receive the code in the API response)`);
+    console.log(
+      `Merchants & sellers use the same password, e.g. owner@spicegarden.demo, chef@spicegarden.demo, owner@annapurna.demo, owner@bharat.demo`,
+    );
+    console.log(
+      `Demo customer: ${DEMO_CUSTOMER_PHONE} (OTP login; set OTP_EXPOSE_IN_RESPONSE=true locally to receive the code in the API response)`,
+    );
     console.log(`Riders: ${ctx.riders[0]!.phone} … (OTP login)`);
   } finally {
     await prisma.$disconnect();

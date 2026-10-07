@@ -13,7 +13,10 @@ export class CouponsController {
   constructor(private readonly coupons: CouponsService) {}
 
   @Get('coupons')
-  @ApiOperation({ summary: 'Coupons with eligibility — for an outlet, or platform-wide offers when outletId is omitted' })
+  @ApiOperation({
+    summary:
+      'Coupons with eligibility — for an outlet, or platform-wide offers when outletId is omitted',
+  })
   @ApiQuery({ name: 'outletId', required: false })
   available(@CurrentUser('sub') userId: string, @Query('outletId') outletId?: string) {
     return this.coupons.available(userId, outletId);
@@ -36,7 +39,11 @@ export class CouponsController {
   @RequireTenant('RESTAURANT', 'FOOD_CART')
   @RequirePermissions(Permissions.PromotionsManage)
   @Patch('merchant/coupons/:id')
-  merchantUpdate(@CurrentUser() user: AccessTokenClaims, @Param('id') id: string, @Body() dto: UpdateCouponDto) {
+  merchantUpdate(
+    @CurrentUser() user: AccessTokenClaims,
+    @Param('id') id: string,
+    @Body() dto: UpdateCouponDto,
+  ) {
     return this.coupons.merchantUpdate(user, id, dto);
   }
 

@@ -34,22 +34,37 @@ export class IdempotencyInterceptor implements NestInterceptor {
     if (!key || typeof key !== 'string' || !['POST', 'PUT', 'PATCH'].includes(req.method)) {
       return next.handle();
     }
-    const fingerprint = createHash('sha256').update(JSON.stringify(req.body ?? {})).digest('hex');
+    const fingerprint = createHash('sha256')
+      .update(JSON.stringify(req.body ?? {}))
+      .digest('hex');
     const route = (req.route?.path as string | undefined) ?? req.path;
     const redisKey = `idem:${req.user?.sub ?? 'anon'}:${req.method}:${route}:${key}`;
 
     return from(this.redis.get(redisKey)).pipe(
       switchMap((cached) => {
         if (cached) {
-          const stored = JSON.parse(cached) as { state: string; fingerprint: string; status?: number; body?: unknown };
+          const stored = JSON.parse(cached) as {
+            state: string;
+            fingerprint: string;
+            status?: number;
+            body?: unknown;
+          };
           if (stored.fingerprint !== fingerprint) {
             return throwError(
-              () => new ConflictException({ message: 'Idempotency-Key reused with a different payload', code: 'IDEMPOTENCY_MISMATCH' }),
+              () =>
+                new ConflictException({
+                  message: 'Idempotency-Key reused with a different payload',
+                  code: 'IDEMPOTENCY_MISMATCH',
+                }),
             );
           }
           if (stored.state === 'processing') {
             return throwError(
-              () => new ConflictException({ message: 'Request already in progress', code: 'IDEMPOTENCY_IN_PROGRESS' }),
+              () =>
+                new ConflictException({
+                  message: 'Request already in progress',
+                  code: 'IDEMPOTENCY_IN_PROGRESS',
+                }),
             );
           }
           res.status(stored.status ?? 200);
@@ -57,12 +72,22 @@ export class IdempotencyInterceptor implements NestInterceptor {
           return of(stored.body);
         }
         return from(
-          this.redis.set(redisKey, JSON.stringify({ state: 'processing', fingerprint }), 'EX', LOCK_SECONDS, 'NX'),
+          this.redis.set(
+            redisKey,
+            JSON.stringify({ state: 'processing', fingerprint }),
+            'EX',
+            LOCK_SECONDS,
+            'NX',
+          ),
         ).pipe(
           switchMap((acquired) => {
             if (!acquired) {
               return throwError(
-                () => new ConflictException({ message: 'Request already in progress', code: 'IDEMPOTENCY_IN_PROGRESS' }),
+                () =>
+                  new ConflictException({
+                    message: 'Request already in progress',
+                    code: 'IDEMPOTENCY_IN_PROGRESS',
+                  }),
               );
             }
             return next.handle().pipe(

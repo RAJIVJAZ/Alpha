@@ -1,6 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '@foodgrid/database/nest';
-import { ApprovalDecidedEvent, EventEnvelope, EventTypes, OrderStatusChangedEvent, ReviewCreatedEvent } from '@foodgrid/types';
+import {
+  ApprovalDecidedEvent,
+  EventEnvelope,
+  EventTypes,
+  OrderStatusChangedEvent,
+  ReviewCreatedEvent,
+} from '@foodgrid/types';
 import { OnDomainEvent } from '@foodgrid/utils/server';
 import { DispatchService } from '../dispatch/dispatch.service';
 import { TrackingGateway } from '../tracking/tracking.gateway';
@@ -27,7 +33,11 @@ export class DeliveryEventHandlers {
     const d = await this.prisma.delivery.findUnique({ where: { orderId: env.data.orderId } });
     if (!d) return;
     await this.prisma.delivery.update({ where: { id: d.id }, data: { readyAt: new Date() } });
-    if (d.riderId) this.gateway.toRider(d.riderId, 'order:ready', { deliveryId: d.id, orderNumber: d.orderNumber });
+    if (d.riderId)
+      this.gateway.toRider(d.riderId, 'order:ready', {
+        deliveryId: d.id,
+        orderNumber: d.orderNumber,
+      });
     else await this.dispatch.dispatch(d.id);
   }
 
@@ -36,23 +46,49 @@ export class DeliveryEventHandlers {
     const d = await this.prisma.delivery.findUnique({ where: { orderId: env.data.orderId } });
     if (!d || ['DELIVERED', 'FAILED', 'CANCELLED'].includes(d.status)) return;
     await this.prisma.$transaction(async (tx) => {
-      await tx.delivery.update({ where: { id: d.id }, data: { status: 'CANCELLED', cancelledAt: new Date() } });
-      await tx.deliveryOffer.updateMany({ where: { deliveryId: d.id, status: 'PENDING' }, data: { status: 'CANCELLED' } });
+      await tx.delivery.update({
+        where: { id: d.id },
+        data: { status: 'CANCELLED', cancelledAt: new Date() },
+      });
+      await tx.deliveryOffer.updateMany({
+        where: { deliveryId: d.id, status: 'PENDING' },
+        data: { status: 'CANCELLED' },
+      });
       if (d.riderId) {
-        const remaining = await tx.delivery.count({ where: { riderId: d.riderId, status: { in: ['ASSIGNED', 'AT_PICKUP', 'PICKED_UP', 'AT_DROP'] } } });
-        await tx.riderProfile.update({ where: { id: d.riderId }, data: { isOnDelivery: remaining > 0 } });
+        const remaining = await tx.delivery.count({
+          where: {
+            riderId: d.riderId,
+            status: { in: ['ASSIGNED', 'AT_PICKUP', 'PICKED_UP', 'AT_DROP'] },
+          },
+        });
+        await tx.riderProfile.update({
+          where: { id: d.riderId },
+          data: { isOnDelivery: remaining > 0 },
+        });
       }
     });
-    if (d.riderId) this.gateway.toRider(d.riderId, 'delivery:cancelled', { deliveryId: d.id, orderNumber: d.orderNumber });
+    if (d.riderId)
+      this.gateway.toRider(d.riderId, 'delivery:cancelled', {
+        deliveryId: d.id,
+        orderNumber: d.orderNumber,
+      });
   }
 
   @OnDomainEvent(EventTypes.ApprovalDecided)
   async onApproval(env: EventEnvelope<string, ApprovalDecidedEvent>) {
     if (env.data.entityType !== 'RIDER') return;
-    const status = env.data.decision === 'APPROVED' ? 'ACTIVE' : env.data.decision === 'REJECTED' ? 'REJECTED' : 'PENDING_APPROVAL';
+    const status =
+      env.data.decision === 'APPROVED'
+        ? 'ACTIVE'
+        : env.data.decision === 'REJECTED'
+          ? 'REJECTED'
+          : 'PENDING_APPROVAL';
     await this.prisma.riderProfile.updateMany({
       where: { id: env.data.entityId },
-      data: { status, ...(status === 'ACTIVE' ? { approvedAt: new Date(), approvedBy: env.data.reviewedBy } : {}) },
+      data: {
+        status,
+        ...(status === 'ACTIVE' ? { approvedAt: new Date(), approvedBy: env.data.reviewedBy } : {}),
+      },
     });
   }
 

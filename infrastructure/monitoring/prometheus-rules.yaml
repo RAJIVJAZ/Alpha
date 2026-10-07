@@ -24,28 +24,28 @@ spec:
           for: 2m
           labels: { severity: critical }
           annotations:
-            summary: "{{ $labels.service }} pod {{ $labels.pod }} is not being scraped"
+            summary: '{{ $labels.service }} pod {{ $labels.pod }} is not being scraped'
             runbook: docs/runbooks.md#service-down
         - alert: FoodGridHighErrorRate
           expr: service:http_errors:ratio5m > 0.05 and service:http_requests:rate5m > 0.5
           for: 5m
           labels: { severity: critical }
           annotations:
-            summary: "{{ $labels.service }}: {{ $value | humanizePercentage }} of requests fail with 5xx"
+            summary: '{{ $labels.service }}: {{ $value | humanizePercentage }} of requests fail with 5xx'
             runbook: docs/runbooks.md#high-error-rate
         - alert: FoodGridSlowResponses
           expr: service:http_latency:p95_5m > 1
           for: 10m
           labels: { severity: warning }
           annotations:
-            summary: "{{ $labels.service }}: p95 latency {{ $value | humanizeDuration }}"
+            summary: '{{ $labels.service }}: p95 latency {{ $value | humanizeDuration }}'
             runbook: docs/runbooks.md#slow-responses
         - alert: FoodGridEventLoopBlocked
           expr: max by (service) (nodejs_eventloop_lag_p99_seconds) > 0.5
           for: 5m
           labels: { severity: warning }
           annotations:
-            summary: "{{ $labels.service }}: event loop lag p99 {{ $value | humanizeDuration }}"
+            summary: '{{ $labels.service }}: event loop lag p99 {{ $value | humanizeDuration }}'
 
     - name: foodgrid.business
       rules:
@@ -57,7 +57,7 @@ spec:
           for: 10m
           labels: { severity: critical }
           annotations:
-            summary: "{{ $value | humanizePercentage }} of payments are failing (gateway or bank outage?)"
+            summary: '{{ $value | humanizePercentage }} of payments are failing (gateway or bank outage?)'
             runbook: docs/runbooks.md#payment-failures
         - alert: FoodGridOrdersDropped
           # half of the same hour last week, ignoring quiet hours
@@ -76,14 +76,14 @@ spec:
           for: 15m
           labels: { severity: warning }
           annotations:
-            summary: "{{ $value | humanizePercentage }} of rider offers expire — rider supply is short"
+            summary: '{{ $value | humanizePercentage }} of rider offers expire — rider supply is short'
             runbook: docs/runbooks.md#rider-supply
         - alert: FoodGridEventConsumerErrors
           expr: sum by (service, type) (rate(domain_events_processed_total{outcome="error"}[5m])) > 0
           for: 10m
           labels: { severity: warning }
           annotations:
-            summary: "{{ $labels.service }} keeps failing to handle {{ $labels.type }} (messages stay pending)"
+            summary: '{{ $labels.service }} keeps failing to handle {{ $labels.type }} (messages stay pending)'
             runbook: docs/runbooks.md#event-consumer-errors
 
     - name: foodgrid.saturation
@@ -95,9 +95,9 @@ spec:
           for: 15m
           labels: { severity: warning }
           annotations:
-            summary: "{{ $labels.horizontalpodautoscaler }} has been at its replica ceiling for 15 minutes"
+            summary: '{{ $labels.horizontalpodautoscaler }} has been at its replica ceiling for 15 minutes'
         - alert: FoodGridPodRestarting
           expr: increase(kube_pod_container_status_restarts_total{namespace="foodgrid"}[15m]) > 3
           labels: { severity: warning }
           annotations:
-            summary: "{{ $labels.pod }} restarted {{ $value }} times in 15 minutes"
+            summary: '{{ $labels.pod }} restarted {{ $value }} times in 15 minutes'

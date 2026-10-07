@@ -1,7 +1,8 @@
 import type { Order, OrderItem, Outlet } from '@foodgrid/database';
 import type { AddressSnapshot, OrderSnapshot } from '@foodgrid/types';
 
-const s = (v: { toString(): string } | null | undefined) => (v == null ? '0.00' : Number(v.toString()).toFixed(2));
+const s = (v: { toString(): string } | null | undefined) =>
+  v == null ? '0.00' : Number(v.toString()).toFixed(2);
 
 /** Builds the event payload shared by every order.* domain event. */
 export function toOrderSnapshot(
@@ -10,7 +11,12 @@ export function toOrderSnapshot(
   extra: { isFirstOrder?: boolean } = {},
 ): OrderSnapshot {
   const discount = Number(order.couponDiscount) + Number(order.membershipDiscount);
-  const merchantDiscount = order.couponFundedBy === 'MERCHANT' ? Number(order.couponDiscount) : order.couponFundedBy === 'SHARED' ? Number(order.couponDiscount) / 2 : 0;
+  const merchantDiscount =
+    order.couponFundedBy === 'MERCHANT'
+      ? Number(order.couponDiscount)
+      : order.couponFundedBy === 'SHARED'
+        ? Number(order.couponDiscount) / 2
+        : 0;
   return {
     orderId: order.id,
     orderNumber: order.orderNumber,

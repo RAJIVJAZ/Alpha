@@ -4,7 +4,13 @@ import { Permissions } from '@foodgrid/auth';
 import { CurrentUser, Public, RequirePermissions, RequireTenant } from '@foodgrid/auth/nest';
 import type { AccessTokenClaims } from '@foodgrid/types';
 import { DiscoveryService } from './discovery.service';
-import { CreateOutletDto, NearbyQueryDto, OutletAvailabilityDto, OutletLocationDto, UpdateOutletDto } from './dto/outlet.dto';
+import {
+  CreateOutletDto,
+  NearbyQueryDto,
+  OutletAvailabilityDto,
+  OutletLocationDto,
+  UpdateOutletDto,
+} from './dto/outlet.dto';
 import { OutletsService } from './outlets.service';
 
 @ApiTags('outlets')
@@ -58,7 +64,11 @@ export class OutletsMerchantController {
 
   @Patch(':id')
   @RequirePermissions(Permissions.OutletManage)
-  update(@CurrentUser() user: AccessTokenClaims, @Param('id') id: string, @Body() dto: UpdateOutletDto) {
+  update(
+    @CurrentUser() user: AccessTokenClaims,
+    @Param('id') id: string,
+    @Body() dto: UpdateOutletDto,
+  ) {
     return this.outlets.update(user, id, dto);
   }
 
@@ -72,7 +82,11 @@ export class OutletsMerchantController {
   @Post(':id/availability')
   @RequirePermissions(Permissions.OrdersManage)
   @ApiOperation({ summary: 'Open / close for orders' })
-  availability(@CurrentUser() user: AccessTokenClaims, @Param('id') id: string, @Body() dto: OutletAvailabilityDto) {
+  availability(
+    @CurrentUser() user: AccessTokenClaims,
+    @Param('id') id: string,
+    @Body() dto: OutletAvailabilityDto,
+  ) {
     return this.outlets.setAvailability(user, id, dto.isOpen);
   }
 
@@ -91,7 +105,11 @@ export class OutletsMerchantController {
   @Post(':id/location')
   @RequirePermissions(Permissions.PosOperate)
   @ApiOperation({ summary: 'Update a food cart’s live location' })
-  location(@CurrentUser() user: AccessTokenClaims, @Param('id') id: string, @Body() dto: OutletLocationDto) {
+  location(
+    @CurrentUser() user: AccessTokenClaims,
+    @Param('id') id: string,
+    @Body() dto: OutletLocationDto,
+  ) {
     return this.outlets.updateLocation(user, id, dto);
   }
 }

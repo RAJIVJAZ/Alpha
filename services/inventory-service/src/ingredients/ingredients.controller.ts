@@ -3,7 +3,12 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Permissions } from '@foodgrid/auth';
 import { CurrentUser, RequirePermissions, RequireTenant, TenantId } from '@foodgrid/auth/nest';
 import { StockService } from '../stock/stock.service';
-import { AdjustStockDto, MovementsQueryDto, ReceiveStockDto, WastageDto } from '../stock/dto/stock.dto';
+import {
+  AdjustStockDto,
+  MovementsQueryDto,
+  ReceiveStockDto,
+  WastageDto,
+} from '../stock/dto/stock.dto';
 import { IngredientDto, ListIngredientsDto, UpdateIngredientDto } from './dto/ingredient.dto';
 import { IngredientsService } from './ingredients.service';
 
@@ -26,14 +31,20 @@ export class InventoryController {
 
   @Get('ingredients')
   @RequirePermissions(Permissions.InventoryRead)
-  @ApiOperation({ summary: 'Ingredients (flour, oil, sugar, dairy, vegetables, packaging, spices ...)' })
+  @ApiOperation({
+    summary: 'Ingredients (flour, oil, sugar, dairy, vegetables, packaging, spices ...)',
+  })
   list(@TenantId() tenantId: string, @Query() q: ListIngredientsDto) {
     return this.ingredients.list(tenantId, q);
   }
 
   @Post('ingredients')
   @RequirePermissions(Permissions.InventoryManage)
-  create(@TenantId() tenantId: string, @CurrentUser('sub') userId: string, @Body() dto: IngredientDto) {
+  create(
+    @TenantId() tenantId: string,
+    @CurrentUser('sub') userId: string,
+    @Body() dto: IngredientDto,
+  ) {
     return this.ingredients.create(tenantId, userId, dto);
   }
 
@@ -52,20 +63,32 @@ export class InventoryController {
   @Post('stock/receive')
   @RequirePermissions(Permissions.InventoryManage)
   @ApiOperation({ summary: 'Goods receipt (creates batches, updates weighted average cost)' })
-  receive(@TenantId() tenantId: string, @CurrentUser('sub') userId: string, @Body() dto: ReceiveStockDto) {
+  receive(
+    @TenantId() tenantId: string,
+    @CurrentUser('sub') userId: string,
+    @Body() dto: ReceiveStockDto,
+  ) {
     return this.stock.receive(tenantId, userId, dto);
   }
 
   @Post('stock/adjust')
   @RequirePermissions(Permissions.InventoryManage)
   @ApiOperation({ summary: 'Physical stock count adjustment' })
-  adjust(@TenantId() tenantId: string, @CurrentUser('sub') userId: string, @Body() dto: AdjustStockDto) {
+  adjust(
+    @TenantId() tenantId: string,
+    @CurrentUser('sub') userId: string,
+    @Body() dto: AdjustStockDto,
+  ) {
     return this.stock.adjust(tenantId, userId, dto);
   }
 
   @Post('stock/wastage')
   @RequirePermissions(Permissions.InventoryManage)
-  wastage(@TenantId() tenantId: string, @CurrentUser('sub') userId: string, @Body() dto: WastageDto) {
+  wastage(
+    @TenantId() tenantId: string,
+    @CurrentUser('sub') userId: string,
+    @Body() dto: WastageDto,
+  ) {
     return this.stock.wastage(tenantId, userId, dto);
   }
 

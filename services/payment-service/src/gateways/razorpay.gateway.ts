@@ -26,7 +26,11 @@ export class RazorpayGateway implements PaymentGateway {
     this.client = new Razorpay({ key_id: keyId, key_secret: keySecret });
   }
 
-  async createOrder(input: { amountPaise: number; receipt: string; notes: Record<string, string> }): Promise<GatewayOrder> {
+  async createOrder(input: {
+    amountPaise: number;
+    receipt: string;
+    notes: Record<string, string>;
+  }): Promise<GatewayOrder> {
     const order = await this.client.orders.create({
       amount: input.amountPaise,
       currency: 'INR',
@@ -46,15 +50,31 @@ export class RazorpayGateway implements PaymentGateway {
   }
 
   async fetchPayment(paymentId: string): Promise<GatewayPayment> {
-    return this.map((await this.client.payments.fetch(paymentId)) as unknown as RazorpayPaymentEntity);
+    return this.map(
+      (await this.client.payments.fetch(paymentId)) as unknown as RazorpayPaymentEntity,
+    );
   }
 
   async capture(paymentId: string, amountPaise: number): Promise<GatewayPayment> {
-    return this.map((await this.client.payments.capture(paymentId, amountPaise, 'INR')) as unknown as RazorpayPaymentEntity);
+    return this.map(
+      (await this.client.payments.capture(
+        paymentId,
+        amountPaise,
+        'INR',
+      )) as unknown as RazorpayPaymentEntity,
+    );
   }
 
-  async refund(paymentId: string, amountPaise: number, notes: Record<string, string>): Promise<GatewayRefund> {
-    const r = (await this.client.payments.refund(paymentId, { amount: amountPaise, notes, speed: 'optimum' } as never)) as {
+  async refund(
+    paymentId: string,
+    amountPaise: number,
+    notes: Record<string, string>,
+  ): Promise<GatewayRefund> {
+    const r = (await this.client.payments.refund(paymentId, {
+      amount: amountPaise,
+      notes,
+      speed: 'optimum',
+    } as never)) as {
       id: string;
       status: GatewayRefund['status'];
     };

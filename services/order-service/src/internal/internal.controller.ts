@@ -23,7 +23,10 @@ export class InternalController {
 
   @Get('orders/:id')
   async order(@Param('id') id: string) {
-    const order = await this.prisma.order.findUnique({ where: { id }, include: { items: true, outlet: true } });
+    const order = await this.prisma.order.findUnique({
+      where: { id },
+      include: { items: true, outlet: true },
+    });
     if (!order) throw notFound('Order', id);
     return order;
   }
@@ -31,7 +34,10 @@ export class InternalController {
   @Get('orders/:id/payable')
   @ApiOperation({ summary: 'Amount due for an order (payment-service)' })
   async orderPayable(@Param('id') id: string): Promise<Payable> {
-    const order = await this.prisma.order.findUnique({ where: { id }, include: { outlet: { select: { name: true } } } });
+    const order = await this.prisma.order.findUnique({
+      where: { id },
+      include: { outlet: { select: { name: true } } },
+    });
     if (!order) throw notFound('Order', id);
     return {
       referenceId: id,
@@ -45,7 +51,10 @@ export class InternalController {
 
   @Get('memberships/:id/payable')
   async membershipPayable(@Param('id') id: string): Promise<Payable> {
-    const m = await this.prisma.customerMembership.findUnique({ where: { id }, include: { plan: true } });
+    const m = await this.prisma.customerMembership.findUnique({
+      where: { id },
+      include: { plan: true },
+    });
     if (!m) throw notFound('Membership', id);
     return {
       referenceId: id,
@@ -59,7 +68,10 @@ export class InternalController {
 
   @Get('meal-subscriptions/:id/payable')
   async subscriptionPayable(@Param('id') id: string): Promise<Payable> {
-    const s = await this.prisma.mealSubscription.findUnique({ where: { id }, include: { plan: true } });
+    const s = await this.prisma.mealSubscription.findUnique({
+      where: { id },
+      include: { plan: true },
+    });
     if (!s) throw notFound('Subscription', id);
     return {
       referenceId: id,
@@ -74,7 +86,10 @@ export class InternalController {
   @Post('outlets/batch')
   @ApiOperation({ summary: 'Outlet names for read models (analytics)' })
   outletsBatch(@Body() dto: IdsDto) {
-    return this.prisma.outlet.findMany({ where: { id: { in: dto.ids } }, select: { id: true, name: true, tenantId: true, type: true, city: true } });
+    return this.prisma.outlet.findMany({
+      where: { id: { in: dto.ids } },
+      select: { id: true, name: true, tenantId: true, type: true, city: true },
+    });
   }
 
   @Get('outlets/:id')
@@ -102,7 +117,9 @@ export class InternalController {
     const until = istDayStart();
     const since = new Date(until.getTime() - span * 86_400_000);
     // timestamps are stored as UTC "timestamp without time zone": convert UTC -> IST before taking the date
-    const rows = await this.prisma.$queryRaw<{ menuItemId: string; name: string; date: Date; quantity: bigint; avgPrice: unknown }[]>`
+    const rows = await this.prisma.$queryRaw<
+      { menuItemId: string; name: string; date: Date; quantity: bigint; avgPrice: unknown }[]
+    >`
       SELECT oi."menuItemId", MAX(oi.name) AS name,
              (COALESCE(o."placedAt", o."createdAt") AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata')::date AS date,
              SUM(oi.quantity) AS quantity,
@@ -127,7 +144,8 @@ export class InternalController {
   async assertActive(@Param('id') id: string) {
     const order = await this.prisma.order.findUnique({ where: { id }, select: { status: true } });
     if (!order) throw notFound('Order', id);
-    if (['CANCELLED', 'REJECTED'].includes(order.status)) throw conflict('Order is not active', 'ORDER_INACTIVE');
+    if (['CANCELLED', 'REJECTED'].includes(order.status))
+      throw conflict('Order is not active', 'ORDER_INACTIVE');
     return { status: order.status };
   }
 }

@@ -1,4 +1,4 @@
 packages:
-  - "apps/*-web"
-  - "services/*"
-  - "packages/*"
+  - 'apps/*-web'
+  - 'services/*'
+  - 'packages/*'

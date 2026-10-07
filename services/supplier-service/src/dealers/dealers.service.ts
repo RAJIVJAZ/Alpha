@@ -37,14 +37,21 @@ export class DealersService {
     const byTerritory = new Map(sales.map((s) => [s.territoryId, Number(s.gmv)]));
     return territories.map((t) => {
       const mtd = round2(byTerritory.get(t.id) ?? 0);
-      return { ...t, monthToDateSales: mtd, targetAchievementPct: t.monthlyTarget ? round2((mtd / Number(t.monthlyTarget)) * 100) : null };
+      return {
+        ...t,
+        monthToDateSales: mtd,
+        targetAchievementPct: t.monthlyTarget
+          ? round2((mtd / Number(t.monthlyTarget)) * 100)
+          : null,
+      };
     });
   }
   createTerritory(tenantId: string, dto: TerritoryDto) {
     return this.prisma.forTenant(tenantId).territory.create({ data: { ...dto, tenantId } });
   }
   async updateTerritory(tenantId: string, id: string, dto: UpdateTerritoryDto) {
-    if (!(await this.prisma.forTenant(tenantId).territory.findUnique({ where: { id } }))) throw notFound('Territory', id);
+    if (!(await this.prisma.forTenant(tenantId).territory.findUnique({ where: { id } })))
+      throw notFound('Territory', id);
     return this.prisma.territory.update({ where: { id }, data: dto });
   }
 
@@ -53,7 +60,15 @@ export class DealersService {
       where: {
         territoryId: q.territoryId,
         status: q.status as Prisma.DealerWhereInput['status'],
-        ...(q.q ? { OR: [{ name: { contains: q.q, mode: 'insensitive' } }, { phone: { contains: q.q } }, { city: { contains: q.q, mode: 'insensitive' } }] } : {}),
+        ...(q.q
+          ? {
+              OR: [
+                { name: { contains: q.q, mode: 'insensitive' } },
+                { phone: { contains: q.q } },
+                { city: { contains: q.q, mode: 'insensitive' } },
+              ],
+            }
+          : {}),
       },
       include: { territory: { select: { name: true } } },
       orderBy: [{ tier: 'asc' }, { name: 'asc' }],
@@ -61,7 +76,12 @@ export class DealersService {
   }
 
   async createDealer(tenantId: string, dto: DealerDto) {
-    if (dto.territoryId && !(await this.prisma.forTenant(tenantId).territory.findUnique({ where: { id: dto.territoryId } }))) {
+    if (
+      dto.territoryId &&
+      !(await this.prisma
+        .forTenant(tenantId)
+        .territory.findUnique({ where: { id: dto.territoryId } }))
+    ) {
       throw badRequest('Unknown territory', 'INVALID_TERRITORY');
     }
     return this.prisma.forTenant(tenantId).dealer.create({
@@ -74,7 +94,10 @@ export class DealersService {
     if (!dealer) throw notFound('Dealer', id);
     return this.prisma.dealer.update({
       where: { id },
-      data: { ...dto, ...(dto.status === 'ACTIVE' && !dealer.onboardedAt ? { onboardedAt: new Date() } : {}) },
+      data: {
+        ...dto,
+        ...(dto.status === 'ACTIVE' && !dealer.onboardedAt ? { onboardedAt: new Date() } : {}),
+      },
     });
   }
 
@@ -91,6 +114,8 @@ export class DealersService {
 
   /** Dealer terms applied when a known dealer buys from this seller. */
   async termsFor(sellerTenantId: string, buyerTenantId: string) {
-    return this.prisma.dealer.findFirst({ where: { tenantId: sellerTenantId, dealerTenantId: buyerTenantId, status: 'ACTIVE' } });
+    return this.prisma.dealer.findFirst({
+      where: { tenantId: sellerTenantId, dealerTenantId: buyerTenantId, status: 'ACTIVE' },
+    });
   }
 }

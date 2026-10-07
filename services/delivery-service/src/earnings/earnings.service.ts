@@ -11,7 +11,10 @@ export class EarningsService {
     const rider = await this.prisma.riderProfile.findUnique({ where: { userId } });
     if (!rider) throw notFound('Rider profile');
     const { from, to } = resolveIstRange(q, 7);
-    const rows = await this.prisma.riderEarning.findMany({ where: { riderId: rider.id, earnedAt: { gte: from, lte: to } }, orderBy: { earnedAt: 'desc' } });
+    const rows = await this.prisma.riderEarning.findMany({
+      where: { riderId: rider.id, earnedAt: { gte: from, lte: to } },
+      orderBy: { earnedAt: 'desc' },
+    });
     const byType: Record<string, number> = {};
     const byDay = new Map<string, { date: string; amount: number; deliveries: Set<string> }>();
     for (const r of rows) {
@@ -33,7 +36,9 @@ export class EarningsService {
       averagePerDelivery: deliveries ? round2(total / deliveries) : 0,
       today: byDay.get(today)?.amount ?? 0,
       byType,
-      daily: [...byDay.values()].map((d) => ({ date: d.date, amount: d.amount, deliveries: d.deliveries.size })).sort((a, b) => a.date.localeCompare(b.date)),
+      daily: [...byDay.values()]
+        .map((d) => ({ date: d.date, amount: d.amount, deliveries: d.deliveries.size }))
+        .sort((a, b) => a.date.localeCompare(b.date)),
       recent: rows.slice(0, 20),
     };
   }

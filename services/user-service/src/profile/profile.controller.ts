@@ -32,7 +32,11 @@ export class ProfileController {
   }
 
   @Patch('addresses/:id')
-  updateAddress(@CurrentUser('sub') userId: string, @Param('id') id: string, @Body() dto: UpdateAddressDto) {
+  updateAddress(
+    @CurrentUser('sub') userId: string,
+    @Param('id') id: string,
+    @Body() dto: UpdateAddressDto,
+  ) {
     return this.profile.updateAddress(userId, id, dto);
   }
 

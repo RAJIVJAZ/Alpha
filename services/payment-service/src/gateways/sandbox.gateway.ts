@@ -16,7 +16,11 @@ export class SandboxGateway implements PaymentGateway {
   private readonly payments = new Map<string, GatewayPayment>();
 
   async createOrder(input: { amountPaise: number }): Promise<GatewayOrder> {
-    return { id: `order_sbx_${randomBytes(7).toString('hex')}`, amount: input.amountPaise, currency: 'INR' };
+    return {
+      id: `order_sbx_${randomBytes(7).toString('hex')}`,
+      amount: input.amountPaise,
+      currency: 'INR',
+    };
   }
 
   /** Simulates the customer completing checkout. */
@@ -44,7 +48,13 @@ export class SandboxGateway implements PaymentGateway {
 
   async fetchPayment(paymentId: string): Promise<GatewayPayment> {
     return (
-      this.payments.get(paymentId) ?? { id: paymentId, orderId: null, status: 'captured', method: 'upi', amount: 0 }
+      this.payments.get(paymentId) ?? {
+        id: paymentId,
+        orderId: null,
+        status: 'captured',
+        method: 'upi',
+        amount: 0,
+      }
     );
   }
 

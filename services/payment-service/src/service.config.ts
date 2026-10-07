@@ -9,6 +9,7 @@ export const SUBSCRIBED_STREAMS: EventStream[] = ['order', 'delivery', 'marketpl
 export const SERVICE: ServiceBootstrapOptions = {
   name: SERVICE_NAME,
   title: 'FoodGrid Payment Service',
-  description: 'Razorpay/UPI/card payments, wallets & ledger, refunds, commissions, settlements, payouts, GST invoices & reports.',
+  description:
+    'Razorpay/UPI/card payments, wallets & ledger, refunds, commissions, settlements, payouts, GST invoices & reports.',
   defaultPort: 4004,
 };

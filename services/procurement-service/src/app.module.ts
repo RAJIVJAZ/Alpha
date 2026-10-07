@@ -14,7 +14,10 @@ import { SERVICE_NAME, SUBSCRIBED_STREAMS } from './service.config';
 import { SettingsService } from './settings/settings.service';
 
 @Module({
-  imports: [CoreModule.forRoot({ serviceName: SERVICE_NAME, subscribe: SUBSCRIBED_STREAMS }), ScheduleModule.forRoot()],
+  imports: [
+    CoreModule.forRoot({ serviceName: SERVICE_NAME, subscribe: SUBSCRIBED_STREAMS }),
+    ScheduleModule.forRoot(),
+  ],
   controllers: [ProcurementController],
   providers: [
     ClientsService,

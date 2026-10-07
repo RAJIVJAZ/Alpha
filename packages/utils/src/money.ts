@@ -7,7 +7,7 @@ export const fromPaise = (paise: number): number => Math.round(paise) / 100;
 
 /** Round half away from zero to 2 decimals. */
 export function round2(value: number): number {
-  return Math.sign(value) * Math.round((Math.abs(value) + Number.EPSILON) * 100) / 100;
+  return (Math.sign(value) * Math.round((Math.abs(value) + Number.EPSILON) * 100)) / 100;
 }
 
 export function sumMoney(values: Array<number | string>): number {
@@ -47,9 +47,7 @@ export function allocate(amount: number, weights: number[]): number[] {
   const raw = weights.map((w) => (paise * w) / total);
   const floored = raw.map(Math.floor);
   let remainder = paise - floored.reduce((a, b) => a + b, 0);
-  const order = raw
-    .map((r, i) => ({ i, frac: r - Math.floor(r) }))
-    .sort((a, b) => b.frac - a.frac);
+  const order = raw.map((r, i) => ({ i, frac: r - Math.floor(r) })).sort((a, b) => b.frac - a.frac);
   for (const { i } of order) {
     if (remainder <= 0) break;
     floored[i] = (floored[i] ?? 0) + 1;

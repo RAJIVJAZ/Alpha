@@ -2,7 +2,13 @@ import { Inject, Injectable } from '@nestjs/common';
 import Redis from 'ioredis';
 import { randomUUID } from 'node:crypto';
 import { PrismaService } from '@foodgrid/database/nest';
-import type { MenuAddon, MenuAddonGroup, MenuItem, MenuItemVariant, Outlet } from '@foodgrid/database';
+import type {
+  MenuAddon,
+  MenuAddonGroup,
+  MenuItem,
+  MenuItemVariant,
+  Outlet,
+} from '@foodgrid/database';
 import { badRequest, conflict, notFound, round2 } from '@foodgrid/utils';
 import { REDIS } from '@foodgrid/utils/server';
 import { AddCartItemDto } from './dto/cart.dto';
@@ -62,7 +68,9 @@ export class CartService {
 
   private async load(userId: string): Promise<StoredCart> {
     const raw = await this.redis.get(key(userId));
-    return raw ? (JSON.parse(raw) as StoredCart) : { outletId: null, lines: [], couponCode: null, updatedAt: new Date().toISOString() };
+    return raw
+      ? (JSON.parse(raw) as StoredCart)
+      : { outletId: null, lines: [], couponCode: null, updatedAt: new Date().toISOString() };
   }
 
   private async save(userId: string, cart: StoredCart) {
@@ -76,7 +84,8 @@ export class CartService {
 
   async hydrate(userId: string): Promise<HydratedCart> {
     const stored = await this.load(userId);
-    if (!stored.outletId || !stored.lines.length) return { outlet: null, lines: [], couponCode: stored.couponCode, removed: [] };
+    if (!stored.outletId || !stored.lines.length)
+      return { outlet: null, lines: [], couponCode: stored.couponCode, removed: [] };
     const [outlet, items] = await Promise.all([
       this.prisma.outlet.findUnique({ where: { id: stored.outletId } }),
       this.prisma.menuItem.findMany({
@@ -93,13 +102,17 @@ export class CartService {
         removed.push(item?.name ?? 'An item');
         continue;
       }
-      const variant = line.variantId ? item.variants.find((v) => v.id === line.variantId && v.isAvailable) ?? null : null;
+      const variant = line.variantId
+        ? (item.variants.find((v) => v.id === line.variantId && v.isAvailable) ?? null)
+        : null;
       if (line.variantId && !variant) {
         removed.push(item.name);
         continue;
       }
       const allAddons = item.addonGroups.flatMap((g) => g.addons);
-      const addons = (line.addonIds ?? []).map((id) => allAddons.find((a) => a.id === id && a.isAvailable)).filter(Boolean) as MenuAddon[];
+      const addons = (line.addonIds ?? [])
+        .map((id) => allAddons.find((a) => a.id === id && a.isAvailable))
+        .filter(Boolean) as MenuAddon[];
       lines.push({
         lineId: line.lineId,
         item,
@@ -123,14 +136,19 @@ export class CartService {
       include: { outlet: true, variants: true, addonGroups: { include: { addons: true } } },
     });
     if (!item) throw notFound('Menu item', dto.menuItemId);
-    if (!item.isAvailable) throw conflict(`${item.name} is currently unavailable`, 'ITEM_UNAVAILABLE');
-    if (item.outlet.status !== 'ACTIVE') throw conflict('This outlet is not accepting orders', 'OUTLET_UNAVAILABLE');
+    if (!item.isAvailable)
+      throw conflict(`${item.name} is currently unavailable`, 'ITEM_UNAVAILABLE');
+    if (item.outlet.status !== 'ACTIVE')
+      throw conflict('This outlet is not accepting orders', 'OUTLET_UNAVAILABLE');
     validateOptions(item, dto.variantId, dto.addonIds ?? []);
 
     const cart = await this.load(userId);
     if (cart.outletId && cart.outletId !== item.outletId && cart.lines.length) {
       if (!dto.replace) {
-        throw conflict('Your cart has items from another outlet. Replace them?', 'CART_OUTLET_MISMATCH');
+        throw conflict(
+          'Your cart has items from another outlet. Replace them?',
+          'CART_OUTLET_MISMATCH',
+        );
       }
       cart.lines = [];
       cart.couponCode = null;
@@ -190,11 +208,23 @@ export class CartService {
   }
 }
 
-export function unitPrice(item: MenuItem, variant: MenuItemVariant | null, addons: MenuAddon[]): number {
-  return round2(Number(item.price) + Number(variant?.priceDelta ?? 0) + addons.reduce((s, a) => s + Number(a.price), 0));
+export function unitPrice(
+  item: MenuItem,
+  variant: MenuItemVariant | null,
+  addons: MenuAddon[],
+): number {
+  return round2(
+    Number(item.price) +
+      Number(variant?.priceDelta ?? 0) +
+      addons.reduce((s, a) => s + Number(a.price), 0),
+  );
 }
 
-export function validateOptions(item: ItemWithOptions, variantId: string | undefined, addonIds: string[]) {
+export function validateOptions(
+  item: ItemWithOptions,
+  variantId: string | undefined,
+  addonIds: string[],
+) {
   if (variantId && !item.variants.some((v) => v.id === variantId && v.isAvailable)) {
     throw badRequest('Invalid or unavailable variant', 'INVALID_VARIANT');
   }
@@ -203,8 +233,11 @@ export function validateOptions(item: ItemWithOptions, variantId: string | undef
   }
   const unique = new Set(addonIds);
   if (unique.size !== addonIds.length) throw badRequest('Duplicate add-ons', 'INVALID_ADDONS');
-  const known = new Set(item.addonGroups.flatMap((g) => g.addons.filter((a) => a.isAvailable).map((a) => a.id)));
-  for (const id of addonIds) if (!known.has(id)) throw badRequest('Invalid or unavailable add-on', 'INVALID_ADDONS');
+  const known = new Set(
+    item.addonGroups.flatMap((g) => g.addons.filter((a) => a.isAvailable).map((a) => a.id)),
+  );
+  for (const id of addonIds)
+    if (!known.has(id)) throw badRequest('Invalid or unavailable add-on', 'INVALID_ADDONS');
   for (const group of item.addonGroups) {
     const picked = group.addons.filter((a) => unique.has(a.id)).length;
     if (picked < group.minSelect || picked > group.maxSelect) {

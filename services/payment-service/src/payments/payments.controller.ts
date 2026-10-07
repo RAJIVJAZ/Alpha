@@ -1,11 +1,35 @@
-import { Body, Controller, Get, Headers, HttpCode, Param, Post, Query, RawBodyRequest, Req, UseInterceptors } from '@nestjs/common';
-import { ApiBearerAuth, ApiExcludeEndpoint, ApiHeader, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  Body,
+  Controller,
+  Get,
+  Headers,
+  HttpCode,
+  Param,
+  Post,
+  Query,
+  RawBodyRequest,
+  Req,
+  UseInterceptors,
+} from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiExcludeEndpoint,
+  ApiHeader,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 import type { Request } from 'express';
 import { Permissions } from '@foodgrid/auth';
 import { CurrentUser, Public, RequirePermissions } from '@foodgrid/auth/nest';
 import type { AccessTokenClaims } from '@foodgrid/types';
 import { IdempotencyInterceptor } from '@foodgrid/utils/server';
-import { CreatePaymentIntentDto, ListPaymentsDto, RefundDto, SandboxCompleteDto, VerifyPaymentDto } from './dto/payment.dto';
+import {
+  CreatePaymentIntentDto,
+  ListPaymentsDto,
+  RefundDto,
+  SandboxCompleteDto,
+  VerifyPaymentDto,
+} from './dto/payment.dto';
 import { PaymentsService } from './payments.service';
 import { WebhooksService } from './webhooks.service';
 
@@ -41,8 +65,14 @@ export class PaymentsController {
   @ApiBearerAuth()
   @Post('sandbox/:paymentId/complete')
   @HttpCode(200)
-  @ApiOperation({ summary: '[non-production] Simulate checkout success/failure with the sandbox gateway' })
-  sandbox(@CurrentUser() user: AccessTokenClaims, @Param('paymentId') paymentId: string, @Body() dto: SandboxCompleteDto) {
+  @ApiOperation({
+    summary: '[non-production] Simulate checkout success/failure with the sandbox gateway',
+  })
+  sandbox(
+    @CurrentUser() user: AccessTokenClaims,
+    @Param('paymentId') paymentId: string,
+    @Body() dto: SandboxCompleteDto,
+  ) {
     return this.payments.sandboxComplete(user, paymentId, dto.success, dto.method);
   }
 

@@ -28,12 +28,18 @@ export class AuthModule {
       },
       AuthGuard,
     ];
-    if (options.globalGuard !== false) providers.push({ provide: APP_GUARD, useExisting: AuthGuard });
+    if (options.globalGuard !== false)
+      providers.push({ provide: APP_GUARD, useExisting: AuthGuard });
     if (options.revocationChecker) providers.push(options.revocationChecker);
     return {
       module: AuthModule,
       providers,
-      exports: [AccessTokenService, AuthGuard, AUTH_MODULE_OPTIONS, ...(options.revocationChecker ? [SESSION_REVOCATION_CHECKER] : [])],
+      exports: [
+        AccessTokenService,
+        AuthGuard,
+        AUTH_MODULE_OPTIONS,
+        ...(options.revocationChecker ? [SESSION_REVOCATION_CHECKER] : []),
+      ],
     };
   }
 }

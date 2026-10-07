@@ -9,7 +9,9 @@ export const OTP_MAX_PER_IP_PER_HOUR = 30;
 export const OTP_MAX_ATTEMPTS = 5;
 
 export function generateOtp(): string {
-  return randomInt(0, 10 ** OTP_LENGTH).toString().padStart(OTP_LENGTH, '0');
+  return randomInt(0, 10 ** OTP_LENGTH)
+    .toString()
+    .padStart(OTP_LENGTH, '0');
 }
 
 /** Peppered HMAC binding the code to the phone number. */

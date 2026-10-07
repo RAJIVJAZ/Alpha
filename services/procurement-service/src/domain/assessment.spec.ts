@@ -49,7 +49,9 @@ describe('assessIngredient', () => {
   });
 
   it('honours a higher configured reorder level', () => {
-    expect(assessIngredient({ ...base, currentStock: 40, reorderLevel: 45 }).needsReorder).toBe(true);
+    expect(assessIngredient({ ...base, currentStock: 40, reorderLevel: 45 }).needsReorder).toBe(
+      true,
+    );
   });
 });
 

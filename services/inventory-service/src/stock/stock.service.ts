@@ -2,7 +2,15 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '@foodgrid/database/nest';
 import type { Ingredient, Prisma, StockMovementType } from '@foodgrid/database';
 import { EventTypes, StockLowEvent } from '@foodgrid/types';
-import { badRequest, dateOnly, istDate, normalizePage, notFound, paginate, round2 } from '@foodgrid/utils';
+import {
+  badRequest,
+  dateOnly,
+  istDate,
+  normalizePage,
+  notFound,
+  paginate,
+  round2,
+} from '@foodgrid/utils';
 import { OutboxService, resolveIstRange } from '@foodgrid/utils/server';
 import { allocateFefo, crossedReorderLevel, round3, weightedAverageCost } from '../domain/stock';
 import { AdjustStockDto, MovementsQueryDto, ReceiveStockDto, WastageDto } from './dto/stock.dto';
@@ -44,14 +52,29 @@ export class StockService {
   async receiveInTx(
     tx: Tx,
     tenantId: string,
-    line: { ingredientId: string; quantity: number; unitCost: number; batchNumber?: string; expiresAt?: Date | null },
-    ref: { type: StockMovementType; referenceType?: string; referenceId?: string; supplierTenantId?: string; createdBy?: string; reason?: string },
+    line: {
+      ingredientId: string;
+      quantity: number;
+      unitCost: number;
+      batchNumber?: string;
+      expiresAt?: Date | null;
+    },
+    ref: {
+      type: StockMovementType;
+      referenceType?: string;
+      referenceId?: string;
+      supplierTenantId?: string;
+      createdBy?: string;
+      reason?: string;
+    },
   ) {
     const ing = await this.lockIngredient(tx, line.ingredientId);
     if (ing.tenantId !== tenantId) throw notFound('Ingredient', line.ingredientId);
     const before = Number(ing.currentStock);
     const after = round3(before + line.quantity);
-    const expiresAt = line.expiresAt ?? (ing.shelfLifeDays ? new Date(Date.now() + ing.shelfLifeDays * 86_400_000) : null);
+    const expiresAt =
+      line.expiresAt ??
+      (ing.shelfLifeDays ? new Date(Date.now() + ing.shelfLifeDays * 86_400_000) : null);
     await tx.stockBatch.create({
       data: {
         tenantId,
@@ -69,7 +92,12 @@ export class StockService {
       where: { id: ing.id },
       data: {
         currentStock: after,
-        avgUnitCost: weightedAverageCost(before, Number(ing.avgUnitCost), line.quantity, line.unitCost),
+        avgUnitCost: weightedAverageCost(
+          before,
+          Number(ing.avgUnitCost),
+          line.quantity,
+          line.unitCost,
+        ),
         lastPurchasePrice: line.unitCost,
       },
     });
@@ -92,17 +120,34 @@ export class StockService {
   }
 
   /** Outflow with FEFO depletion. Stock may go negative (recorded, flagged as OUT). Returns cost. */
-  async outflowInTx(tx: Tx, input: OutflowInput): Promise<{ cost: number; ingredient: Ingredient; after: number }> {
+  async outflowInTx(
+    tx: Tx,
+    input: OutflowInput,
+  ): Promise<{ cost: number; ingredient: Ingredient; after: number }> {
     const ing = await this.lockIngredient(tx, input.ingredientId);
-    const batches = await tx.stockBatch.findMany({ where: { ingredientId: ing.id, remainingQty: { gt: 0 } } });
+    const batches = await tx.stockBatch.findMany({
+      where: { ingredientId: ing.id, remainingQty: { gt: 0 } },
+    });
     const { allocations, shortfall } = allocateFefo(
-      batches.map((b) => ({ id: b.id, remainingQty: Number(b.remainingQty), unitCost: Number(b.unitCost), expiresAt: b.expiresAt, receivedAt: b.receivedAt })),
+      batches.map((b) => ({
+        id: b.id,
+        remainingQty: Number(b.remainingQty),
+        unitCost: Number(b.unitCost),
+        expiresAt: b.expiresAt,
+        receivedAt: b.receivedAt,
+      })),
       input.quantity,
     );
     for (const a of allocations) {
-      await tx.stockBatch.update({ where: { id: a.batchId }, data: { remainingQty: { decrement: a.quantity } } });
+      await tx.stockBatch.update({
+        where: { id: a.batchId },
+        data: { remainingQty: { decrement: a.quantity } },
+      });
     }
-    const cost = round2(allocations.reduce((s, a) => s + a.quantity * a.unitCost, 0) + shortfall * Number(ing.avgUnitCost));
+    const cost = round2(
+      allocations.reduce((s, a) => s + a.quantity * a.unitCost, 0) +
+        shortfall * Number(ing.avgUnitCost),
+    );
     const before = Number(ing.currentStock);
     const after = round3(before - input.quantity);
     await tx.ingredient.update({ where: { id: ing.id }, data: { currentStock: after } });
@@ -128,14 +173,33 @@ export class StockService {
       const wasted = input.type === 'WASTAGE' ? input.quantity : 0;
       await tx.consumptionDaily.upsert({
         where: { ingredientId_date: { ingredientId: ing.id, date } },
-        create: { tenantId: ing.tenantId, outletId: ing.outletId, ingredientId: ing.id, date, consumedQty: consumed, wastedQty: wasted, ordersCount: consumed ? 1 : 0 },
-        update: { consumedQty: { increment: consumed }, wastedQty: { increment: wasted }, ordersCount: { increment: consumed ? 1 : 0 } },
+        create: {
+          tenantId: ing.tenantId,
+          outletId: ing.outletId,
+          ingredientId: ing.id,
+          date,
+          consumedQty: consumed,
+          wastedQty: wasted,
+          ordersCount: consumed ? 1 : 0,
+        },
+        update: {
+          consumedQty: { increment: consumed },
+          wastedQty: { increment: wasted },
+          ordersCount: { increment: consumed ? 1 : 0 },
+        },
       });
     }
-    if (crossedReorderLevel(before, after, Number(ing.reorderLevel)) || (before > 0 && after <= 0)) {
-      await this.emitLow(tx, { ...ing, currentStock: after as unknown as Ingredient['currentStock'] });
+    if (
+      crossedReorderLevel(before, after, Number(ing.reorderLevel)) ||
+      (before > 0 && after <= 0)
+    ) {
+      await this.emitLow(tx, {
+        ...ing,
+        currentStock: after as unknown as Ingredient['currentStock'],
+      });
     }
-    if (shortfall > 0) this.logger.warn(`Ingredient ${ing.name} (${ing.id}) short by ${shortfall} ${ing.unit}`);
+    if (shortfall > 0)
+      this.logger.warn(`Ingredient ${ing.name} (${ing.id}) short by ${shortfall} ${ing.unit}`);
     return { cost, ingredient: ing, after };
   }
 
@@ -203,18 +267,37 @@ export class StockService {
           createdBy: userId,
         });
       } else {
-        await this.receiveInTx(tx, tenantId, { ingredientId: ing.id, quantity: variance, unitCost: Number(ing.avgUnitCost) }, { type: 'ADJUSTMENT', referenceType: 'STOCK_COUNT', createdBy: userId, reason: dto.reason });
+        await this.receiveInTx(
+          tx,
+          tenantId,
+          { ingredientId: ing.id, quantity: variance, unitCost: Number(ing.avgUnitCost) },
+          {
+            type: 'ADJUSTMENT',
+            referenceType: 'STOCK_COUNT',
+            createdBy: userId,
+            reason: dto.reason,
+          },
+        );
       }
       return { variance, countedQuantity: dto.countedQuantity };
     });
   }
 
   async wastage(tenantId: string, userId: string, dto: WastageDto) {
-    const ing = await this.prisma.forTenant(tenantId).ingredient.findUnique({ where: { id: dto.ingredientId } });
+    const ing = await this.prisma
+      .forTenant(tenantId)
+      .ingredient.findUnique({ where: { id: dto.ingredientId } });
     if (!ing) throw notFound('Ingredient', dto.ingredientId);
-    if (dto.quantity > Number(ing.currentStock)) throw badRequest('Wastage exceeds stock on hand', 'WASTAGE_EXCEEDS_STOCK');
+    if (dto.quantity > Number(ing.currentStock))
+      throw badRequest('Wastage exceeds stock on hand', 'WASTAGE_EXCEEDS_STOCK');
     return this.prisma.$transaction((tx) =>
-      this.outflowInTx(tx, { ingredientId: ing.id, quantity: dto.quantity, type: 'WASTAGE', reason: dto.reason, createdBy: userId }),
+      this.outflowInTx(tx, {
+        ingredientId: ing.id,
+        quantity: dto.quantity,
+        type: 'WASTAGE',
+        reason: dto.reason,
+        createdBy: userId,
+      }),
     );
   }
 
@@ -229,7 +312,13 @@ export class StockService {
     };
     const db = this.prisma.forTenant(tenantId);
     const [rows, total] = await Promise.all([
-      db.stockMovement.findMany({ where, orderBy: { createdAt: 'desc' }, skip, take, include: { ingredient: { select: { name: true, unit: true } } } }),
+      db.stockMovement.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take,
+        include: { ingredient: { select: { name: true, unit: true } } },
+      }),
       db.stockMovement.count({ where }),
     ]);
     return paginate(rows, total, page, pageSize);

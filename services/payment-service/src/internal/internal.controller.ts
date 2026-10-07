@@ -8,7 +8,9 @@ import { notFound } from '@foodgrid/utils';
 import { WalletLedgerService } from '../wallets/wallet-ledger.service';
 
 class InternalCreditDto {
-  @ApiProperty({ enum: ['CUSTOMER', 'RIDER', 'TENANT'] }) @IsIn(['CUSTOMER', 'RIDER', 'TENANT']) ownerType!: 'CUSTOMER' | 'RIDER' | 'TENANT';
+  @ApiProperty({ enum: ['CUSTOMER', 'RIDER', 'TENANT'] })
+  @IsIn(['CUSTOMER', 'RIDER', 'TENANT'])
+  ownerType!: 'CUSTOMER' | 'RIDER' | 'TENANT';
   @ApiProperty() @IsString() ownerId!: string;
   @ApiProperty() @IsNumber() @Min(0.01) amount!: number;
   @ApiProperty({ enum: ['CASHBACK', 'REFERRAL_BONUS', 'ADJUSTMENT', 'INCENTIVE'] })

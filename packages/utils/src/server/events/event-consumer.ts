@@ -93,12 +93,19 @@ export class EventConsumer implements OnApplicationBootstrap, OnApplicationShutd
       if (!instance || typeof instance !== 'object') continue;
       const proto = Object.getPrototypeOf(instance);
       for (const method of this.scanner.getAllMethodNames(proto)) {
-        const types = this.reflector.get<string[] | undefined>(DOMAIN_EVENT_HANDLER_KEY, proto[method]);
+        const types = this.reflector.get<string[] | undefined>(
+          DOMAIN_EVENT_HANDLER_KEY,
+          proto[method],
+        );
         if (!types?.length) continue;
         const name = `${proto.constructor.name}.${method}`;
         for (const type of types) {
           const list = this.handlers.get(type) ?? [];
-          list.push({ name, invoke: (env) => (instance[method] as (e: EventEnvelope) => Promise<unknown>).call(instance, env) });
+          list.push({
+            name,
+            invoke: (env) =>
+              (instance[method] as (e: EventEnvelope) => Promise<unknown>).call(instance, env),
+          });
           this.handlers.set(type, list);
         }
       }
@@ -168,7 +175,8 @@ export class EventConsumer implements OnApplicationBootstrap, OnApplicationShutd
       await this.prisma.processedEvent
         .create({ data: { consumer, eventId: envelope.id, eventType: envelope.type } })
         .catch((err: unknown) => {
-          if (!(err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002')) throw err;
+          if (!(err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002'))
+            throw err;
         });
     }
   }
@@ -176,20 +184,41 @@ export class EventConsumer implements OnApplicationBootstrap, OnApplicationShutd
   private async reclaim() {
     for (const key of this.keys) {
       try {
-        const pending = (await this.redis.xpending(key, this.group, 'IDLE', 30_000, '-', '+', 50)) as [
-          string,
-          string,
-          number,
-          number,
-        ][];
+        const pending = (await this.redis.xpending(
+          key,
+          this.group,
+          'IDLE',
+          30_000,
+          '-',
+          '+',
+          50,
+        )) as [string, string, number, number][];
         for (const [id, , , deliveries] of pending) {
-          const claimed = (await this.redis.xclaim(key, this.group, this.consumerName, 30_000, id)) as StreamEntry[];
+          const claimed = (await this.redis.xclaim(
+            key,
+            this.group,
+            this.consumerName,
+            30_000,
+            id,
+          )) as StreamEntry[];
           const entry = claimed[0];
           if (!entry) continue;
           if (deliveries >= MAX_DELIVERIES) {
-            await this.redis.xadd(DEAD_LETTER_STREAM, '*', 'stream', key, 'group', this.group, 'entryId', id, ...entry[1]);
+            await this.redis.xadd(
+              DEAD_LETTER_STREAM,
+              '*',
+              'stream',
+              key,
+              'group',
+              this.group,
+              'entryId',
+              id,
+              ...entry[1],
+            );
             await this.redis.xack(key, this.group, id);
-            this.logger.error(`Moved ${id} from ${key} to dead-letter after ${deliveries} attempts`);
+            this.logger.error(
+              `Moved ${id} from ${key} to dead-letter after ${deliveries} attempts`,
+            );
             continue;
           }
           await this.process(key, entry);

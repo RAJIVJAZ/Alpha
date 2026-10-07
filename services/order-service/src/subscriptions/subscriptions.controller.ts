@@ -3,7 +3,12 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Permissions } from '@foodgrid/auth';
 import { CurrentUser, Public, RequirePermissions, RequireTenant } from '@foodgrid/auth/nest';
 import type { AccessTokenClaims } from '@foodgrid/types';
-import { PauseDto, SubscribeDto, SubscriptionPlanDto, UpdateSubscriptionPlanDto } from './dto/subscription.dto';
+import {
+  PauseDto,
+  SubscribeDto,
+  SubscriptionPlanDto,
+  UpdateSubscriptionPlanDto,
+} from './dto/subscription.dto';
 import { SubscriptionsService } from './subscriptions.service';
 
 @ApiTags('meal-subscriptions')
@@ -57,7 +62,11 @@ export class SubscriptionsController {
   @RequireTenant('RESTAURANT', 'FOOD_CART')
   @RequirePermissions(Permissions.MenuManage)
   @Patch('merchant/subscription-plans/:id')
-  updatePlan(@CurrentUser() user: AccessTokenClaims, @Param('id') id: string, @Body() dto: UpdateSubscriptionPlanDto) {
+  updatePlan(
+    @CurrentUser() user: AccessTokenClaims,
+    @Param('id') id: string,
+    @Body() dto: UpdateSubscriptionPlanDto,
+  ) {
     return this.subs.updatePlan(user, id, dto);
   }
 

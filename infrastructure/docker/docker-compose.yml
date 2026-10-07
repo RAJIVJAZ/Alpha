@@ -17,14 +17,14 @@ x-web-build: &web-build
   context: ../..
   dockerfile: infrastructure/docker/web.Dockerfile
 
-x-service-env: &service-env
-  # local stack: OTP codes are returned by the API and SMS/push/email go to the logs
+x-service-env:
+  &service-env # local stack: OTP codes are returned by the API and SMS/push/email go to the logs
   NODE_ENV: ${FOODGRID_NODE_ENV:-development}
   OTP_EXPOSE_IN_RESPONSE: ${OTP_EXPOSE_IN_RESPONSE:-true}
   DATABASE_URL: postgresql://foodgrid:foodgrid@postgres:5432/foodgrid?schema=public
   REDIS_URL: redis://redis:6379
   S3_ENDPOINT: http://minio:9000
-  S3_FORCE_PATH_STYLE: "true"
+  S3_FORCE_PATH_STYLE: 'true'
   S3_MEDIA_BUCKET: foodgrid-media-local
   AWS_ACCESS_KEY_ID: minioadmin
   AWS_SECRET_ACCESS_KEY: minioadmin
@@ -73,31 +73,31 @@ services:
       POSTGRES_DB: foodgrid
     volumes: [postgres:/var/lib/postgresql/data]
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U foodgrid -d foodgrid"]
+      test: ['CMD-SHELL', 'pg_isready -U foodgrid -d foodgrid']
       interval: 5s
       retries: 20
 
   redis:
     image: redis:7-alpine
     restart: unless-stopped
-    command: ["redis-server", "--appendonly", "yes"]
+    command: ['redis-server', '--appendonly', 'yes']
     volumes: [redis:/data]
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ['CMD', 'redis-cli', 'ping']
       interval: 5s
       retries: 20
 
   minio:
     image: minio/minio:latest
     restart: unless-stopped
-    command: ["server", "/data", "--console-address", ":9001"]
+    command: ['server', '/data', '--console-address', ':9001']
     environment:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
-    ports: ["${MINIO_PORT:-9000}:9000", "${MINIO_CONSOLE_PORT:-9001}:9001"]
+    ports: ['${MINIO_PORT:-9000}:9000', '${MINIO_CONSOLE_PORT:-9001}:9001']
     volumes: [minio:/data]
     healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
+      test: ['CMD', 'mc', 'ready', 'local']
       interval: 5s
       retries: 20
 
@@ -105,7 +105,7 @@ services:
   minio-init:
     image: minio/mc:latest
     depends_on: { minio: { condition: service_healthy } }
-    entrypoint: ["sh", "-c"]
+    entrypoint: ['sh', '-c']
     command:
       - mc alias set local http://minio:9000 minioadmin minioadmin
         && mc mb --ignore-existing local/foodgrid-media-local
@@ -121,58 +121,58 @@ services:
   seed:
     image: foodgrid/migrate:${TAG:-local}
     profiles: [seed]
-    command: ["db:seed", "--", "--reset"]
+    command: ['db:seed', '--', '--reset']
     environment:
       DATABASE_URL: postgresql://foodgrid:foodgrid@postgres:5432/foodgrid?schema=public
     depends_on: { migrate: { condition: service_completed_successfully } }
 
   auth-service:
     <<: *service
-    build: { <<: *service-build, args: { SERVICE: auth-service, PORT: "4001" } }
+    build: { <<: *service-build, args: { SERVICE: auth-service, PORT: '4001' } }
     image: foodgrid/auth-service:${TAG:-local}
   user-service:
     <<: *service
-    build: { <<: *service-build, args: { SERVICE: user-service, PORT: "4002" } }
+    build: { <<: *service-build, args: { SERVICE: user-service, PORT: '4002' } }
     image: foodgrid/user-service:${TAG:-local}
   order-service:
     <<: *service
-    build: { <<: *service-build, args: { SERVICE: order-service, PORT: "4003" } }
+    build: { <<: *service-build, args: { SERVICE: order-service, PORT: '4003' } }
     image: foodgrid/order-service:${TAG:-local}
   payment-service:
     <<: *service
-    build: { <<: *service-build, args: { SERVICE: payment-service, PORT: "4004" } }
+    build: { <<: *service-build, args: { SERVICE: payment-service, PORT: '4004' } }
     image: foodgrid/payment-service:${TAG:-local}
   inventory-service:
     <<: *service
-    build: { <<: *service-build, args: { SERVICE: inventory-service, PORT: "4005" } }
+    build: { <<: *service-build, args: { SERVICE: inventory-service, PORT: '4005' } }
     image: foodgrid/inventory-service:${TAG:-local}
   procurement-service:
     <<: *service
-    build: { <<: *service-build, args: { SERVICE: procurement-service, PORT: "4006" } }
+    build: { <<: *service-build, args: { SERVICE: procurement-service, PORT: '4006' } }
     image: foodgrid/procurement-service:${TAG:-local}
   delivery-service:
     <<: *service
-    build: { <<: *service-build, args: { SERVICE: delivery-service, PORT: "4007" } }
+    build: { <<: *service-build, args: { SERVICE: delivery-service, PORT: '4007' } }
     image: foodgrid/delivery-service:${TAG:-local}
   supplier-service:
     <<: *service
-    build: { <<: *service-build, args: { SERVICE: supplier-service, PORT: "4008" } }
+    build: { <<: *service-build, args: { SERVICE: supplier-service, PORT: '4008' } }
     image: foodgrid/supplier-service:${TAG:-local}
   analytics-service:
     <<: *service
-    build: { <<: *service-build, args: { SERVICE: analytics-service, PORT: "4009" } }
+    build: { <<: *service-build, args: { SERVICE: analytics-service, PORT: '4009' } }
     image: foodgrid/analytics-service:${TAG:-local}
   ads-service:
     <<: *service
-    build: { <<: *service-build, args: { SERVICE: ads-service, PORT: "4010" } }
+    build: { <<: *service-build, args: { SERVICE: ads-service, PORT: '4010' } }
     image: foodgrid/ads-service:${TAG:-local}
   notification-service:
     <<: *service
-    build: { <<: *service-build, args: { SERVICE: notification-service, PORT: "4011" } }
+    build: { <<: *service-build, args: { SERVICE: notification-service, PORT: '4011' } }
     image: foodgrid/notification-service:${TAG:-local}
   ai-service:
     <<: *service
-    build: { <<: *service-build, args: { SERVICE: ai-service, PORT: "4012" } }
+    build: { <<: *service-build, args: { SERVICE: ai-service, PORT: '4012' } }
     image: foodgrid/ai-service:${TAG:-local}
 
   gateway:
@@ -180,12 +180,24 @@ services:
     restart: unless-stopped
     volumes:
       - ./nginx/gateway.conf:/etc/nginx/conf.d/default.conf:ro
-    ports: ["${GATEWAY_PORT:-8080}:8080"]
+    ports: ['${GATEWAY_PORT:-8080}:8080']
     depends_on:
-      [auth-service, user-service, order-service, payment-service, inventory-service, procurement-service,
-       delivery-service, supplier-service, analytics-service, ads-service, notification-service, ai-service]
+      [
+        auth-service,
+        user-service,
+        order-service,
+        payment-service,
+        inventory-service,
+        procurement-service,
+        delivery-service,
+        supplier-service,
+        analytics-service,
+        ads-service,
+        notification-service,
+        ai-service,
+      ]
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/healthz"]
+      test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:8080/healthz']
       interval: 5s
       retries: 20
 
@@ -193,32 +205,32 @@ services:
     <<: *web
     build: { <<: *web-build, args: { APP: customer-web } }
     image: foodgrid/customer-web:${TAG:-local}
-    ports: ["${CUSTOMER_WEB_PORT:-3000}:3000"]
+    ports: ['${CUSTOMER_WEB_PORT:-3000}:3000']
   admin-web:
     <<: *web
     build: { <<: *web-build, args: { APP: admin-web } }
     image: foodgrid/admin-web:${TAG:-local}
-    ports: ["${ADMIN_WEB_PORT:-3001}:3000"]
+    ports: ['${ADMIN_WEB_PORT:-3001}:3000']
   restaurant-web:
     <<: *web
     build: { <<: *web-build, args: { APP: restaurant-web } }
     image: foodgrid/restaurant-web:${TAG:-local}
-    ports: ["${RESTAURANT_WEB_PORT:-3002}:3000"]
+    ports: ['${RESTAURANT_WEB_PORT:-3002}:3000']
   supplier-web:
     <<: *web
     build: { <<: *web-build, args: { APP: supplier-web } }
     image: foodgrid/supplier-web:${TAG:-local}
-    ports: ["${SUPPLIER_WEB_PORT:-3003}:3000"]
+    ports: ['${SUPPLIER_WEB_PORT:-3003}:3000']
   rider-web:
     <<: *web
     build: { <<: *web-build, args: { APP: rider-web } }
     image: foodgrid/rider-web:${TAG:-local}
-    ports: ["${RIDER_WEB_PORT:-3004}:3000"]
+    ports: ['${RIDER_WEB_PORT:-3004}:3000']
   vendor-web:
     <<: *web
     build: { <<: *web-build, args: { APP: vendor-web } }
     image: foodgrid/vendor-web:${TAG:-local}
-    ports: ["${VENDOR_WEB_PORT:-3005}:3000"]
+    ports: ['${VENDOR_WEB_PORT:-3005}:3000']
 
 volumes:
   postgres:

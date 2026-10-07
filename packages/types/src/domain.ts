@@ -136,7 +136,13 @@ export interface KitchenTicketView {
   orderType: OrderType;
   createdAt: string;
   elapsedSeconds: number;
-  items: { name: string; quantity: number; variant?: string | null; addons: string[]; notes?: string | null }[];
+  items: {
+    name: string;
+    quantity: number;
+    variant?: string | null;
+    addons: string[];
+    notes?: string | null;
+  }[];
 }
 
 export interface IngredientView {

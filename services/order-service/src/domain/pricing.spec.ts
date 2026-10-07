@@ -48,7 +48,13 @@ describe('computePricing', () => {
   it('waives delivery for free-delivery coupons', () => {
     const p = computePricing({
       ...base,
-      coupon: { code: 'FREEDEL', type: 'FREE_DELIVERY', value: 0, maxDiscount: null, minOrderValue: 0 },
+      coupon: {
+        code: 'FREEDEL',
+        type: 'FREE_DELIVERY',
+        value: 0,
+        maxDiscount: null,
+        minOrderValue: 0,
+      },
     });
     expect(p.deliveryFee).toBe(0);
     expect(p.deliveryFeeWaived).toBe(40);

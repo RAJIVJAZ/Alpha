@@ -23,7 +23,11 @@ export class TokenError extends Error {
 }
 
 const decodePem = (value?: string) =>
-  value ? (value.includes('BEGIN') ? value : Buffer.from(value, 'base64').toString('utf8')) : undefined;
+  value
+    ? value.includes('BEGIN')
+      ? value
+      : Buffer.from(value, 'base64').toString('utf8')
+    : undefined;
 
 export function tokenConfigFromEnv(env: NodeJS.ProcessEnv = process.env): TokenConfig {
   const publicKey = decodePem(env.JWT_PUBLIC_KEY_BASE64 ?? env.JWT_PUBLIC_KEY);
@@ -100,7 +104,10 @@ export function signServiceToken(
 
 export function verifyServiceToken(secret: string, token: string): ServiceTokenClaims {
   try {
-    const decoded = jwt.verify(token, secret, { algorithms: ['HS256'], audience: 'foodgrid-internal' });
+    const decoded = jwt.verify(token, secret, {
+      algorithms: ['HS256'],
+      audience: 'foodgrid-internal',
+    });
     if (typeof decoded === 'string' || (decoded as ServiceTokenClaims).typ !== 'service') {
       throw new TokenError('Not a service token');
     }

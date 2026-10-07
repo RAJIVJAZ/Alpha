@@ -20,7 +20,8 @@ export function setupTestEnv(overrides: Record<string, string> = {}) {
     LOG_LEVEL: 'error',
     SWAGGER_ENABLED: 'false',
     DATABASE_URL:
-      process.env.TEST_DATABASE_URL ?? 'postgresql://foodgrid:foodgrid@localhost:5432/foodgrid_test',
+      process.env.TEST_DATABASE_URL ??
+      'postgresql://foodgrid:foodgrid@localhost:5432/foodgrid_test',
     REDIS_URL: process.env.TEST_REDIS_URL ?? 'redis://localhost:6379/1',
     JWT_PUBLIC_KEY_BASE64: Buffer.from(keys.publicKey).toString('base64'),
     JWT_PRIVATE_KEY_BASE64: Buffer.from(keys.privateKey).toString('base64'),
@@ -51,7 +52,10 @@ export const issueServiceToken = (service = 'test-service') =>
 
 /** Truncates every table in the given Postgres schemas (fast reset between suites). */
 export async function truncateSchemas(
-  prisma: { $executeRawUnsafe(sql: string): Promise<unknown>; $queryRawUnsafe<T>(sql: string): Promise<T> },
+  prisma: {
+    $executeRawUnsafe(sql: string): Promise<unknown>;
+    $queryRawUnsafe<T>(sql: string): Promise<T>;
+  },
   schemas: string[],
 ) {
   const rows = await prisma.$queryRawUnsafe<{ schemaname: string; tablename: string }[]>(

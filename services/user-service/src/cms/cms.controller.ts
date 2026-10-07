@@ -3,7 +3,13 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Permissions } from '@foodgrid/auth';
 import { CurrentUser, Public, RequirePermissions } from '@foodgrid/auth/nest';
 import { CmsService } from './cms.service';
-import { BannerQueryDto, CmsBannerDto, CmsPageDto, UpdateCmsBannerDto, UpdateCmsPageDto } from './dto/cms.dto';
+import {
+  BannerQueryDto,
+  CmsBannerDto,
+  CmsPageDto,
+  UpdateCmsBannerDto,
+  UpdateCmsPageDto,
+} from './dto/cms.dto';
 
 @ApiTags('cms')
 @Controller('cms')
@@ -38,7 +44,11 @@ export class CmsAdminController {
   @Post('pages') createPage(@Body() dto: CmsPageDto, @CurrentUser('sub') actor: string) {
     return this.cms.createPage(dto, actor);
   }
-  @Patch('pages/:id') updatePage(@Param('id') id: string, @Body() dto: UpdateCmsPageDto, @CurrentUser('sub') actor: string) {
+  @Patch('pages/:id') updatePage(
+    @Param('id') id: string,
+    @Body() dto: UpdateCmsPageDto,
+    @CurrentUser('sub') actor: string,
+  ) {
     return this.cms.updatePage(id, dto, actor);
   }
   @Delete('pages/:id') @HttpCode(204) async archivePage(@Param('id') id: string) {

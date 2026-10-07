@@ -16,7 +16,9 @@ describe('bulk pricing tiers', () => {
     expect(tierPrice(1000, tiers, 60, 'DEALER')).toBe(870);
   });
   it('ignores expired tiers', () => {
-    expect(tierPrice(1000, [{ ...tiers[0]!, validTo: new Date('2020-01-01') }], 20, 'ALL')).toBe(1000);
+    expect(tierPrice(1000, [{ ...tiers[0]!, validTo: new Date('2020-01-01') }], 20, 'ALL')).toBe(
+      1000,
+    );
   });
 });
 
@@ -50,8 +52,30 @@ describe('B2B totals', () => {
 
 describe('logistics', () => {
   const zones = [
-    { id: 'pin', pincodes: ['560038'], centerLat: null, centerLng: null, radiusKm: null, deliveryCharge: 0, freeDeliveryAbove: null, minOrderValue: 0, leadTimeHours: 12, isActive: true },
-    { id: 'radius', pincodes: [], centerLat: 12.97, centerLng: 77.59, radiusKm: 10, deliveryCharge: 150, freeDeliveryAbove: 5000, minOrderValue: 1000, leadTimeHours: 24, isActive: true },
+    {
+      id: 'pin',
+      pincodes: ['560038'],
+      centerLat: null,
+      centerLng: null,
+      radiusKm: null,
+      deliveryCharge: 0,
+      freeDeliveryAbove: null,
+      minOrderValue: 0,
+      leadTimeHours: 12,
+      isActive: true,
+    },
+    {
+      id: 'radius',
+      pincodes: [],
+      centerLat: 12.97,
+      centerLng: 77.59,
+      radiusKm: 10,
+      deliveryCharge: 150,
+      freeDeliveryAbove: 5000,
+      minOrderValue: 1000,
+      leadTimeHours: 24,
+      isActive: true,
+    },
   ];
   it('matches pincode before radius', () => {
     expect(findZone(zones, { pincode: '560038', lat: 12.97, lng: 77.59 })?.id).toBe('pin');
@@ -63,11 +87,20 @@ describe('logistics', () => {
     expect(deliveryChargeFor(zones[1]!, 5000)).toBe(0);
   });
   it('checks slot day, capacity and cut-off', () => {
-    const slot = { dayOfWeek: 3, startTime: '09:00', endTime: '12:00', capacity: 2, cutoffMinutes: 720, isActive: true };
+    const slot = {
+      dayOfWeek: 3,
+      startTime: '09:00',
+      endTime: '12:00',
+      capacity: 2,
+      cutoffMinutes: 720,
+      isActive: true,
+    };
     const now = new Date('2026-10-06T10:00:00+05:30'); // Tuesday
     expect(slotBookable(slot, '2026-10-07', 0, now).ok).toBe(true); // Wed 09:00, cut-off Tue 21:00
     expect(slotBookable(slot, '2026-10-07', 2, now).reason).toBe('Slot is full');
     expect(slotBookable(slot, '2026-10-08', 0, now).reason).toMatch(/not offered/);
-    expect(slotBookable(slot, '2026-10-07', 0, new Date('2026-10-06T22:00:00+05:30')).reason).toMatch(/cut-off/);
+    expect(
+      slotBookable(slot, '2026-10-07', 0, new Date('2026-10-06T22:00:00+05:30')).reason,
+    ).toMatch(/cut-off/);
   });
 });

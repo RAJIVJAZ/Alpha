@@ -3,7 +3,10 @@ import { PrismaService } from '@foodgrid/database/nest';
 import type { AiModelKind, Prisma } from '@foodgrid/database';
 import { businessCounter } from '@foodgrid/utils/server';
 
-const inferences = businessCounter('ai_inferences_total', 'AI model invocations', ['kind', 'outcome']);
+const inferences = businessCounter('ai_inferences_total', 'AI model invocations', [
+  'kind',
+  'outcome',
+]);
 
 /** Times a model invocation and records it in ai.AiModelRun (audit + monitoring). */
 @Injectable()
@@ -12,7 +15,12 @@ export class ModelRunsService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  async track<T>(kind: AiModelKind, tenantId: string | null | undefined, fn: () => T | Promise<T>, metrics?: (r: T) => Record<string, unknown>) {
+  async track<T>(
+    kind: AiModelKind,
+    tenantId: string | null | undefined,
+    fn: () => T | Promise<T>,
+    metrics?: (r: T) => Record<string, unknown>,
+  ) {
     const started = Date.now();
     try {
       const result = await fn();
@@ -23,7 +31,9 @@ export class ModelRunsService {
             kind,
             tenantId: tenantId ?? null,
             durationMs: Date.now() - started,
-            metrics: metrics ? (JSON.parse(JSON.stringify(metrics(result))) as Prisma.InputJsonValue) : undefined,
+            metrics: metrics
+              ? (JSON.parse(JSON.stringify(metrics(result))) as Prisma.InputJsonValue)
+              : undefined,
           },
         })
         .catch((err: Error) => this.logger.warn(`model run not recorded: ${err.message}`));
@@ -31,7 +41,15 @@ export class ModelRunsService {
     } catch (err) {
       inferences.inc({ kind, outcome: 'error' });
       void this.prisma.aiModelRun
-        .create({ data: { kind, tenantId: tenantId ?? null, durationMs: Date.now() - started, success: false, error: (err as Error).message } })
+        .create({
+          data: {
+            kind,
+            tenantId: tenantId ?? null,
+            durationMs: Date.now() - started,
+            success: false,
+            error: (err as Error).message,
+          },
+        })
         .catch(() => undefined);
       throw err;
     }

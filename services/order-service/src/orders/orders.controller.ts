@@ -1,4 +1,15 @@
-import { Body, Controller, Get, Headers, HttpCode, Ip, Param, Post, Query, UseInterceptors } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Headers,
+  HttpCode,
+  Ip,
+  Param,
+  Post,
+  Query,
+  UseInterceptors,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiHeader, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Permissions } from '@foodgrid/auth';
 import { CurrentUser, RequirePermissions, RequireTenant } from '@foodgrid/auth/nest';
@@ -6,7 +17,14 @@ import type { AccessTokenClaims } from '@foodgrid/types';
 import { IdempotencyInterceptor } from '@foodgrid/utils/server';
 import { CheckoutService } from '../checkout/checkout.service';
 import { ReviewsService } from '../reviews/reviews.service';
-import { AcceptOrderDto, CancelOrderDto, CheckoutDto, ListOrdersDto, MerchantOrdersQueryDto, ReviewDto } from './dto/order.dto';
+import {
+  AcceptOrderDto,
+  CancelOrderDto,
+  CheckoutDto,
+  ListOrdersDto,
+  MerchantOrdersQueryDto,
+  ReviewDto,
+} from './dto/order.dto';
 import { OrdersService } from './orders.service';
 
 @ApiTags('orders')
@@ -92,14 +110,22 @@ export class MerchantOrdersController {
   @Post(':id/accept')
   @HttpCode(200)
   @RequirePermissions(Permissions.OrdersManage)
-  accept(@CurrentUser() user: AccessTokenClaims, @Param('id') id: string, @Body() dto: AcceptOrderDto) {
+  accept(
+    @CurrentUser() user: AccessTokenClaims,
+    @Param('id') id: string,
+    @Body() dto: AcceptOrderDto,
+  ) {
     return this.orders.merchantAccept(user, id, dto.prepTimeMins);
   }
 
   @Post(':id/reject')
   @HttpCode(200)
   @RequirePermissions(Permissions.OrdersManage)
-  reject(@CurrentUser() user: AccessTokenClaims, @Param('id') id: string, @Body() dto: CancelOrderDto) {
+  reject(
+    @CurrentUser() user: AccessTokenClaims,
+    @Param('id') id: string,
+    @Body() dto: CancelOrderDto,
+  ) {
     return this.orders.merchantTransition(user, id, 'REJECTED', dto.reason);
   }
 
@@ -128,7 +154,11 @@ export class MerchantOrdersController {
   @Post(':id/cancel')
   @HttpCode(200)
   @RequirePermissions(Permissions.OrdersManage)
-  cancel(@CurrentUser() user: AccessTokenClaims, @Param('id') id: string, @Body() dto: CancelOrderDto) {
+  cancel(
+    @CurrentUser() user: AccessTokenClaims,
+    @Param('id') id: string,
+    @Body() dto: CancelOrderDto,
+  ) {
     return this.orders.merchantTransition(user, id, 'CANCELLED', dto.reason);
   }
 }

@@ -1,4 +1,13 @@
-import { Body, Controller, ForbiddenException, Get, Param, Post, Query, UseInterceptors } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  ForbiddenException,
+  Get,
+  Param,
+  Post,
+  Query,
+  UseInterceptors,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Permissions } from '@foodgrid/auth';
 import { CurrentUser, RequirePermissions, Roles } from '@foodgrid/auth/nest';
@@ -19,14 +28,17 @@ export class WalletsController {
   @ApiOperation({ summary: 'Wallet balance and statement (customer or rider wallet)' })
   me(@CurrentUser() user: AccessTokenClaims, @Query() q: WalletQueryDto) {
     const as = q.as ?? 'CUSTOMER';
-    if (as === 'RIDER' && !user.roles.includes('RIDER')) throw new ForbiddenException('Not a rider');
+    if (as === 'RIDER' && !user.roles.includes('RIDER'))
+      throw new ForbiddenException('Not a rider');
     return this.wallets.statement(as, user.sub, q.page, q.pageSize);
   }
 
   @Roles('RIDER')
   @Post('me/payouts')
   @UseInterceptors(IdempotencyInterceptor)
-  @ApiOperation({ summary: 'Rider cash-out request (send an Idempotency-Key to make retries safe)' })
+  @ApiOperation({
+    summary: 'Rider cash-out request (send an Idempotency-Key to make retries safe)',
+  })
   payout(@CurrentUser('sub') userId: string, @Body() dto: PayoutRequestDto) {
     return this.wallets.requestPayout(userId, dto);
   }
@@ -52,8 +64,14 @@ export class AdminWalletsController {
   @Get('payouts')
   async payouts(@Query('status') status?: PayoutStatus, @Query('page') page?: number) {
     const result = await this.wallets.adminPayouts(status, Number(page) || 1);
-    const names = await this.directory.lookup('users', result.data.map((p) => p.ownerId));
-    return { ...result, data: result.data.map((p) => ({ ...p, ownerName: names.get(p.ownerId)?.name ?? null })) };
+    const names = await this.directory.lookup(
+      'users',
+      result.data.map((p) => p.ownerId),
+    );
+    return {
+      ...result,
+      data: result.data.map((p) => ({ ...p, ownerName: names.get(p.ownerId)?.name ?? null })),
+    };
   }
 
   @Post('payouts/:id/mark-paid')
@@ -70,8 +88,15 @@ export class AdminWalletsController {
   @ApiOperation({ summary: 'Riders holding more COD cash than they have earned' })
   async riderCash() {
     const rows = await this.wallets.riderCashDue();
-    const names = await this.directory.lookup('users', rows.map((r) => r.ownerId));
-    return rows.map((r) => ({ ...r, riderName: names.get(r.ownerId)?.name ?? null, phone: (names.get(r.ownerId)?.phone as string | undefined) ?? null }));
+    const names = await this.directory.lookup(
+      'users',
+      rows.map((r) => r.ownerId),
+    );
+    return rows.map((r) => ({
+      ...r,
+      riderName: names.get(r.ownerId)?.name ?? null,
+      phone: (names.get(r.ownerId)?.phone as string | undefined) ?? null,
+    }));
   }
 
   @Post('rider-cash/:userId/deposits')

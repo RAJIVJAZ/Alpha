@@ -12,14 +12,27 @@ describe('fees & earnings', () => {
     expect(deliveryFee(tariff, 6, 1.5)).toBe(86);
   });
   it('pays riders base + distance + surge + waiting', () => {
-    expect(riderEarning(tariff, 5)).toEqual({ basePay: 30, distancePay: 30, surgePay: 0, waitingPay: 0, total: 60 });
+    expect(riderEarning(tariff, 5)).toEqual({
+      basePay: 30,
+      distancePay: 30,
+      surgePay: 0,
+      waitingPay: 0,
+      total: 60,
+    });
     expect(riderEarning(tariff, 5, 1.2, 15).total).toBe(77);
   });
   it('splits a quoted earning back into statement lines that sum to the quote', () => {
-    for (const [km, surge] of [[5, 1], [4.3, 1.5], [0.4, 1.2], [7.7, 1.35]] as const) {
+    for (const [km, surge] of [
+      [5, 1],
+      [4.3, 1.5],
+      [0.4, 1.2],
+      [7.7, 1.35],
+    ] as const) {
       const q = riderEarning(tariff, km, surge);
       const s = splitEarning(q.total, surge, tariff.riderBasePay);
-      expect(Math.round((s.basePay + s.distancePay + s.surgePay) * 100)).toBe(Math.round(q.total * 100));
+      expect(Math.round((s.basePay + s.distancePay + s.surgePay) * 100)).toBe(
+        Math.round(q.total * 100),
+      );
       expect(Math.abs(s.surgePay - q.surgePay)).toBeLessThanOrEqual(0.01);
       expect(s.basePay).toBe(30);
     }
@@ -32,9 +45,30 @@ describe('fees & earnings', () => {
 });
 
 describe('dispatch scoring', () => {
-  const near = { riderId: 'near', distanceToPickupKm: 0.5, rating: 4.6, acceptanceRate: 0.9, idleMinutes: 5, activeDeliveries: 0 };
-  const far = { riderId: 'far', distanceToPickupKm: 2.8, rating: 4.9, acceptanceRate: 1, idleMinutes: 40, activeDeliveries: 0 };
-  const busy = { riderId: 'busy', distanceToPickupKm: 0.2, rating: 4.8, acceptanceRate: 1, idleMinutes: 0, activeDeliveries: 2 };
+  const near = {
+    riderId: 'near',
+    distanceToPickupKm: 0.5,
+    rating: 4.6,
+    acceptanceRate: 0.9,
+    idleMinutes: 5,
+    activeDeliveries: 0,
+  };
+  const far = {
+    riderId: 'far',
+    distanceToPickupKm: 2.8,
+    rating: 4.9,
+    acceptanceRate: 1,
+    idleMinutes: 40,
+    activeDeliveries: 0,
+  };
+  const busy = {
+    riderId: 'busy',
+    distanceToPickupKm: 0.2,
+    rating: 4.8,
+    acceptanceRate: 1,
+    idleMinutes: 0,
+    activeDeliveries: 2,
+  };
   it('prefers nearby riders and never full ones', () => {
     const ranked = rankCandidates([far, near, busy], 3);
     expect(ranked.map((r) => r.riderId)).toEqual(['near', 'far']);
@@ -60,7 +94,13 @@ describe('incentives', () => {
   it('counts only peak-hour deliveries', () => {
     expect(deliveryContribution(scheme, new Date('2026-10-06T07:00:00Z'), 4.5)).toBe(1); // 12:30 IST
     expect(deliveryContribution(scheme, new Date('2026-10-06T12:00:00Z'), 4.5)).toBe(0); // 17:30 IST
-    expect(deliveryContribution({ ...scheme, type: 'ORDER_COUNT', minRating: 4.7 }, new Date('2026-10-06T12:00:00Z'), 4.5)).toBe(0);
+    expect(
+      deliveryContribution(
+        { ...scheme, type: 'ORDER_COUNT', minRating: 4.7 },
+        new Date('2026-10-06T12:00:00Z'),
+        4.5,
+      ),
+    ).toBe(0);
   });
 });
 

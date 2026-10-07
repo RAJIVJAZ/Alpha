@@ -1,5 +1,15 @@
-import { createParamDecorator, ExecutionContext, SetMetadata, UnauthorizedException } from '@nestjs/common';
-import type { AccessTokenClaims, PlatformRole, ServiceTokenClaims, TenantType } from '@foodgrid/types';
+import {
+  createParamDecorator,
+  ExecutionContext,
+  SetMetadata,
+  UnauthorizedException,
+} from '@nestjs/common';
+import type {
+  AccessTokenClaims,
+  PlatformRole,
+  ServiceTokenClaims,
+  TenantType,
+} from '@foodgrid/types';
 import type { Permission } from '../permissions';
 import {
   ALLOW_SERVICE_KEY,

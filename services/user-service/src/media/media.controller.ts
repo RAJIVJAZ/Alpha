@@ -11,7 +11,9 @@ export class MediaController {
   constructor(private readonly media: MediaService) {}
 
   @Post('presign')
-  @ApiOperation({ summary: 'Get a presigned S3 URL to upload an image / KYC document / delivery proof' })
+  @ApiOperation({
+    summary: 'Get a presigned S3 URL to upload an image / KYC document / delivery proof',
+  })
   presign(@CurrentUser('sub') userId: string, @Body() dto: PresignDto) {
     return this.media.presign(userId, dto);
   }

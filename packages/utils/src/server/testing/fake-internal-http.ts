@@ -12,7 +12,8 @@ export interface FakeRequest {
   opts: InternalRequestOptions;
 }
 
-type Responder = ((req: FakeRequest) => unknown) | object | unknown[] | string | number | boolean | null;
+type Responder =
+  ((req: FakeRequest) => unknown) | object | unknown[] | string | number | boolean | null;
 
 interface Route {
   service: ServiceName;
@@ -67,20 +68,49 @@ export class FakeInternalHttp {
     return `fake://${service}`;
   }
 
-  async request<T>(service: ServiceName, method: string, path: string, opts: InternalRequestOptions = {}): Promise<T> {
+  async request<T>(
+    service: ServiceName,
+    method: string,
+    path: string,
+    opts: InternalRequestOptions = {},
+  ): Promise<T> {
     const clean = path.replace(/^\//, '').split('?')[0]!;
     for (const route of this.routes) {
       if (route.service !== service || route.method !== method) continue;
       const m = route.pattern.exec(clean);
       if (!m) continue;
-      const params = Object.fromEntries(route.keys.map((k, i) => [k, decodeURIComponent(m[i + 1]!)]));
-      const req: FakeRequest = { service, method: method as Method, path: clean, params, body: opts.body, opts };
+      const params = Object.fromEntries(
+        route.keys.map((k, i) => [k, decodeURIComponent(m[i + 1]!)]),
+      );
+      const req: FakeRequest = {
+        service,
+        method: method as Method,
+        path: clean,
+        params,
+        body: opts.body,
+        opts,
+      };
       this.calls.push(req);
-      const result = typeof route.respond === 'function' ? await (route.respond as (r: FakeRequest) => unknown)(req) : route.respond;
+      const result =
+        typeof route.respond === 'function'
+          ? await (route.respond as (r: FakeRequest) => unknown)(req)
+          : route.respond;
       return (result === undefined ? undefined : JSON.parse(JSON.stringify(result))) as T;
     }
-    this.calls.push({ service, method: method as Method, path: clean, params: {}, body: opts.body, opts });
-    throw new AppError('UPSTREAM_UNAVAILABLE', `${service}-service is unavailable (no fake route for ${method} ${clean})`, 503, { service, path: clean });
+    this.calls.push({
+      service,
+      method: method as Method,
+      path: clean,
+      params: {},
+      body: opts.body,
+      opts,
+    });
+    throw new AppError(
+      'UPSTREAM_UNAVAILABLE',
+      `${service}-service is unavailable (no fake route for ${method} ${clean})`,
+      503,
+      { service, path: clean },
+    );
   }
 
   get<T>(service: ServiceName, path: string, opts?: InternalRequestOptions) {

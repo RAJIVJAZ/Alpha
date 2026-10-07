@@ -1,6 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '@foodgrid/database/nest';
-import { EventEnvelope, EventTypes, PurchaseOrderEvent, TenantStatusChangedEvent } from '@foodgrid/types';
+import {
+  EventEnvelope,
+  EventTypes,
+  PurchaseOrderEvent,
+  TenantStatusChangedEvent,
+} from '@foodgrid/types';
 import { AppError } from '@foodgrid/utils';
 import { OnDomainEvent, OutboxService } from '@foodgrid/utils/server';
 import { TenantDirectory } from '../common/tenant-directory.service';
@@ -25,7 +30,12 @@ export class SupplierEventHandlers {
   @OnDomainEvent(EventTypes.PurchaseOrderApproved)
   async onPoApproved(env: EventEnvelope<string, PurchaseOrderEvent>) {
     const po = env.data;
-    if (await this.prisma.b2bOrder.findUnique({ where: { sourcePurchaseOrderId: po.purchaseOrderId } })) return;
+    if (
+      await this.prisma.b2bOrder.findUnique({
+        where: { sourcePurchaseOrderId: po.purchaseOrderId },
+      })
+    )
+      return;
     const lines = po.items.filter((i) => i.productId);
     const address = po.deliveryAddress;
     try {
@@ -78,8 +88,11 @@ export class SupplierEventHandlers {
 
   @OnDomainEvent(EventTypes.PurchaseOrderCancelled)
   async onPoCancelled(env: EventEnvelope<string, PurchaseOrderEvent>) {
-    const order = await this.prisma.b2bOrder.findUnique({ where: { sourcePurchaseOrderId: env.data.purchaseOrderId } });
-    if (!order || !['PLACED', 'CONFIRMED', 'PARTIALLY_CONFIRMED', 'PACKED'].includes(order.status)) return;
+    const order = await this.prisma.b2bOrder.findUnique({
+      where: { sourcePurchaseOrderId: env.data.purchaseOrderId },
+    });
+    if (!order || !['PLACED', 'CONFIRMED', 'PARTIALLY_CONFIRMED', 'PACKED'].includes(order.status))
+      return;
     await this.orders.cancel(order.id, { reason: 'Purchase order cancelled by buyer' });
   }
 
@@ -87,8 +100,12 @@ export class SupplierEventHandlers {
   async onTenantStatus(env: EventEnvelope<string, TenantStatusChangedEvent>) {
     await this.tenants.invalidate(env.data.tenantId);
     if (env.data.status === 'SUSPENDED') {
-      const res = await this.prisma.product.updateMany({ where: { tenantId: env.data.tenantId, isActive: true }, data: { isActive: false } });
-      if (res.count) this.logger.log(`Delisted ${res.count} products of suspended seller ${env.data.tenantId}`);
+      const res = await this.prisma.product.updateMany({
+        where: { tenantId: env.data.tenantId, isActive: true },
+        data: { isActive: false },
+      });
+      if (res.count)
+        this.logger.log(`Delisted ${res.count} products of suspended seller ${env.data.tenantId}`);
     }
   }
 }

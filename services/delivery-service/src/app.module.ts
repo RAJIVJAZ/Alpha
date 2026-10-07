@@ -19,8 +19,17 @@ import { ZonesController } from './zones/zones.controller';
 import { ZonesService } from './zones/zones.service';
 
 @Module({
-  imports: [CoreModule.forRoot({ serviceName: SERVICE_NAME, subscribe: SUBSCRIBED_STREAMS }), ScheduleModule.forRoot()],
-  controllers: [RiderController, DeliveriesController, DeliveryAdminController, ZonesController, InternalController],
+  imports: [
+    CoreModule.forRoot({ serviceName: SERVICE_NAME, subscribe: SUBSCRIBED_STREAMS }),
+    ScheduleModule.forRoot(),
+  ],
+  controllers: [
+    RiderController,
+    DeliveriesController,
+    DeliveryAdminController,
+    ZonesController,
+    InternalController,
+  ],
   providers: [
     GeoStore,
     ZonesService,

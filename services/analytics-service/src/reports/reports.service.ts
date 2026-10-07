@@ -17,15 +17,30 @@ export class ReportsService {
     const span = to.getTime() - from.getTime();
     const prevFrom = new Date(from.getTime() - span);
     const [days, prev, b2b] = await Promise.all([
-      this.prisma.dailyPlatformStats.findMany({ where: { date: { gte: from, lte: to } }, orderBy: { date: 'asc' } }),
-      this.prisma.dailyPlatformStats.aggregate({ where: { date: { gte: prevFrom, lt: from } }, _sum: { gmv: true, revenue: true, orders: true } }),
-      this.prisma.dailySupplierStats.aggregate({ where: { date: { gte: from, lte: to } }, _sum: { gmv: true, orders: true } }),
+      this.prisma.dailyPlatformStats.findMany({
+        where: { date: { gte: from, lte: to } },
+        orderBy: { date: 'asc' },
+      }),
+      this.prisma.dailyPlatformStats.aggregate({
+        where: { date: { gte: prevFrom, lt: from } },
+        _sum: { gmv: true, revenue: true, orders: true },
+      }),
+      this.prisma.dailySupplierStats.aggregate({
+        where: { date: { gte: from, lte: to } },
+        _sum: { gmv: true, orders: true },
+      }),
     ]);
-    const sum = (k: 'gmv' | 'revenue' | 'orders' | 'cancelledOrders' | 'newCustomers' | 'deliveries') => days.reduce((s, d) => s + num(d[k]), 0);
+    const sum = (
+      k: 'gmv' | 'revenue' | 'orders' | 'cancelledOrders' | 'newCustomers' | 'deliveries',
+    ) => days.reduce((s, d) => s + num(d[k]), 0);
     const gmv = round2(sum('gmv'));
     const orders = sum('orders');
     const uniqueCustomers = await this.prisma.orderFact.findMany({
-      where: { date: { gte: from, lte: to }, status: { in: ['DELIVERED', 'COMPLETED'] }, customerId: { not: null } },
+      where: {
+        date: { gte: from, lte: to },
+        status: { in: ['DELIVERED', 'COMPLETED'] },
+        customerId: { not: null },
+      },
       distinct: ['customerId'],
       select: { customerId: true },
     });
@@ -50,7 +65,13 @@ export class ReportsService {
         revenuePct: pct(sum('revenue') - num(prev._sum.revenue), num(prev._sum.revenue)),
         ordersPct: pct(orders - num(prev._sum.orders), num(prev._sum.orders)),
       },
-      daily: days.map((d) => ({ date: d.date.toISOString().slice(0, 10), gmv: num(d.gmv), revenue: num(d.revenue), orders: d.orders, newCustomers: d.newCustomers })),
+      daily: days.map((d) => ({
+        date: d.date.toISOString().slice(0, 10),
+        gmv: num(d.gmv),
+        revenue: num(d.revenue),
+        orders: d.orders,
+        newCustomers: d.newCustomers,
+      })),
     };
   }
 
@@ -90,14 +111,30 @@ export class ReportsService {
 
   async topOutlets(q: Range & { limit?: number; city?: string }) {
     const { from, to } = resolveRange(q, 30);
-    const rows = await this.prisma.$queryRaw<{ outletId: string; tenantId: string; city: string | null; orders: bigint; gmv: unknown; revenue: unknown; avgPrep: number | null }[]>`
+    const rows = await this.prisma.$queryRaw<
+      {
+        outletId: string;
+        tenantId: string;
+        city: string | null;
+        orders: bigint;
+        gmv: unknown;
+        revenue: unknown;
+        avgPrep: number | null;
+      }[]
+    >`
       SELECT "outletId", MAX("tenantId") AS "tenantId", MAX(city) AS city, COUNT(*) AS orders, SUM(gmv) AS gmv,
              SUM("platformRevenue") AS revenue, AVG("prepMins") AS "avgPrep"
       FROM "analytics"."OrderFact"
       WHERE date BETWEEN ${from}::date AND ${to}::date AND status IN ('DELIVERED','COMPLETED')
         AND (${q.city ?? null}::text IS NULL OR city = ${q.city ?? null})
       GROUP BY "outletId" ORDER BY SUM(gmv) DESC LIMIT ${Math.min(100, Number(q.limit) || 20)}`;
-    return rows.map((r) => ({ ...r, orders: Number(r.orders), gmv: round2(num(r.gmv)), revenue: round2(num(r.revenue)), avgPrep: r.avgPrep ? round2(r.avgPrep) : null }));
+    return rows.map((r) => ({
+      ...r,
+      orders: Number(r.orders),
+      gmv: round2(num(r.gmv)),
+      revenue: round2(num(r.revenue)),
+      avgPrep: r.avgPrep ? round2(r.avgPrep) : null,
+    }));
   }
 
   async cities(q: Range) {
@@ -109,7 +146,12 @@ export class ReportsService {
       _count: { _all: true },
       orderBy: { _sum: { gmv: 'desc' } },
     });
-    return rows.map((r) => ({ city: r.city, orders: r._count._all, gmv: num(r._sum.gmv), revenue: num(r._sum.platformRevenue) }));
+    return rows.map((r) => ({
+      city: r.city,
+      orders: r._count._all,
+      gmv: num(r._sum.gmv),
+      revenue: num(r._sum.platformRevenue),
+    }));
   }
 
   /** Restaurant profitability: net sales − commission − food cost. */
@@ -133,10 +175,25 @@ export class ReportsService {
     );
     // one row per day across the outlets in scope, and one row per outlet
     const sumBy = (key: (d: (typeof days)[number]) => string) => {
-      const map = new Map<string, { orders: number; netSales: number; commission: number; foodCost: number; grossProfit: number }>();
+      const map = new Map<
+        string,
+        {
+          orders: number;
+          netSales: number;
+          commission: number;
+          foodCost: number;
+          grossProfit: number;
+        }
+      >();
       for (const d of days) {
         const k = key(d);
-        const acc = map.get(k) ?? { orders: 0, netSales: 0, commission: 0, foodCost: 0, grossProfit: 0 };
+        const acc = map.get(k) ?? {
+          orders: 0,
+          netSales: 0,
+          commission: 0,
+          foodCost: 0,
+          grossProfit: 0,
+        };
         acc.orders += d.orders;
         acc.netSales += num(d.netSales);
         acc.commission += num(d.commission);
@@ -144,7 +201,14 @@ export class ReportsService {
         acc.grossProfit += num(d.grossProfit);
         map.set(k, acc);
       }
-      return [...map.entries()].map(([k, v]) => ({ k, orders: v.orders, netSales: round2(v.netSales), commission: round2(v.commission), foodCost: round2(v.foodCost), grossProfit: round2(v.grossProfit) }));
+      return [...map.entries()].map(([k, v]) => ({
+        k,
+        orders: v.orders,
+        netSales: round2(v.netSales),
+        commission: round2(v.commission),
+        foodCost: round2(v.foodCost),
+        grossProfit: round2(v.grossProfit),
+      }));
     };
     const tenantOf = new Map(days.map((d) => [d.outletId, d.tenantId]));
     return {
@@ -154,9 +218,18 @@ export class ReportsService {
       marginPct: pct(totals.grossProfit, totals.netSales),
       foodCostPct: pct(totals.foodCost, totals.netSales),
       commissionPct: pct(totals.commission, totals.netSales),
-      daily: sumBy((d) => d.date.toISOString().slice(0, 10)).map(({ k, ...v }) => ({ date: k, ...v })),
+      daily: sumBy((d) => d.date.toISOString().slice(0, 10)).map(({ k, ...v }) => ({
+        date: k,
+        ...v,
+      })),
       byOutlet: sumBy((d) => d.outletId)
-        .map(({ k, ...v }) => ({ outletId: k, tenantId: tenantOf.get(k)!, ...v, marginPct: pct(v.grossProfit, v.netSales), foodCostPct: pct(v.foodCost, v.netSales) }))
+        .map(({ k, ...v }) => ({
+          outletId: k,
+          tenantId: tenantOf.get(k)!,
+          ...v,
+          marginPct: pct(v.grossProfit, v.netSales),
+          foodCostPct: pct(v.foodCost, v.netSales),
+        }))
         .sort((a, b) => b.netSales - a.netSales),
     };
   }
@@ -167,8 +240,18 @@ export class ReportsService {
     const where = { tenantId: q.tenantId, outletId: q.outletId, date: { gte: from, lte: to } };
     const [days, byChannel, byPayment, hourly] = await Promise.all([
       this.prisma.dailyOutletStats.findMany({ where, orderBy: { date: 'asc' } }),
-      this.prisma.orderFact.groupBy({ by: ['channel'], where: { ...where, status: { in: ['DELIVERED', 'COMPLETED'] } }, _sum: { gmv: true }, _count: { _all: true } }),
-      this.prisma.orderFact.groupBy({ by: ['paymentMethod'], where: { ...where, status: { in: ['DELIVERED', 'COMPLETED'] } }, _sum: { gmv: true }, _count: { _all: true } }),
+      this.prisma.orderFact.groupBy({
+        by: ['channel'],
+        where: { ...where, status: { in: ['DELIVERED', 'COMPLETED'] } },
+        _sum: { gmv: true },
+        _count: { _all: true },
+      }),
+      this.prisma.orderFact.groupBy({
+        by: ['paymentMethod'],
+        where: { ...where, status: { in: ['DELIVERED', 'COMPLETED'] } },
+        _sum: { gmv: true },
+        _count: { _all: true },
+      }),
       this.prisma.$queryRaw<{ dow: number; hour: number; orders: bigint }[]>`
         SELECT EXTRACT(dow FROM date)::int AS dow, hour, COUNT(*) AS orders
         FROM "analytics"."OrderFact"
@@ -191,9 +274,23 @@ export class ReportsService {
         newCustomers: days.reduce((s, d) => s + d.newCustomers, 0),
         repeatCustomers: days.reduce((s, d) => s + d.repeatCustomers, 0),
       },
-      daily: days.map((d) => ({ date: d.date.toISOString().slice(0, 10), orders: d.orders, gmv: num(d.gmv), netSales: num(d.netSales), cancelled: d.cancelledOrders })),
-      byChannel: byChannel.map((c) => ({ channel: c.channel, orders: c._count._all, gmv: num(c._sum.gmv) })),
-      byPaymentMethod: byPayment.map((p) => ({ method: p.paymentMethod ?? 'UNKNOWN', orders: p._count._all, gmv: num(p._sum.gmv) })),
+      daily: days.map((d) => ({
+        date: d.date.toISOString().slice(0, 10),
+        orders: d.orders,
+        gmv: num(d.gmv),
+        netSales: num(d.netSales),
+        cancelled: d.cancelledOrders,
+      })),
+      byChannel: byChannel.map((c) => ({
+        channel: c.channel,
+        orders: c._count._all,
+        gmv: num(c._sum.gmv),
+      })),
+      byPaymentMethod: byPayment.map((p) => ({
+        method: p.paymentMethod ?? 'UNKNOWN',
+        orders: p._count._all,
+        gmv: num(p._sum.gmv),
+      })),
       heatmap: hourly.map((h) => ({ dow: h.dow, hour: h.hour, orders: Number(h.orders) })),
     };
   }
@@ -220,25 +317,45 @@ export class ReportsService {
 
   async riderDaily(riderId: string, q: Range) {
     const { from, to } = resolveRange(q, 30);
-    return this.prisma.dailyRiderStats.findMany({ where: { riderId, date: { gte: from, lte: to } }, orderBy: { date: 'asc' } });
+    return this.prisma.dailyRiderStats.findMany({
+      where: { riderId, date: { gte: from, lte: to } },
+      orderBy: { date: 'asc' },
+    });
   }
 
   async supplierSales(q: Range & { tenantId?: string; limit?: number }) {
     const { from, to } = resolveRange(q, 30);
     if (q.tenantId) {
-      const days = await this.prisma.dailySupplierStats.findMany({ where: { tenantId: q.tenantId, date: { gte: from, lte: to } }, orderBy: { date: 'asc' } });
+      const days = await this.prisma.dailySupplierStats.findMany({
+        where: { tenantId: q.tenantId, date: { gte: from, lte: to } },
+        orderBy: { date: 'asc' },
+      });
       const delivered = days.reduce((s, d) => s + d.deliveredOrders, 0);
       return {
         orders: days.reduce((s, d) => s + d.orders, 0),
         gmv: round2(days.reduce((s, d) => s + num(d.gmv), 0)),
-        onTimeRatePct: pct(days.reduce((s, d) => s + d.onTimeDeliveries, 0), delivered),
-        daily: days.map((d) => ({ date: d.date.toISOString().slice(0, 10), orders: d.orders, gmv: num(d.gmv), delivered: d.deliveredOrders })),
+        onTimeRatePct: pct(
+          days.reduce((s, d) => s + d.onTimeDeliveries, 0),
+          delivered,
+        ),
+        daily: days.map((d) => ({
+          date: d.date.toISOString().slice(0, 10),
+          orders: d.orders,
+          gmv: num(d.gmv),
+          delivered: d.deliveredOrders,
+        })),
       };
     }
     const rows = await this.prisma.dailySupplierStats.groupBy({
       by: ['tenantId'],
       where: { date: { gte: from, lte: to } },
-      _sum: { orders: true, gmv: true, deliveredOrders: true, onTimeDeliveries: true, rejectedOrders: true },
+      _sum: {
+        orders: true,
+        gmv: true,
+        deliveredOrders: true,
+        onTimeDeliveries: true,
+        rejectedOrders: true,
+      },
       orderBy: { _sum: { gmv: 'desc' } },
       take: Math.min(100, Number(q.limit) || 20),
     });
@@ -254,7 +371,9 @@ export class ReportsService {
 
   /** Inputs for the AI outlet-performance score (last 7 days). */
   async outletScoringMetrics(outletId: string, from: Date, to: Date) {
-    const facts = await this.prisma.orderFact.findMany({ where: { outletId, date: { gte: from, lte: to } } });
+    const facts = await this.prisma.orderFact.findMany({
+      where: { outletId, date: { gte: from, lte: to } },
+    });
     const placed = facts.filter((f) => f.status !== 'PENDING_PAYMENT');
     const rejected = placed.filter((f) => f.status === 'REJECTED').length;
     const cancelled = placed.filter((f) => f.status === 'CANCELLED').length;
@@ -263,15 +382,20 @@ export class ReportsService {
     // on time = delivered by the ETA the customer was promised at checkout
     const promised = done.filter((f) => f.deliveryMins != null && f.promisedMins != null);
     const customers = new Map<string, number>();
-    for (const f of done) if (f.customerId) customers.set(f.customerId, (customers.get(f.customerId) ?? 0) + 1);
+    for (const f of done)
+      if (f.customerId) customers.set(f.customerId, (customers.get(f.customerId) ?? 0) + 1);
     return {
       tenantId: facts[0]?.tenantId,
       orders: placed.length,
       acceptanceRate: placed.length ? 1 - rejected / placed.length : 1,
       cancellationRate: placed.length ? cancelled / placed.length : 0,
       avgPrepMins: prep.length ? prep.reduce((a, b) => a + b, 0) / prep.length : 20,
-      onTimeRate: promised.length ? promised.filter((f) => f.deliveryMins! <= f.promisedMins!).length / promised.length : 1,
-      repeatRate: customers.size ? [...customers.values()].filter((c) => c > 1).length / customers.size : 0,
+      onTimeRate: promised.length
+        ? promised.filter((f) => f.deliveryMins! <= f.promisedMins!).length / promised.length
+        : 1,
+      repeatRate: customers.size
+        ? [...customers.values()].filter((c) => c > 1).length / customers.size
+        : 0,
     };
   }
 }

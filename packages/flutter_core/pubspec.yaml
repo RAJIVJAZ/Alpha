@@ -3,10 +3,9 @@ description: Shared foundation for the FoodGrid Flutter apps — API client, ses
 publish_to: none
 version: 0.0.1
 
-
 environment:
   sdk: ^3.13.5
-  flutter: ">=1.17.0"
+  flutter: '>=1.17.0'
 
 dependencies:
   dio: ^5.11.1

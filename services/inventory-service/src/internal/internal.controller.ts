@@ -15,17 +15,27 @@ export class InternalController {
   @Get('tenants')
   @ApiOperation({ summary: 'Tenant/outlet pairs with active ingredients (procurement batch jobs)' })
   tenants() {
-    return this.prisma.ingredient.findMany({ where: { isActive: true }, distinct: ['tenantId', 'outletId'], select: { tenantId: true, outletId: true } });
+    return this.prisma.ingredient.findMany({
+      where: { isActive: true },
+      distinct: ['tenantId', 'outletId'],
+      select: { tenantId: true, outletId: true },
+    });
   }
 
   @Get('stock-status')
   @ApiOperation({ summary: 'Active ingredients with stock levels and 28-day usage statistics' })
   async stockStatus(@Query('tenantId') tenantId: string, @Query('outletId') outletId?: string) {
-    const ingredients = await this.prisma.ingredient.findMany({ where: { tenantId, isActive: true, ...(outletId ? { outletId } : {}) } });
+    const ingredients = await this.prisma.ingredient.findMany({
+      where: { tenantId, isActive: true, ...(outletId ? { outletId } : {}) },
+    });
     // the 28 complete IST days before today (today is still accumulating)
     const today = dateOnly(istDate());
     const usage = await this.prisma.consumptionDaily.findMany({
-      where: { tenantId, date: { gte: addDays(today, -28), lt: today }, ingredientId: { in: ingredients.map((i) => i.id) } },
+      where: {
+        tenantId,
+        date: { gte: addDays(today, -28), lt: today },
+        ingredientId: { in: ingredients.map((i) => i.id) },
+      },
     });
     const byIngredient = new Map<string, number[]>();
     for (const u of usage) {
@@ -68,14 +78,23 @@ export class InternalController {
   }
 
   @Get('ingredients/:id/consumption')
-  @ApiOperation({ summary: 'Zero-filled daily consumption series up to yesterday (forecasting input)' })
+  @ApiOperation({
+    summary: 'Zero-filled daily consumption series up to yesterday (forecasting input)',
+  })
   async consumption(@Param('id') id: string, @Query('days') days = '90') {
     const span = Math.min(730, Math.max(14, Number(days) || 90));
     // complete days only: a partial today would look like a sudden drop in demand
     const end = addDays(dateOnly(istDate()), -1);
     const start = addDays(end, -span + 1);
-    const rows = await this.prisma.consumptionDaily.findMany({ where: { ingredientId: id, date: { gte: start, lte: end } } });
-    const byDate = new Map(rows.map((r) => [r.date.toISOString().slice(0, 10), Number(r.consumedQty) + Number(r.wastedQty)]));
+    const rows = await this.prisma.consumptionDaily.findMany({
+      where: { ingredientId: id, date: { gte: start, lte: end } },
+    });
+    const byDate = new Map(
+      rows.map((r) => [
+        r.date.toISOString().slice(0, 10),
+        Number(r.consumedQty) + Number(r.wastedQty),
+      ]),
+    );
     return Array.from({ length: span }, (_, i) => {
       const d = addDays(start, i).toISOString().slice(0, 10);
       return { date: d, value: byDate.get(d) ?? 0 };
@@ -85,7 +104,10 @@ export class InternalController {
   @Get('outlets/:outletId/plate-costs')
   @ApiOperation({ summary: 'Current plate cost per menu item (dynamic pricing input)' })
   async plateCosts(@Param('outletId') outletId: string) {
-    const recipes = await this.prisma.recipe.findMany({ where: { outletId, isActive: true }, include: { lines: { include: { ingredient: true } } } });
+    const recipes = await this.prisma.recipe.findMany({
+      where: { outletId, isActive: true },
+      include: { lines: { include: { ingredient: true } } },
+    });
     return recipes.map((r) => ({
       menuItemId: r.menuItemId,
       foodCost: recipeCost(

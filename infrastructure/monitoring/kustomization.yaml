@@ -12,4 +12,4 @@ configMapGenerator:
     options:
       disableNameSuffixHash: true
       labels:
-        grafana_dashboard: "1"
+        grafana_dashboard: '1'

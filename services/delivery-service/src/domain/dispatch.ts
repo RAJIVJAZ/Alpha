@@ -22,10 +22,16 @@ export function scoreRider(c: RiderCandidate, maxRadiusKm: number): number {
   const quality = clamp((c.rating - 3) / 2, 0, 1);
   const fairness = clamp(c.idleMinutes / 45, 0, 1);
   const batchingPenalty = c.activeDeliveries > 0 ? 0.7 : 1;
-  return round2((0.5 * proximity + 0.2 * acceptance + 0.15 * quality + 0.15 * fairness) * batchingPenalty);
+  return round2(
+    (0.5 * proximity + 0.2 * acceptance + 0.15 * quality + 0.15 * fairness) * batchingPenalty,
+  );
 }
 
-export function rankCandidates(candidates: RiderCandidate[], maxRadiusKm: number, exclude: Set<string> = new Set()) {
+export function rankCandidates(
+  candidates: RiderCandidate[],
+  maxRadiusKm: number,
+  exclude: Set<string> = new Set(),
+) {
   return candidates
     .filter((c) => !exclude.has(c.riderId) && c.distanceToPickupKm <= maxRadiusKm)
     .map((c) => ({ ...c, score: scoreRider(c, maxRadiusKm) }))

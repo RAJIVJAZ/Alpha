@@ -34,7 +34,10 @@ export class RecommendationsService {
           where: { customerId: userId, status: { in: ['DELIVERED', 'COMPLETED'] } },
           orderBy: { createdAt: 'desc' },
           take: 50,
-          include: { outlet: { select: { cuisines: true, costForTwo: true } }, items: { select: { menuItemId: true } } },
+          include: {
+            outlet: { select: { cuisines: true, costForTwo: true } },
+            items: { select: { menuItemId: true } },
+          },
         })
       : [];
 
@@ -75,14 +78,26 @@ export class RecommendationsService {
     }
     const byId = new Map(candidates.map((c) => [c.outlet.id, c]));
     const recommended = ranked
-      ? ranked.filter((r) => byId.has(r.outletId)).slice(0, 20).map((r) => ({ ...toCard(byId.get(r.outletId)!), reasons: r.reasons }))
-      : this.discovery.sort(candidates, 'relevance').slice(0, 20).map((c) => ({ ...toCard(c), reasons: ['Popular near you'] }));
+      ? ranked
+          .filter((r) => byId.has(r.outletId))
+          .slice(0, 20)
+          .map((r) => ({ ...toCard(byId.get(r.outletId)!), reasons: r.reasons }))
+      : this.discovery
+          .sort(candidates, 'relevance')
+          .slice(0, 20)
+          .map((c) => ({ ...toCard(c), reasons: ['Popular near you'] }));
 
     return {
       recommended,
       reorder: userId ? await this.reorderSuggestions(userId) : [],
-      topRated: this.discovery.sort(candidates, 'rating').slice(0, 10).map((c) => toCard(c)),
-      fastDelivery: this.discovery.sort(candidates, 'eta').slice(0, 10).map((c) => toCard(c)),
+      topRated: this.discovery
+        .sort(candidates, 'rating')
+        .slice(0, 10)
+        .map((c) => toCard(c)),
+      fastDelivery: this.discovery
+        .sort(candidates, 'eta')
+        .slice(0, 10)
+        .map((c) => toCard(c)),
     };
   }
 
@@ -92,12 +107,30 @@ export class RecommendationsService {
       where: { customerId: userId, status: { in: ['DELIVERED', 'COMPLETED'] } },
       orderBy: { createdAt: 'desc' },
       take: 30,
-      include: { outlet: { select: { name: true, slug: true, coverImageUrl: true, status: true } }, items: true },
+      include: {
+        outlet: { select: { name: true, slug: true, coverImageUrl: true, status: true } },
+        items: true,
+      },
     });
-    const groups = new Map<string, { orderId: string; outletName: string; slug: string; items: string[]; count: number; lastAt: Date; total: string; imageUrl: string | null }>();
+    const groups = new Map<
+      string,
+      {
+        orderId: string;
+        outletName: string;
+        slug: string;
+        items: string[];
+        count: number;
+        lastAt: Date;
+        total: string;
+        imageUrl: string | null;
+      }
+    >();
     for (const o of orders) {
       if (o.outlet.status !== 'ACTIVE') continue;
-      const key = `${o.outletId}:${o.items.map((i) => i.menuItemId).sort().join(',')}`;
+      const key = `${o.outletId}:${o.items
+        .map((i) => i.menuItemId)
+        .sort()
+        .join(',')}`;
       const g = groups.get(key);
       if (g) g.count++;
       else
@@ -114,7 +147,10 @@ export class RecommendationsService {
     }
     const now = Date.now();
     return [...groups.values()]
-      .map((g) => ({ ...g, score: g.count * Math.exp(-(now - g.lastAt.getTime()) / (14 * 86_400_000)) }))
+      .map((g) => ({
+        ...g,
+        score: g.count * Math.exp(-(now - g.lastAt.getTime()) / (14 * 86_400_000)),
+      }))
       .sort((a, b) => b.score - a.score)
       .slice(0, 5);
   }
@@ -132,15 +168,26 @@ export class RecommendationsService {
         take: 1000,
         select: { items: { select: { menuItemId: true } } },
       });
-      baskets = orders.map((o) => [...new Set(o.items.map((i) => i.menuItemId))]).filter((b) => b.length > 1);
+      baskets = orders
+        .map((o) => [...new Set(o.items.map((i) => i.menuItemId))])
+        .filter((b) => b.length > 1);
       await this.redis.set(cacheKey, JSON.stringify(baskets), 'EX', 3600);
     }
     const ranked = await this.internal
-      .post<{ itemId: string; score: number }[]>('ai', 'internal/ai/recommendations/items', { baskets, seedItemIds, limit: 6 }, { timeoutMs: 800 })
+      .post<{ itemId: string; score: number }[]>(
+        'ai',
+        'internal/ai/recommendations/items',
+        { baskets, seedItemIds, limit: 6 },
+        { timeoutMs: 800 },
+      )
       .catch(() => [] as { itemId: string; score: number }[]);
     if (!ranked.length) return [];
-    const items = await this.prisma.menuItem.findMany({ where: { id: { in: ranked.map((r) => r.itemId) }, isAvailable: true } });
+    const items = await this.prisma.menuItem.findMany({
+      where: { id: { in: ranked.map((r) => r.itemId) }, isAvailable: true },
+    });
     const byId = new Map(items.map((i) => [i.id, i]));
-    return ranked.filter((r) => byId.has(r.itemId)).map((r) => ({ ...byId.get(r.itemId)!, score: r.score }));
+    return ranked
+      .filter((r) => byId.has(r.itemId))
+      .map((r) => ({ ...byId.get(r.itemId)!, score: r.score }));
   }
 }

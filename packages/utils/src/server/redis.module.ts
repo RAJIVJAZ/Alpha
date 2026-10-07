@@ -1,4 +1,12 @@
-import { DynamicModule, Global, Inject, Injectable, Logger, Module, OnApplicationShutdown } from '@nestjs/common';
+import {
+  DynamicModule,
+  Global,
+  Inject,
+  Injectable,
+  Logger,
+  Module,
+  OnApplicationShutdown,
+} from '@nestjs/common';
 import Redis from 'ioredis';
 
 export const REDIS = Symbol('REDIS');

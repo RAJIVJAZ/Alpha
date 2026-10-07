@@ -9,6 +9,7 @@ export const SUBSCRIBED_STREAMS: EventStream[] = ['procurement', 'identity'];
 export const SERVICE: ServiceBootstrapOptions = {
   name: SERVICE_NAME,
   title: 'FoodGrid Supplier Service',
-  description: 'B2B marketplace for suppliers, wholesalers and retailers: catalog, bulk pricing, MOQ, zones, slots, territories, dealers and B2B orders.',
+  description:
+    'B2B marketplace for suppliers, wholesalers and retailers: catalog, bulk pricing, MOQ, zones, slots, territories, dealers and B2B orders.',
   defaultPort: 4008,
 };

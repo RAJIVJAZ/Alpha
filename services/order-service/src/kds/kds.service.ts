@@ -51,10 +51,16 @@ export class KdsService {
   }
 
   async cancelTickets(tx: Tx, orderId: string) {
-    await tx.kitchenTicket.updateMany({ where: { orderId, status: { in: ACTIVE } }, data: { status: 'CANCELLED' } });
+    await tx.kitchenTicket.updateMany({
+      where: { orderId, status: { in: ACTIVE } },
+      data: { status: 'CANCELLED' },
+    });
   }
 
-  async board(user: AccessTokenClaims, q: { outletId?: string; station?: string; statuses?: KdsStatus[] }): Promise<KitchenTicketView[]> {
+  async board(
+    user: AccessTokenClaims,
+    q: { outletId?: string; station?: string; statuses?: KdsStatus[] },
+  ): Promise<KitchenTicketView[]> {
     const tickets = await this.prisma.forTenant(user.tenantId!).kitchenTicket.findMany({
       where: {
         ...outletScope(user, q.outletId),
@@ -81,14 +87,20 @@ export class KdsService {
   }
 
   async getOwned(user: AccessTokenClaims, id: string) {
-    const ticket = await this.prisma.forTenant(user.tenantId!).kitchenTicket.findUnique({ where: { id } });
+    const ticket = await this.prisma
+      .forTenant(user.tenantId!)
+      .kitchenTicket.findUnique({ where: { id } });
     if (!ticket) throw notFound('Ticket', id);
     outletScope(user, ticket.outletId);
     return ticket;
   }
 
   /** Moves a ticket and returns whether every ticket of the order is now ready. */
-  async setStatus(tx: Tx, ticketId: string, status: KdsStatus): Promise<{ orderId: string; allReady: boolean; firstStart: boolean }> {
+  async setStatus(
+    tx: Tx,
+    ticketId: string,
+    status: KdsStatus,
+  ): Promise<{ orderId: string; allReady: boolean; firstStart: boolean }> {
     const ticket = await tx.kitchenTicket.findUnique({ where: { id: ticketId } });
     if (!ticket) throw notFound('Ticket', ticketId);
     if (ticket.status === 'CANCELLED') throw conflict('Ticket was cancelled', 'TICKET_CANCELLED');
@@ -102,7 +114,9 @@ export class KdsService {
         ...(status === 'SERVED' ? { bumpedAt: now } : {}),
       },
     });
-    const siblings = await tx.kitchenTicket.findMany({ where: { orderId: ticket.orderId, status: { not: 'CANCELLED' } } });
+    const siblings = await tx.kitchenTicket.findMany({
+      where: { orderId: ticket.orderId, status: { not: 'CANCELLED' } },
+    });
     const started = siblings.filter((s) => s.startedAt).length;
     return {
       orderId: ticket.orderId,

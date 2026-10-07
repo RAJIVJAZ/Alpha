@@ -5,6 +5,11 @@ coverage
 pnpm-lock.yaml
 packages/database/generated
 packages/database/prisma/schema/migrations
-docs/api/*.json
 apps/*-mobile
 infrastructure/terraform/**/.terraform
+
+# generated: regenerate instead of formatting by hand
+docs/api
+docs/database
+infrastructure/gateway/routes.json
+infrastructure/kubernetes/base

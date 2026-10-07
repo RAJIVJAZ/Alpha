@@ -1,13 +1,31 @@
-import { allocateFefo, crossedReorderLevel, recipeRequirements, stockState, weightedAverageCost } from './stock';
+import {
+  allocateFefo,
+  crossedReorderLevel,
+  recipeRequirements,
+  stockState,
+  weightedAverageCost,
+} from './stock';
 import { menuCostRow, recipeCost } from './costing';
 
 const d = (s: string) => new Date(s);
 
 describe('FEFO allocation', () => {
   const batches = [
-    { id: 'late', remainingQty: 5, unitCost: 50, expiresAt: d('2026-10-20'), receivedAt: d('2026-10-01') },
+    {
+      id: 'late',
+      remainingQty: 5,
+      unitCost: 50,
+      expiresAt: d('2026-10-20'),
+      receivedAt: d('2026-10-01'),
+    },
     { id: 'none', remainingQty: 10, unitCost: 40, expiresAt: null, receivedAt: d('2026-09-01') },
-    { id: 'soon', remainingQty: 2, unitCost: 55, expiresAt: d('2026-10-08'), receivedAt: d('2026-10-03') },
+    {
+      id: 'soon',
+      remainingQty: 2,
+      unitCost: 55,
+      expiresAt: d('2026-10-08'),
+      receivedAt: d('2026-10-03'),
+    },
   ];
   it('consumes the earliest-expiring batch first', () => {
     const r = allocateFefo(batches, 6);
@@ -54,8 +72,24 @@ describe('stock maths', () => {
 describe('costing', () => {
   it('computes plate cost and shares', () => {
     const c = recipeCost([
-      { ingredientId: 'rice', name: 'Basmati', quantity: 150, unit: 'G', wastagePct: 0, ingredientUnit: 'KG', avgUnitCost: 120 },
-      { ingredientId: 'chicken', name: 'Chicken', quantity: 200, unit: 'G', wastagePct: 10, ingredientUnit: 'KG', avgUnitCost: 260 },
+      {
+        ingredientId: 'rice',
+        name: 'Basmati',
+        quantity: 150,
+        unit: 'G',
+        wastagePct: 0,
+        ingredientUnit: 'KG',
+        avgUnitCost: 120,
+      },
+      {
+        ingredientId: 'chicken',
+        name: 'Chicken',
+        quantity: 200,
+        unit: 'G',
+        wastagePct: 10,
+        ingredientUnit: 'KG',
+        avgUnitCost: 260,
+      },
     ]);
     expect(c.perPortion).toBe(75.2); // 18 + 57.2
     expect(c.lines[1]!.sharePct).toBeCloseTo(76.06, 1);

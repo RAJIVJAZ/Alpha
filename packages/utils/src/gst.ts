@@ -21,13 +21,20 @@ export interface GstBreakdown {
   isInterState: boolean;
 }
 
-export function isInterState(supplierStateCode?: string | null, placeOfSupply?: string | null): boolean {
+export function isInterState(
+  supplierStateCode?: string | null,
+  placeOfSupply?: string | null,
+): boolean {
   if (!supplierStateCode || !placeOfSupply) return false;
   return supplierStateCode.trim() !== placeOfSupply.trim();
 }
 
 /** Tax on a tax-exclusive taxable value. */
-export function computeGst(taxableValue: number, ratePct: number, interState: boolean): GstBreakdown {
+export function computeGst(
+  taxableValue: number,
+  ratePct: number,
+  interState: boolean,
+): GstBreakdown {
   const taxablePaise = toPaise(taxableValue);
   const totalTaxPaise = Math.round((taxablePaise * ratePct) / 100);
   let cgst = 0;
@@ -52,7 +59,11 @@ export function computeGst(taxableValue: number, ratePct: number, interState: bo
 }
 
 /** Back-calculates taxable value from a tax-inclusive price. */
-export function extractGst(inclusiveAmount: number, ratePct: number, interState: boolean): GstBreakdown {
+export function extractGst(
+  inclusiveAmount: number,
+  ratePct: number,
+  interState: boolean,
+): GstBreakdown {
   const taxable = round2(inclusiveAmount / (1 + ratePct / 100));
   const breakdown = computeGst(taxable, ratePct, interState);
   // absorb rounding into tax so that total matches the inclusive amount exactly

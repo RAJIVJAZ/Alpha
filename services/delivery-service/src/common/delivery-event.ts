@@ -3,7 +3,10 @@ import type { DeliveryEvent } from '@foodgrid/types';
 
 const m = (v: { toString(): string } | null | undefined) => Number(v?.toString() ?? 0).toFixed(2);
 
-export function toDeliveryEvent(d: Delivery, rider: Pick<RiderProfile, 'id' | 'userId' | 'name' | 'phone'> | null): DeliveryEvent {
+export function toDeliveryEvent(
+  d: Delivery,
+  rider: Pick<RiderProfile, 'id' | 'userId' | 'name' | 'phone'> | null,
+): DeliveryEvent {
   return {
     deliveryId: d.id,
     orderId: d.orderId,
@@ -22,6 +25,8 @@ export function toDeliveryEvent(d: Delivery, rider: Pick<RiderProfile, 'id' | 'u
     isCod: d.isCod,
     codAmount: m(d.codAmount),
     occurredAt: new Date().toISOString(),
-    deliveryMins: d.deliveredAt ? Math.round((d.deliveredAt.getTime() - d.createdAt.getTime()) / 60_000) : null,
+    deliveryMins: d.deliveredAt
+      ? Math.round((d.deliveredAt.getTime() - d.createdAt.getTime()) / 60_000)
+      : null,
   };
 }

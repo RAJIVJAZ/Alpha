@@ -12,7 +12,9 @@ export async function createTestApp(
   options: ServiceBootstrapOptions,
   configure: (builder: TestingModuleBuilder) => TestingModuleBuilder = (b) => b,
 ): Promise<INestApplication> {
-  const moduleRef = await configure(Test.createTestingModule({ imports: [module as never] })).compile();
+  const moduleRef = await configure(
+    Test.createTestingModule({ imports: [module as never] }),
+  ).compile();
   const app = moduleRef.createNestApplication({ rawBody: true, logger: false });
   configureApp(app, options);
   await app.init();

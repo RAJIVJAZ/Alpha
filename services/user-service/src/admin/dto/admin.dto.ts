@@ -1,16 +1,38 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { ArrayMinSize, IsArray, IsEmail, IsIn, IsNumber, IsOptional, IsString, Length, Max, MaxLength, Min } from 'class-validator';
+import {
+  ArrayMinSize,
+  IsArray,
+  IsEmail,
+  IsIn,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Length,
+  Max,
+  MaxLength,
+  Min,
+} from 'class-validator';
 import { PLATFORM_ROLES, PlatformRole, TENANT_STATUSES, TENANT_TYPES } from '@foodgrid/types';
 import { PageQueryDto } from '@foodgrid/utils/server';
 
 export class ListUsersDto extends PageQueryDto {
-  @ApiPropertyOptional({ description: 'Search by name, phone or email' }) @IsOptional() @IsString() q?: string;
-  @ApiPropertyOptional({ enum: PLATFORM_ROLES }) @IsOptional() @IsIn(PLATFORM_ROLES) role?: PlatformRole;
-  @ApiPropertyOptional({ enum: ['ACTIVE', 'BLOCKED', 'DELETED'] }) @IsOptional() @IsIn(['ACTIVE', 'BLOCKED', 'DELETED']) status?: 'ACTIVE' | 'BLOCKED' | 'DELETED';
+  @ApiPropertyOptional({ description: 'Search by name, phone or email' })
+  @IsOptional()
+  @IsString()
+  q?: string;
+  @ApiPropertyOptional({ enum: PLATFORM_ROLES })
+  @IsOptional()
+  @IsIn(PLATFORM_ROLES)
+  role?: PlatformRole;
+  @ApiPropertyOptional({ enum: ['ACTIVE', 'BLOCKED', 'DELETED'] })
+  @IsOptional()
+  @IsIn(['ACTIVE', 'BLOCKED', 'DELETED'])
+  status?: 'ACTIVE' | 'BLOCKED' | 'DELETED';
 }
 
 export class UpdateUserStatusDto {
-  @ApiProperty({ enum: ['ACTIVE', 'BLOCKED'] }) @IsIn(['ACTIVE', 'BLOCKED']) status!: 'ACTIVE' | 'BLOCKED';
+  @ApiProperty({ enum: ['ACTIVE', 'BLOCKED'] }) @IsIn(['ACTIVE', 'BLOCKED']) status!:
+    'ACTIVE' | 'BLOCKED';
   @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(500) reason?: string;
 }
 
@@ -34,13 +56,27 @@ export class CreateStaffDto {
 
 export class ListTenantsDto extends PageQueryDto {
   @ApiPropertyOptional() @IsOptional() @IsString() q?: string;
-  @ApiPropertyOptional({ enum: TENANT_TYPES }) @IsOptional() @IsIn(TENANT_TYPES) type?: (typeof TENANT_TYPES)[number];
-  @ApiPropertyOptional({ enum: TENANT_STATUSES }) @IsOptional() @IsIn(TENANT_STATUSES) status?: (typeof TENANT_STATUSES)[number];
+  @ApiPropertyOptional({ enum: TENANT_TYPES })
+  @IsOptional()
+  @IsIn(TENANT_TYPES)
+  type?: (typeof TENANT_TYPES)[number];
+  @ApiPropertyOptional({ enum: TENANT_STATUSES })
+  @IsOptional()
+  @IsIn(TENANT_STATUSES)
+  status?: (typeof TENANT_STATUSES)[number];
 }
 
 export class UpdateTenantAdminDto {
-  @ApiPropertyOptional({ enum: ['ACTIVE', 'SUSPENDED'] }) @IsOptional() @IsIn(['ACTIVE', 'SUSPENDED']) status?: 'ACTIVE' | 'SUSPENDED';
-  @ApiPropertyOptional({ description: 'Commission override in percent' }) @IsOptional() @IsNumber() @Min(0) @Max(50) commissionRate?: number;
+  @ApiPropertyOptional({ enum: ['ACTIVE', 'SUSPENDED'] })
+  @IsOptional()
+  @IsIn(['ACTIVE', 'SUSPENDED'])
+  status?: 'ACTIVE' | 'SUSPENDED';
+  @ApiPropertyOptional({ description: 'Commission override in percent' })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(50)
+  commissionRate?: number;
   @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(500) reason?: string;
 }
 

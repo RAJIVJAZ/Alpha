@@ -14,10 +14,16 @@ export class SettingsService {
     });
   }
 
-  update(tenantId: string, data: Omit<Prisma.ProcurementSettingsUncheckedUpdateInput, 'id' | 'tenantId'>) {
+  update(
+    tenantId: string,
+    data: Omit<Prisma.ProcurementSettingsUncheckedUpdateInput, 'id' | 'tenantId'>,
+  ) {
     return this.prisma.forTenant(tenantId).procurementSettings.upsert({
       where: { tenantId },
-      create: { tenantId, ...(data as Omit<Prisma.ProcurementSettingsUncheckedCreateInput, 'tenantId'>) },
+      create: {
+        tenantId,
+        ...(data as Omit<Prisma.ProcurementSettingsUncheckedCreateInput, 'tenantId'>),
+      },
       update: data,
     });
   }

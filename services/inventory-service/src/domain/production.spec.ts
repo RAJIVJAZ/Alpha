@@ -13,7 +13,9 @@ describe('production forecasting', () => {
     expect(forecastItemDemand(series, new Date('2026-10-13T00:00:00Z'))).toBeCloseTo(30, 5);
   });
   it('falls back to the average when no same-weekday history exists', () => {
-    expect(forecastItemDemand([{ date: '2026-10-07', quantity: 12 }], new Date('2026-10-13T00:00:00Z'))).toBe(12);
+    expect(
+      forecastItemDemand([{ date: '2026-10-07', quantity: 12 }], new Date('2026-10-13T00:00:00Z')),
+    ).toBe(12);
   });
   it('adds a buffer and rounds up', () => {
     expect(plannedQuantity(30)).toBe(33);

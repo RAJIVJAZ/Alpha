@@ -20,12 +20,19 @@ export class GoogleTokenVerifier {
     .filter(Boolean);
 
   async verify(idToken: string): Promise<GoogleProfile> {
-    if (!this.audiences.length) throw new AppError('GOOGLE_NOT_CONFIGURED', 'Google login is not configured', 503);
+    if (!this.audiences.length)
+      throw new AppError('GOOGLE_NOT_CONFIGURED', 'Google login is not configured', 503);
     try {
       const ticket = await this.client.verifyIdToken({ idToken, audience: this.audiences });
       const p = ticket.getPayload();
       if (!p?.sub || !p.email) throw new Error('missing claims');
-      return { sub: p.sub, email: p.email.toLowerCase(), emailVerified: !!p.email_verified, name: p.name, picture: p.picture };
+      return {
+        sub: p.sub,
+        email: p.email.toLowerCase(),
+        emailVerified: !!p.email_verified,
+        name: p.name,
+        picture: p.picture,
+      };
     } catch {
       throw new AppError('GOOGLE_TOKEN_INVALID', 'Invalid Google credential', 401);
     }

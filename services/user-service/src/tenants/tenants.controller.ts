@@ -2,7 +2,13 @@ import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Permissions } from '@foodgrid/auth';
 import { CurrentUser, RequirePermissions, RequireTenant, TenantId } from '@foodgrid/auth/nest';
-import { CreateTenantDto, InviteMemberDto, SubmitKycDto, UpdateMemberDto, UpdateTenantDto } from './dto/tenant.dto';
+import {
+  CreateTenantDto,
+  InviteMemberDto,
+  SubmitKycDto,
+  UpdateMemberDto,
+  UpdateTenantDto,
+} from './dto/tenant.dto';
 import { TenantsService } from './tenants.service';
 
 @ApiTags('tenants')
@@ -12,7 +18,9 @@ export class TenantsController {
   constructor(private readonly tenants: TenantsService) {}
 
   @Post()
-  @ApiOperation({ summary: 'Onboard a new business (restaurant, food cart, supplier, wholesaler, retailer)' })
+  @ApiOperation({
+    summary: 'Onboard a new business (restaurant, food cart, supplier, wholesaler, retailer)',
+  })
   create(@CurrentUser('sub') userId: string, @Body() dto: CreateTenantDto) {
     return this.tenants.create(userId, dto);
   }
@@ -32,7 +40,11 @@ export class TenantsController {
   @RequireTenant()
   @RequirePermissions(Permissions.SettingsManage)
   @Patch('current')
-  update(@TenantId() tenantId: string, @CurrentUser('sub') userId: string, @Body() dto: UpdateTenantDto) {
+  update(
+    @TenantId() tenantId: string,
+    @CurrentUser('sub') userId: string,
+    @Body() dto: UpdateTenantDto,
+  ) {
     return this.tenants.update(tenantId, userId, dto);
   }
 
@@ -56,7 +68,11 @@ export class TenantsController {
   @RequirePermissions(Permissions.StaffManage)
   @Post('current/members')
   @ApiOperation({ summary: 'Staff management: add a staff member by phone' })
-  invite(@TenantId() tenantId: string, @CurrentUser('sub') userId: string, @Body() dto: InviteMemberDto) {
+  invite(
+    @TenantId() tenantId: string,
+    @CurrentUser('sub') userId: string,
+    @Body() dto: InviteMemberDto,
+  ) {
     return this.tenants.invite(tenantId, userId, dto);
   }
 

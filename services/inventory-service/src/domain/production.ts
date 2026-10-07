@@ -1,5 +1,8 @@
 /** Same-weekday weighted average (most recent week weighs most). */
-export function forecastItemDemand(series: { date: string; quantity: number }[], targetDate: Date): number {
+export function forecastItemDemand(
+  series: { date: string; quantity: number }[],
+  targetDate: Date,
+): number {
   const target = targetDate.getUTCDay();
   const byDate = new Map(series.map((s) => [s.date, s.quantity]));
   const weights = [0.4, 0.3, 0.2, 0.1];
@@ -15,7 +18,10 @@ export function forecastItemDemand(series: { date: string; quantity: number }[],
   }
   if (weightSum > 0) return weighted / weightSum;
   if (!series.length) return 0;
-  return series.reduce((s, x) => s + x.quantity, 0) / Math.max(1, new Set(series.map((x) => x.date)).size);
+  return (
+    series.reduce((s, x) => s + x.quantity, 0) /
+    Math.max(1, new Set(series.map((x) => x.date)).size)
+  );
 }
 
 /** Planned production = forecast plus a buffer, rounded up to whole portions. */

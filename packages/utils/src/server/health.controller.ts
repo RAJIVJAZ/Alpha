@@ -1,4 +1,11 @@
-import { Controller, Get, HttpCode, Inject, Res, ServiceUnavailableException } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  HttpCode,
+  Inject,
+  Res,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { ApiExcludeController } from '@nestjs/swagger';
 import { PrismaService } from '@foodgrid/database/nest';
 import { Public } from '@foodgrid/auth/nest';
@@ -33,7 +40,10 @@ export class HealthController {
         .then((r) => r === 'PONG')
         .catch(() => false),
     ]);
-    const body = { status: db && cache ? 'ok' : 'degraded', checks: { database: db, redis: cache } };
+    const body = {
+      status: db && cache ? 'ok' : 'degraded',
+      checks: { database: db, redis: cache },
+    };
     if (!db || !cache) throw new ServiceUnavailableException(body);
     return body;
   }

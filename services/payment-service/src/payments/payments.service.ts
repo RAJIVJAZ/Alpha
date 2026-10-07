@@ -3,18 +3,35 @@ import { PrismaService } from '@foodgrid/database/nest';
 import { Prisma } from '@foodgrid/database';
 import type { Payment, PaymentMethod } from '@foodgrid/database';
 import { AccessTokenClaims, EventTypes, PaymentEvent, RefundProcessedEvent } from '@foodgrid/types';
-import { AppError, conflict, forbidden, money, normalizePage, notFound, paginate, round2 } from '@foodgrid/utils';
+import {
+  AppError,
+  conflict,
+  forbidden,
+  money,
+  normalizePage,
+  notFound,
+  paginate,
+  round2,
+} from '@foodgrid/utils';
 import { businessCounter, OutboxService } from '@foodgrid/utils/server';
 import { toPaise } from '../domain/signature';
 import { mapMethod, PAYMENT_GATEWAY, PaymentGateway } from '../gateways/payment-gateway';
 import { SandboxGateway } from '../gateways/sandbox.gateway';
 import { WalletLedgerService } from '../wallets/wallet-ledger.service';
-import { CreatePaymentIntentDto, ListPaymentsDto, RefundDto, VerifyPaymentDto } from './dto/payment.dto';
+import {
+  CreatePaymentIntentDto,
+  ListPaymentsDto,
+  RefundDto,
+  VerifyPaymentDto,
+} from './dto/payment.dto';
 import { PayableResolver } from './payable.resolver';
 
 type Tx = Prisma.TransactionClient;
 
-const captured = businessCounter('payments_captured_total', 'Captured payments', ['purpose', 'method']);
+const captured = businessCounter('payments_captured_total', 'Captured payments', [
+  'purpose',
+  'method',
+]);
 const failed = businessCounter('payments_failed_total', 'Failed payments', ['purpose']);
 
 @Injectable()
@@ -33,14 +50,19 @@ export class PaymentsService {
    * Starts a payment. WALLET payments settle immediately; online methods
    * return Razorpay Checkout options for the client SDK (web / Flutter).
    */
-  async createIntent(user: AccessTokenClaims, dto: CreatePaymentIntentDto, idempotencyKey?: string) {
+  async createIntent(
+    user: AccessTokenClaims,
+    dto: CreatePaymentIntentDto,
+    idempotencyKey?: string,
+  ) {
     let amount: number;
     let referenceId: string;
     let tenantId: string | null = null;
     let description: string;
 
     if (dto.purpose === 'WALLET_TOPUP') {
-      if (dto.method === 'WALLET') throw conflict('Cannot top up the wallet from the wallet', 'INVALID_METHOD');
+      if (dto.method === 'WALLET')
+        throw conflict('Cannot top up the wallet from the wallet', 'INVALID_METHOD');
       if (!dto.amount) throw conflict('amount is required for a wallet top-up', 'AMOUNT_REQUIRED');
       amount = round2(dto.amount);
       referenceId = user.sub;
@@ -55,12 +77,20 @@ export class PaymentsService {
 
     // Re-use an open intent for the same reference instead of creating duplicates.
     const open = await this.prisma.payment.findFirst({
-      where: { purpose: dto.purpose, referenceId, userId: user.sub, state: 'CREATED', provider: 'RAZORPAY' },
+      where: {
+        purpose: dto.purpose,
+        referenceId,
+        userId: user.sub,
+        state: 'CREATED',
+        provider: 'RAZORPAY',
+      },
       orderBy: { createdAt: 'desc' },
     });
-    if (open && dto.method !== 'WALLET' && Number(open.amount) === amount) return this.checkoutResponse(open, user, description);
+    if (open && dto.method !== 'WALLET' && Number(open.amount) === amount)
+      return this.checkoutResponse(open, user, description);
 
-    if (dto.method === 'WALLET') return this.payFromWallet(user, dto, referenceId, tenantId, amount, idempotencyKey);
+    if (dto.method === 'WALLET')
+      return this.payFromWallet(user, dto, referenceId, tenantId, amount, idempotencyKey);
 
     const payment = await this.prisma.payment.create({
       data: {
@@ -80,7 +110,10 @@ export class PaymentsService {
       receipt: payment.id,
       notes: { paymentId: payment.id, purpose: dto.purpose, referenceId },
     });
-    const updated = await this.prisma.payment.update({ where: { id: payment.id }, data: { providerOrderId: order.id } });
+    const updated = await this.prisma.payment.update({
+      where: { id: payment.id },
+      data: { providerOrderId: order.id },
+    });
     return this.checkoutResponse(updated, user, description);
   }
 
@@ -133,7 +166,11 @@ export class PaymentsService {
           ownerId: user.sub,
           amount,
           reason:
-            dto.purpose === 'MEMBERSHIP' ? 'MEMBERSHIP_PURCHASE' : dto.purpose === 'MEAL_SUBSCRIPTION' ? 'SUBSCRIPTION_PURCHASE' : 'ORDER_PAYMENT',
+            dto.purpose === 'MEMBERSHIP'
+              ? 'MEMBERSHIP_PURCHASE'
+              : dto.purpose === 'MEAL_SUBSCRIPTION'
+                ? 'SUBSCRIPTION_PURCHASE'
+                : 'ORDER_PAYMENT',
           idempotencyKey: `pay:${p.id}`,
           referenceType: dto.purpose,
           referenceId,
@@ -143,32 +180,65 @@ export class PaymentsService {
       );
       return this.markCaptured(tx, p, null, 'WALLET');
     });
-    return { paymentId: payment.id, state: payment.state, provider: 'WALLET', amount: money(amount), checkout: null };
+    return {
+      paymentId: payment.id,
+      state: payment.state,
+      provider: 'WALLET',
+      amount: money(amount),
+      checkout: null,
+    };
   }
 
   /** Client-side confirmation after Razorpay Checkout succeeds. */
   async verify(user: AccessTokenClaims, dto: VerifyPaymentDto) {
     const payment = await this.prisma.payment.findUnique({ where: { id: dto.paymentId } });
     if (!payment || payment.userId !== user.sub) throw notFound('Payment', dto.paymentId);
-    if (payment.providerOrderId !== dto.razorpayOrderId) throw new AppError('ORDER_MISMATCH', 'Payment does not match the order', 400);
-    if (!this.gateway.verifyCheckout(dto.razorpayOrderId, dto.razorpayPaymentId, dto.razorpaySignature)) {
+    if (payment.providerOrderId !== dto.razorpayOrderId)
+      throw new AppError('ORDER_MISMATCH', 'Payment does not match the order', 400);
+    if (
+      !this.gateway.verifyCheckout(
+        dto.razorpayOrderId,
+        dto.razorpayPaymentId,
+        dto.razorpaySignature,
+      )
+    ) {
       throw new AppError('SIGNATURE_INVALID', 'Payment signature verification failed', 400);
     }
     if (payment.state === 'CAPTURED') return payment;
     const remote = await this.gateway.fetchPayment(dto.razorpayPaymentId);
-    if (remote.status === 'failed') return this.fail(payment.id, remote.errorDescription ?? 'Payment failed', remote.errorCode);
-    if (remote.status === 'authorized') await this.gateway.capture(remote.id, toPaise(payment.amount.toString()));
+    if (remote.status === 'failed')
+      return this.fail(payment.id, remote.errorDescription ?? 'Payment failed', remote.errorCode);
+    if (remote.status === 'authorized')
+      await this.gateway.capture(remote.id, toPaise(payment.amount.toString()));
     return this.prisma.$transaction((tx) =>
-      this.markCaptured(tx, payment, dto.razorpayPaymentId, mapMethod(remote.method) ?? payment.method, dto.razorpaySignature),
+      this.markCaptured(
+        tx,
+        payment,
+        dto.razorpayPaymentId,
+        mapMethod(remote.method) ?? payment.method,
+        dto.razorpaySignature,
+      ),
     );
   }
 
   /** Dev/test only: completes a sandbox checkout end-to-end. */
-  async sandboxComplete(user: AccessTokenClaims, paymentId: string, success: boolean, method = 'upi') {
-    if (!(this.gateway instanceof SandboxGateway)) throw forbidden('Sandbox is disabled', 'SANDBOX_DISABLED');
+  async sandboxComplete(
+    user: AccessTokenClaims,
+    paymentId: string,
+    success: boolean,
+    method = 'upi',
+  ) {
+    if (!(this.gateway instanceof SandboxGateway))
+      throw forbidden('Sandbox is disabled', 'SANDBOX_DISABLED');
     const payment = await this.prisma.payment.findUnique({ where: { id: paymentId } });
-    if (!payment || payment.userId !== user.sub || !payment.providerOrderId) throw notFound('Payment', paymentId);
-    const sim = this.gateway.simulate(payment.providerOrderId, toPaise(payment.amount.toString()), success, method);
+    if (!payment || payment.userId !== user.sub || !payment.providerOrderId)
+      throw notFound('Payment', paymentId);
+    const sim = this.gateway.simulate(
+      payment.providerOrderId,
+      toPaise(payment.amount.toString()),
+      success,
+      method,
+    );
     return this.verify(user, {
       paymentId,
       razorpayOrderId: payment.providerOrderId,
@@ -177,10 +247,22 @@ export class PaymentsService {
     });
   }
 
-  async markCaptured(tx: Tx, payment: Payment, providerPaymentId: string | null, method: PaymentMethod | null, signature?: string) {
+  async markCaptured(
+    tx: Tx,
+    payment: Payment,
+    providerPaymentId: string | null,
+    method: PaymentMethod | null,
+    signature?: string,
+  ) {
     const res = await tx.payment.updateMany({
       where: { id: payment.id, state: { in: ['CREATED', 'AUTHORIZED', 'FAILED'] } },
-      data: { state: 'CAPTURED', capturedAt: new Date(), providerPaymentId, providerSignature: signature, method: method ?? undefined },
+      data: {
+        state: 'CAPTURED',
+        capturedAt: new Date(),
+        providerPaymentId,
+        providerSignature: signature,
+        method: method ?? undefined,
+      },
     });
     const updated = await tx.payment.findUniqueOrThrow({ where: { id: payment.id } });
     if (res.count === 0) return updated; // already captured (webhook vs client race)
@@ -241,10 +323,12 @@ export class PaymentsService {
   async refund(paymentId: string, dto: RefundDto, initiatedBy: string) {
     const payment = await this.prisma.payment.findUnique({ where: { id: paymentId } });
     if (!payment) throw notFound('Payment', paymentId);
-    if (!['CAPTURED', 'PARTIALLY_REFUNDED'].includes(payment.state)) throw conflict('Payment is not refundable', 'NOT_REFUNDABLE');
+    if (!['CAPTURED', 'PARTIALLY_REFUNDED'].includes(payment.state))
+      throw conflict('Payment is not refundable', 'NOT_REFUNDABLE');
     const refundable = round2(Number(payment.amount) - Number(payment.refundedAmount));
     const amount = round2(dto.amount ?? refundable);
-    if (amount <= 0 || amount > refundable) throw conflict(`At most ₹${refundable} can be refunded`, 'REFUND_EXCEEDS');
+    if (amount <= 0 || amount > refundable)
+      throw conflict(`At most ₹${refundable} can be refunded`, 'REFUND_EXCEEDS');
     const toWallet = payment.provider === 'WALLET' || !!dto.toWallet;
 
     const refund = await this.prisma.refund.create({
@@ -270,12 +354,20 @@ export class PaymentsService {
       });
     }
     try {
-      const remote = await this.gateway.refund(payment.providerPaymentId!, Math.round(amount * 100), {
-        refundId: refund.id,
-        reason: dto.reason.slice(0, 200),
+      const remote = await this.gateway.refund(
+        payment.providerPaymentId!,
+        Math.round(amount * 100),
+        {
+          refundId: refund.id,
+          reason: dto.reason.slice(0, 200),
+        },
+      );
+      await this.prisma.refund.update({
+        where: { id: refund.id },
+        data: { providerRefundId: remote.id },
       });
-      await this.prisma.refund.update({ where: { id: refund.id }, data: { providerRefundId: remote.id } });
-      if (remote.status === 'processed') return this.prisma.$transaction((tx) => this.completeRefund(tx, refund.id, remote.id));
+      if (remote.status === 'processed')
+        return this.prisma.$transaction((tx) => this.completeRefund(tx, refund.id, remote.id));
       return this.prisma.refund.findUniqueOrThrow({ where: { id: refund.id } });
     } catch (err) {
       await this.prisma.refund.update({ where: { id: refund.id }, data: { status: 'FAILED' } });
@@ -286,11 +378,18 @@ export class PaymentsService {
 
   /** Marks a refund processed and updates the payment totals (idempotent). */
   async completeRefund(tx: Tx, refundId: string, providerRefundId: string | null) {
-    const refund = await tx.refund.findUniqueOrThrow({ where: { id: refundId }, include: { payment: true } });
+    const refund = await tx.refund.findUniqueOrThrow({
+      where: { id: refundId },
+      include: { payment: true },
+    });
     if (refund.status === 'PROCESSED') return refund;
     await tx.refund.update({
       where: { id: refundId },
-      data: { status: 'PROCESSED', processedAt: new Date(), providerRefundId: providerRefundId ?? refund.providerRefundId },
+      data: {
+        status: 'PROCESSED',
+        processedAt: new Date(),
+        providerRefundId: providerRefundId ?? refund.providerRefundId,
+      },
     });
     const refundedAmount = round2(Number(refund.payment.refundedAmount) + Number(refund.amount));
     const payment = await tx.payment.update({
@@ -329,9 +428,19 @@ export class PaymentsService {
 
   async listMine(userId: string, q: ListPaymentsDto) {
     const { page, pageSize, skip, take } = normalizePage(q);
-    const where: Prisma.PaymentWhereInput = { userId, purpose: q.purpose, referenceId: q.referenceId };
+    const where: Prisma.PaymentWhereInput = {
+      userId,
+      purpose: q.purpose,
+      referenceId: q.referenceId,
+    };
     const [rows, total] = await Promise.all([
-      this.prisma.payment.findMany({ where, orderBy: { createdAt: 'desc' }, skip, take, include: { refunds: true } }),
+      this.prisma.payment.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take,
+        include: { refunds: true },
+      }),
       this.prisma.payment.count({ where }),
     ]);
     return paginate(rows, total, page, pageSize);
@@ -345,15 +454,28 @@ export class PaymentsService {
       state: q.state as Prisma.PaymentWhereInput['state'],
     };
     const [rows, total] = await Promise.all([
-      this.prisma.payment.findMany({ where, orderBy: { createdAt: 'desc' }, skip, take, include: { refunds: true } }),
+      this.prisma.payment.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take,
+        include: { refunds: true },
+      }),
       this.prisma.payment.count({ where }),
     ]);
     return paginate(rows, total, page, pageSize);
   }
 
   async get(user: AccessTokenClaims, id: string) {
-    const payment = await this.prisma.payment.findUnique({ where: { id }, include: { refunds: true } });
-    if (!payment || (payment.userId !== user.sub && !user.roles.some((r) => ['ADMIN', 'FINANCE', 'SUPPORT'].includes(r)))) {
+    const payment = await this.prisma.payment.findUnique({
+      where: { id },
+      include: { refunds: true },
+    });
+    if (
+      !payment ||
+      (payment.userId !== user.sub &&
+        !user.roles.some((r) => ['ADMIN', 'FINANCE', 'SUPPORT'].includes(r)))
+    ) {
       throw notFound('Payment', id);
     }
     return payment;

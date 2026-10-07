@@ -21,10 +21,18 @@ class FakeRedis {
 
 function ctx(body: unknown, key = 'abc') {
   const res: any = { statusCode: 201, status: jest.fn().mockReturnThis(), setHeader: jest.fn() };
-  const req = { method: 'POST', headers: { 'idempotency-key': key }, body, route: { path: '/orders' }, user: { sub: 'u1' } };
+  const req = {
+    method: 'POST',
+    headers: { 'idempotency-key': key },
+    body,
+    route: { path: '/orders' },
+    user: { sub: 'u1' },
+  };
   return {
     res,
-    ctx: { switchToHttp: () => ({ getRequest: () => req, getResponse: () => res }) } as unknown as ExecutionContext,
+    ctx: {
+      switchToHttp: () => ({ getRequest: () => req, getResponse: () => res }),
+    } as unknown as ExecutionContext,
   };
 }
 
@@ -51,8 +59,8 @@ describe('IdempotencyInterceptor', () => {
     const handler: CallHandler = { handle: () => of({ ok: true }) };
     await lastValueFrom(interceptor.intercept(ctx({ a: 1 }).ctx, handler));
     await new Promise((r) => setImmediate(r));
-    await expect(lastValueFrom(interceptor.intercept(ctx({ a: 2 }).ctx, handler))).rejects.toBeInstanceOf(
-      ConflictException,
-    );
+    await expect(
+      lastValueFrom(interceptor.intercept(ctx({ a: 2 }).ctx, handler)),
+    ).rejects.toBeInstanceOf(ConflictException);
   });
 });

@@ -22,7 +22,12 @@ describe('applyTenantScope', () => {
     expect(applyTenantScope('Ingredient', 'create', { data: { name: 'Flour' } }, T)).toEqual({
       data: { name: 'Flour', tenantId: T },
     });
-    const many = applyTenantScope('Ingredient', 'createMany', { data: [{ name: 'a' }, { name: 'b' }] }, T);
+    const many = applyTenantScope(
+      'Ingredient',
+      'createMany',
+      { data: [{ name: 'a' }, { name: 'b' }] },
+      T,
+    );
     expect(many?.data).toEqual([
       { name: 'a', tenantId: T },
       { name: 'b', tenantId: T },
@@ -34,7 +39,12 @@ describe('applyTenantScope', () => {
       applyTenantScope('Ingredient', 'create', { data: { name: 'x', tenantId: 'tenant_b' } }, T),
     ).toThrow(TenantScopeViolationError);
     expect(() =>
-      applyTenantScope('Ingredient', 'update', { where: { id: '1' }, data: { tenantId: 'tenant_b' } }, T),
+      applyTenantScope(
+        'Ingredient',
+        'update',
+        { where: { id: '1' }, data: { tenantId: 'tenant_b' } },
+        T,
+      ),
     ).toThrow(TenantScopeViolationError);
   });
 

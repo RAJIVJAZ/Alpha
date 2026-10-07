@@ -24,7 +24,10 @@ export class AlertsService {
     if (onlyIngredientId) ingredients = ingredients.filter((i) => i.id === onlyIngredientId);
     const tomorrow = addDays(dateOnly(istDate()), 1);
     const forecasts = await this.prisma.forTenant(tenantId).demandForecast.findMany({
-      where: { ingredientId: { in: ingredients.map((i) => i.id) }, forecastDate: { gte: tomorrow } },
+      where: {
+        ingredientId: { in: ingredients.map((i) => i.id) },
+        forecastDate: { gte: tomorrow },
+      },
       orderBy: { forecastDate: 'asc' },
     });
     const byIngredient = new Map<string, typeof forecasts>();
@@ -38,7 +41,9 @@ export class AlertsService {
       where: { status: { in: OPEN_PO_STATUSES } },
       select: { items: { select: { ingredientId: true } } },
     });
-    const covered = new Set(inflight.flatMap((p) => p.items.map((i) => i.ingredientId)).filter(Boolean) as string[]);
+    const covered = new Set(
+      inflight.flatMap((p) => p.items.map((i) => i.ingredientId)).filter(Boolean) as string[],
+    );
 
     let opened = 0;
     let resolved = 0;
@@ -50,22 +55,33 @@ export class AlertsService {
         reorderQty: ing.reorderQty,
         maxStock: ing.maxStock,
         leadTimeDays: ing.leadTimeDays,
-        forecast: fc.length ? fc.map((f) => Number(f.predictedQty)) : Array(14).fill(ing.avgDailyUsage),
-        forecastDates: fc.length ? fc.map((f) => f.forecastDate.toISOString().slice(0, 10)) : Array.from({ length: 14 }, (_, d) => addDays(tomorrow, d).toISOString().slice(0, 10)),
+        forecast: fc.length
+          ? fc.map((f) => Number(f.predictedQty))
+          : Array(14).fill(ing.avgDailyUsage),
+        forecastDates: fc.length
+          ? fc.map((f) => f.forecastDate.toISOString().slice(0, 10))
+          : Array.from({ length: 14 }, (_, d) => addDays(tomorrow, d).toISOString().slice(0, 10)),
         demandStd: ing.stdDailyUsage,
         serviceLevel: settings.serviceLevel,
         reviewPeriodDays: settings.reviewPeriodDays,
       });
-      const open = await this.prisma.reorderAlert.findFirst({ where: { ingredientId: ing.id, status: 'OPEN' } });
+      const open = await this.prisma.reorderAlert.findFirst({
+        where: { ingredientId: ing.id, status: 'OPEN' },
+      });
       if (a.needsReorder && !covered.has(ing.id) && a.suggestedQty > 0) {
         const data = this.alertData(ing, a);
         if (open) await this.prisma.reorderAlert.update({ where: { id: open.id }, data });
         else {
-          await this.prisma.reorderAlert.create({ data: { ...data, tenantId: ing.tenantId, outletId: ing.outletId, ingredientId: ing.id } });
+          await this.prisma.reorderAlert.create({
+            data: { ...data, tenantId: ing.tenantId, outletId: ing.outletId, ingredientId: ing.id },
+          });
           opened++;
         }
       } else if (open && !a.needsReorder) {
-        await this.prisma.reorderAlert.update({ where: { id: open.id }, data: { status: 'RESOLVED', resolvedAt: new Date() } });
+        await this.prisma.reorderAlert.update({
+          where: { id: open.id },
+          data: { status: 'RESOLVED', resolvedAt: new Date() },
+        });
         resolved++;
       }
     }
@@ -101,6 +117,9 @@ export class AlertsService {
   async dismiss(tenantId: string, id: string) {
     const alert = await this.prisma.forTenant(tenantId).reorderAlert.findUnique({ where: { id } });
     if (!alert) throw notFound('Alert', id);
-    return this.prisma.reorderAlert.update({ where: { id }, data: { status: 'DISMISSED', resolvedAt: new Date() } });
+    return this.prisma.reorderAlert.update({
+      where: { id },
+      data: { status: 'DISMISSED', resolvedAt: new Date() },
+    });
   }
 }

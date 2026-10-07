@@ -37,9 +37,12 @@ export class DirectoryService {
     });
     if (missing.length) {
       try {
-        const rows = await this.internal.post<Named[]>(SOURCE[kind].service, SOURCE[kind].path, { ids: missing.slice(0, 500) });
+        const rows = await this.internal.post<Named[]>(SOURCE[kind].service, SOURCE[kind].path, {
+          ids: missing.slice(0, 500),
+        });
         const found = new Map(rows.map((r) => [r.id, r]));
-        for (const id of missing) this.cache.set(`${kind}:${id}`, { value: found.get(id) ?? null, at: now });
+        for (const id of missing)
+          this.cache.set(`${kind}:${id}`, { value: found.get(id) ?? null, at: now });
       } catch (err) {
         this.logger.warn(`name lookup for ${kind} failed: ${(err as Error).message}`);
       }
