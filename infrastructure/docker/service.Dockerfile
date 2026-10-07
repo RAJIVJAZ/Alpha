@@ -11,13 +11,14 @@ WORKDIR /repo
 
 # ── build: whole workspace install (cached), Prisma client, service + its packages
 FROM base AS build
-ARG SERVICE
 COPY . .
 # CA bundle for TLS-intercepting build proxies (optional; absent in CI)
 RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
     --mount=type=secret,id=ca,required=false \
     if [ -f /run/secrets/ca ]; then export NODE_EXTRA_CA_CERTS=/run/secrets/ca; fi; \
     pnpm install --frozen-lockfile
+# declared after the install so all images share the cached dependency layer
+ARG SERVICE
 RUN --mount=type=secret,id=ca,required=false \
     if [ -f /run/secrets/ca ]; then export NODE_EXTRA_CA_CERTS=/run/secrets/ca; fi; \
     pnpm --filter @foodgrid/database db:generate \

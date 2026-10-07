@@ -10,13 +10,14 @@ RUN --mount=type=secret,id=ca,required=false \
 WORKDIR /repo
 
 FROM base AS build
-ARG APP
 ENV NEXT_TELEMETRY_DISABLED=1
 COPY . .
 RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
     --mount=type=secret,id=ca,required=false \
     if [ -f /run/secrets/ca ]; then export NODE_EXTRA_CA_CERTS=/run/secrets/ca; fi; \
     pnpm install --frozen-lockfile
+# declared after the install so all images share the cached dependency layer
+ARG APP
 RUN pnpm turbo run build --filter="@foodgrid/${APP}..."
 
 FROM node:${NODE_VERSION}-alpine AS runtime
