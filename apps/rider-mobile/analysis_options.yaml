@@ -1,0 +1,16 @@
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  exclude:
+    - build/**
+    - android/**
+    - ios/**
+
+linter:
+  rules:
+    - prefer_single_quotes
+    - prefer_final_locals
+    - unawaited_futures
+    - cancel_subscriptions
+    - avoid_print
+    - directives_ordering
