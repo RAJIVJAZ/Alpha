@@ -1,0 +1,165 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:foodgrid_core/foodgrid_core.dart';
+import 'package:go_router/go_router.dart';
+
+import '../../core/errors.dart';
+import '../../core/permissions.dart';
+import '../../core/tenant_switch.dart';
+import 'authorize.dart';
+
+/// Picks the active business when the token has none (several memberships)
+/// or when switching from More. Exactly one eligible business is opened
+/// automatically; none signs out with an explanation.
+class BusinessPickerPage extends ConsumerStatefulWidget {
+  const BusinessPickerPage({super.key});
+
+  @override
+  ConsumerState<BusinessPickerPage> createState() => _BusinessPickerPageState();
+}
+
+class _BusinessPickerPageState extends ConsumerState<BusinessPickerPage> {
+  String? _opening;
+  bool _autoTried = false;
+  bool _checking = false;
+  Object? _checkError;
+
+  Future<void> _open(Membership m) async {
+    final current = ref.read(sessionProvider).value?.claims.tenantId;
+    if (m.tenantId == current) {
+      if (context.canPop()) {
+        context.pop();
+      } else {
+        context.go('/orders');
+      }
+      return;
+    }
+    setState(() => _opening = m.tenantName);
+    try {
+      await ref.read(tenantSwitcherProvider).switchTo(m.tenantId);
+      await ref.read(sessionProvider.notifier).reload();
+      // the router sends this on to the outlet picker or the board once outlets load
+      if (mounted) context.go('/splash');
+    } catch (e) {
+      if (mounted) showApiError(context, e);
+    } finally {
+      if (mounted) setState(() => _opening = null);
+    }
+  }
+
+  /// Memberships can be missing when the app started offline; re-check
+  /// with the server before deciding the account has no business.
+  Future<void> _checkMemberships() async {
+    setState(() => (_checking = true, _checkError = null));
+    try {
+      final user = await ref.read(authRepositoryProvider).me();
+      if (user.memberships.any((m) => isMerchantTenant(m.tenantType))) {
+        await ref.read(sessionProvider.notifier).reload();
+      } else {
+        ref.read(loginNoticeProvider.notifier).show(notMerchantMessage);
+        await ref.read(sessionProvider.notifier).signOut();
+      }
+    } catch (e) {
+      if (mounted) setState(() => _checkError = e);
+    } finally {
+      if (mounted) setState(() => _checking = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final session = ref.watch(sessionProvider).value;
+    final eligible = eligibleMemberships(session);
+    final currentId = session?.claims.tenantId;
+
+    if (session != null && !_autoTried) {
+      _autoTried = true;
+      if (eligible.length == 1 && eligible.first.tenantId != currentId) {
+        WidgetsBinding.instance.addPostFrameCallback((_) => _open(eligible.first));
+      } else if (eligible.isEmpty) {
+        WidgetsBinding.instance.addPostFrameCallback((_) => _checkMemberships());
+      }
+    }
+
+    final Widget body;
+    if (_opening != null) {
+      body = _Progress('Opening $_opening…');
+    } else if (_checking) {
+      body = const _Progress('Checking your businesses…');
+    } else if (_checkError != null) {
+      body = ErrorView(error: _checkError!, onRetry: _checkMemberships);
+    } else if (eligible.isEmpty) {
+      body = const _Progress('Checking your businesses…');
+    } else {
+      body = ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          Text('Which business are you working for?', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 12),
+          for (final m in eligible) ...[
+            _BusinessTile(membership: m, current: m.tenantId == currentId, onTap: () => _open(m)),
+            const SizedBox(height: 10),
+          ],
+        ],
+      );
+    }
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Choose business'),
+        actions: [IconButton(tooltip: 'Sign out', icon: const Icon(Icons.logout), onPressed: () => signOut(ref))],
+      ),
+      body: body,
+    );
+  }
+}
+
+class _Progress extends StatelessWidget {
+  const _Progress(this.label);
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Center(
+        child: Semantics(
+          liveRegion: true,
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            const CircularProgressIndicator(),
+            const SizedBox(height: 16),
+            Text(label, style: Theme.of(context).textTheme.titleMedium),
+          ]),
+        ),
+      );
+}
+
+class _BusinessTile extends StatelessWidget {
+  const _BusinessTile({required this.membership, required this.current, required this.onTap});
+  final Membership membership;
+  final bool current;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final cart = membership.tenantType == 'FOOD_CART';
+    final text = Theme.of(context).textTheme;
+    return Card(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(children: [
+            CircleAvatar(child: Icon(cart ? Icons.delivery_dining : Icons.restaurant)),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(membership.tenantName, style: text.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+                Text('${cart ? 'Food cart' : 'Restaurant'} · ${humanize(membership.role)}', style: text.bodyMedium),
+              ]),
+            ),
+            if (current) const Icon(Icons.check_circle, semanticLabel: 'Current business') else const Icon(Icons.chevron_right),
+          ]),
+        ),
+      ),
+    );
+  }
+}

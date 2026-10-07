@@ -1,0 +1,34 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:foodgrid_core/foodgrid_core.dart';
+
+import 'router.dart';
+
+class MerchantApp extends ConsumerWidget {
+  const MerchantApp({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) => MaterialApp.router(
+        title: 'FoodGrid Business',
+        debugShowCheckedModeBanner: false,
+        theme: _kitchen(FoodGridTheme.light()),
+        darkTheme: _kitchen(FoodGridTheme.dark()),
+        routerConfig: ref.watch(routerProvider),
+      );
+
+  /// FoodGrid theme with larger tap targets and labels for a busy counter.
+  static ThemeData _kitchen(ThemeData base) => base.copyWith(
+        navigationBarTheme: base.navigationBarTheme.copyWith(
+          labelTextStyle: WidgetStatePropertyAll(base.textTheme.labelLarge),
+          height: 72,
+        ),
+        tabBarTheme: base.tabBarTheme.copyWith(labelStyle: base.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+      );
+}
+
+/// Riverpod retries: only transient failures (offline, 5xx), a few times.
+Duration? merchantRetry(int retryCount, Object error) {
+  if (retryCount >= 3) return null;
+  if (error is ApiException && (error.isNetwork || error.status >= 500)) return Duration(seconds: 1 << retryCount);
+  return null;
+}
