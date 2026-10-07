@@ -25,6 +25,16 @@ export interface CoreModuleConfig {
   env?: BaseEnv;
 }
 
+
+function canResolve(mod: string): boolean {
+  try {
+    require.resolve(mod);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Cross-cutting infrastructure shared by every microservice: structured
  * logging, Prisma, Redis, JWT auth guard with session revocation, outbox +
@@ -47,8 +57,10 @@ export class CoreModule {
           forRoutes: [{ path: '{*path}', method: RequestMethod.ALL }],
           pinoHttp: {
             level: env.NODE_ENV === 'test' ? 'silent' : env.LOG_LEVEL,
+            // pretty logs in development only, and only where the dev dependency exists
+            // (production images ship without it; JSON logs go to the collector)
             transport:
-              env.NODE_ENV === 'development'
+              env.NODE_ENV === 'development' && canResolve('pino-pretty')
                 ? { target: 'pino-pretty', options: { singleLine: true, translateTime: 'SYS:HH:MM:ss' } }
                 : undefined,
             redact: ['req.headers.authorization', 'req.headers.cookie', 'req.headers["x-service-token"]'],

@@ -5,6 +5,9 @@
   "description": "Isomorphic domain utilities (money, GST, geo, units, stats) and the NestJS service core (bootstrap, events, redis, metrics).",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -21,8 +24,12 @@
   },
   "typesVersions": {
     "*": {
-      "server": ["dist/server/index.d.ts"],
-      "testing": ["dist/server/testing/index.d.ts"]
+      "server": [
+        "dist/server/index.d.ts"
+      ],
+      "testing": [
+        "dist/server/testing/index.d.ts"
+      ]
     }
   },
   "scripts": {
@@ -52,18 +59,42 @@
     "zod": "^3.24.0 || ^4.0.0"
   },
   "peerDependenciesMeta": {
-    "@nestjs/common": { "optional": true },
-    "@nestjs/core": { "optional": true },
-    "@nestjs/platform-express": { "optional": true },
-    "@nestjs/swagger": { "optional": true },
-    "class-transformer": { "optional": true },
-    "class-validator": { "optional": true },
-    "helmet": { "optional": true },
-    "ioredis": { "optional": true },
-    "nestjs-pino": { "optional": true },
-    "pino-http": { "optional": true },
-    "prom-client": { "optional": true },
-    "zod": { "optional": true }
+    "@nestjs/common": {
+      "optional": true
+    },
+    "@nestjs/core": {
+      "optional": true
+    },
+    "@nestjs/platform-express": {
+      "optional": true
+    },
+    "@nestjs/swagger": {
+      "optional": true
+    },
+    "class-transformer": {
+      "optional": true
+    },
+    "class-validator": {
+      "optional": true
+    },
+    "helmet": {
+      "optional": true
+    },
+    "ioredis": {
+      "optional": true
+    },
+    "nestjs-pino": {
+      "optional": true
+    },
+    "pino-http": {
+      "optional": true
+    },
+    "prom-client": {
+      "optional": true
+    },
+    "zod": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@nestjs/common": "^11.1.0",

@@ -1,0 +1,19 @@
+# Build context is the repo root; send only what the images compile from.
+.git
+**/node_modules
+**/dist
+**/.next
+**/.turbo
+**/coverage
+**/*.log
+**/*.tsbuildinfo
+packages/database/generated
+# Flutter apps and their shared package build separately
+apps/*-mobile
+packages/flutter_core
+infrastructure/terraform
+docs
+dump.rdb
+.env
+.env.*
+!.env.example

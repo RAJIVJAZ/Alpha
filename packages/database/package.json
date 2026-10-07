@@ -5,6 +5,11 @@
   "description": "Prisma schema, generated client, tenant scoping, migrations and seed data.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "generated",
+    "prisma/schema"
+  ],
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
