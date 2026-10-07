@@ -1,0 +1,41 @@
+# Production: deployed by .github/workflows/cd.yml, which pins every image to
+# the release commit with `kustomize edit set image foodgrid/<name>=<ecr>/foodgrid/<name>:<sha>`.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: foodgrid
+resources:
+  - ../../base
+  - ../../../monitoring
+patches:
+  # IRSA role from terraform output app_role_arn (S3 media, SES, SNS)
+  - target: { kind: ServiceAccount, name: foodgrid-app }
+    patch: |-
+      - op: add
+        path: /metadata/annotations
+        value:
+          eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT_ID:role/foodgrid-production-app
+  - target: { kind: ExternalSecret, name: foodgrid-secrets }
+    patch: |-
+      - { op: replace, path: /spec/dataFrom/0/extract/key, value: foodgrid/production/app }
+  - target: { kind: ExternalSecret, name: foodgrid-auth-secrets }
+    patch: |-
+      - { op: replace, path: /spec/dataFrom/0/extract/key, value: foodgrid/production/auth }
+  - target: { kind: ExternalSecret, name: foodgrid-payment-secrets }
+    patch: |-
+      - { op: replace, path: /spec/dataFrom/0/extract/key, value: foodgrid/production/payment }
+  - target: { kind: Ingress }
+    patch: |-
+      - op: add
+        path: /metadata/annotations/alb.ingress.kubernetes.io~1certificate-arn
+        value: arn:aws:acm:ap-south-1:ACCOUNT_ID:certificate/PRODUCTION_CERT_ID
+      - op: add
+        path: /metadata/annotations/alb.ingress.kubernetes.io~1wafv2-acl-arn
+        value: arn:aws:wafv2:ap-south-1:ACCOUNT_ID:regional/webacl/foodgrid-production/WAF_ID
+  - target: { kind: Ingress, name: foodgrid-admin }
+    patch: |-
+      - op: replace
+        path: /metadata/annotations/alb.ingress.kubernetes.io~1inbound-cidrs
+        value: 203.0.113.0/24
+  - target: { kind: ConfigMap, name: foodgrid-config }
+    patch: |-
+      - { op: replace, path: /data/S3_MEDIA_BUCKET, value: foodgrid-production-media }

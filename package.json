@@ -29,6 +29,7 @@
     "keys:generate": "bash scripts/generate-jwt-keys.sh",
     "clean": "turbo run clean && rm -rf node_modules",
     "gateway:routes": "tsx scripts/generate-gateway-routes.ts",
+    "k8s:generate": "tsx scripts/generate-k8s.ts",
     "dev:gateway": "tsx scripts/dev-gateway.ts"
   },
   "devDependencies": {
@@ -41,7 +42,8 @@
     "tsx": "^4.20.6",
     "turbo": "^2.6.0",
     "typescript": "~5.9.3",
-    "typescript-eslint": "^8.46.0"
+    "typescript-eslint": "^8.46.0",
+    "yaml": "^2.9.1"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

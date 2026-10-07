@@ -1,0 +1,103 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: foodgrid
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: foodgrid.recording
+      rules:
+        - record: service:http_requests:rate5m
+          expr: sum by (service) (rate(http_request_duration_seconds_count[5m]))
+        - record: service:http_errors:ratio5m
+          expr: |
+            sum by (service) (rate(http_request_duration_seconds_count{status=~"5.."}[5m]))
+              / clamp_min(sum by (service) (rate(http_request_duration_seconds_count[5m])), 1e-9)
+        - record: service:http_latency:p95_5m
+          expr: histogram_quantile(0.95, sum by (service, le) (rate(http_request_duration_seconds_bucket[5m])))
+
+    - name: foodgrid.availability
+      rules:
+        - alert: FoodGridServiceDown
+          expr: up{namespace="foodgrid"} == 0
+          for: 2m
+          labels: { severity: critical }
+          annotations:
+            summary: "{{ $labels.service }} pod {{ $labels.pod }} is not being scraped"
+            runbook: docs/runbooks.md#service-down
+        - alert: FoodGridHighErrorRate
+          expr: service:http_errors:ratio5m > 0.05 and service:http_requests:rate5m > 0.5
+          for: 5m
+          labels: { severity: critical }
+          annotations:
+            summary: "{{ $labels.service }}: {{ $value | humanizePercentage }} of requests fail with 5xx"
+            runbook: docs/runbooks.md#high-error-rate
+        - alert: FoodGridSlowResponses
+          expr: service:http_latency:p95_5m > 1
+          for: 10m
+          labels: { severity: warning }
+          annotations:
+            summary: "{{ $labels.service }}: p95 latency {{ $value | humanizeDuration }}"
+            runbook: docs/runbooks.md#slow-responses
+        - alert: FoodGridEventLoopBlocked
+          expr: max by (service) (nodejs_eventloop_lag_p99_seconds) > 0.5
+          for: 5m
+          labels: { severity: warning }
+          annotations:
+            summary: "{{ $labels.service }}: event loop lag p99 {{ $value | humanizeDuration }}"
+
+    - name: foodgrid.business
+      rules:
+        - alert: FoodGridPaymentFailureSpike
+          expr: |
+            sum(rate(payments_failed_total[10m]))
+              / clamp_min(sum(rate(payments_captured_total[10m])) + sum(rate(payments_failed_total[10m])), 1e-9) > 0.15
+            and sum(rate(payments_failed_total[10m])) > 0.01
+          for: 10m
+          labels: { severity: critical }
+          annotations:
+            summary: "{{ $value | humanizePercentage }} of payments are failing (gateway or bank outage?)"
+            runbook: docs/runbooks.md#payment-failures
+        - alert: FoodGridOrdersDropped
+          # half of the same hour last week, ignoring quiet hours
+          expr: |
+            sum(rate(orders_created_total[30m])) < 0.5 * sum(rate(orders_created_total[30m] offset 1w))
+            and sum(rate(orders_created_total[30m] offset 1w)) > 0.05
+          for: 30m
+          labels: { severity: critical }
+          annotations:
+            summary: Orders are down more than 50% against the same time last week
+            runbook: docs/runbooks.md#orders-dropped
+        - alert: FoodGridRiderOffersIgnored
+          expr: |
+            sum(rate(delivery_offers_total{outcome="expired"}[15m]))
+              / clamp_min(sum(rate(delivery_offers_total{outcome="sent"}[15m])), 1e-9) > 0.4
+          for: 15m
+          labels: { severity: warning }
+          annotations:
+            summary: "{{ $value | humanizePercentage }} of rider offers expire — rider supply is short"
+            runbook: docs/runbooks.md#rider-supply
+        - alert: FoodGridEventConsumerErrors
+          expr: sum by (service, type) (rate(domain_events_processed_total{outcome="error"}[5m])) > 0
+          for: 10m
+          labels: { severity: warning }
+          annotations:
+            summary: "{{ $labels.service }} keeps failing to handle {{ $labels.type }} (messages stay pending)"
+            runbook: docs/runbooks.md#event-consumer-errors
+
+    - name: foodgrid.saturation
+      rules:
+        - alert: FoodGridAutoscalerAtMax
+          expr: |
+            kube_horizontalpodautoscaler_status_current_replicas{namespace="foodgrid"}
+              >= kube_horizontalpodautoscaler_spec_max_replicas{namespace="foodgrid"}
+          for: 15m
+          labels: { severity: warning }
+          annotations:
+            summary: "{{ $labels.horizontalpodautoscaler }} has been at its replica ceiling for 15 minutes"
+        - alert: FoodGridPodRestarting
+          expr: increase(kube_pod_container_status_restarts_total{namespace="foodgrid"}[15m]) > 3
+          labels: { severity: warning }
+          annotations:
+            summary: "{{ $labels.pod }} restarted {{ $value }} times in 15 minutes"

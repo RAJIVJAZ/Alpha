@@ -1,0 +1,15 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: foodgrid
+resources:
+  - servicemonitor.yaml
+  - prometheus-rules.yaml
+# picked up by the Grafana dashboard sidecar (label grafana_dashboard=1)
+configMapGenerator:
+  - name: grafana-dashboard-foodgrid
+    files:
+      - dashboards/foodgrid-overview.json
+    options:
+      disableNameSuffixHash: true
+      labels:
+        grafana_dashboard: "1"

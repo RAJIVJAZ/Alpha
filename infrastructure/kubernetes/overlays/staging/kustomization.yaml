@@ -1,0 +1,56 @@
+# Staging: same topology as production at a smaller scale, on its own EKS cluster.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: foodgrid
+resources:
+  - ../../base
+  - ../../../monitoring
+patches:
+  - target: { kind: ServiceAccount, name: foodgrid-app }
+    patch: |-
+      - op: add
+        path: /metadata/annotations
+        value:
+          eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT_ID:role/foodgrid-staging-app
+  - target: { kind: ExternalSecret, name: foodgrid-secrets }
+    patch: |-
+      - { op: replace, path: /spec/dataFrom/0/extract/key, value: foodgrid/staging/app }
+  - target: { kind: ExternalSecret, name: foodgrid-auth-secrets }
+    patch: |-
+      - { op: replace, path: /spec/dataFrom/0/extract/key, value: foodgrid/staging/auth }
+  - target: { kind: ExternalSecret, name: foodgrid-payment-secrets }
+    patch: |-
+      - { op: replace, path: /spec/dataFrom/0/extract/key, value: foodgrid/staging/payment }
+  # one replica each, scaling to three
+  - target: { kind: HorizontalPodAutoscaler }
+    patch: |-
+      - { op: replace, path: /spec/minReplicas, value: 1 }
+      - { op: replace, path: /spec/maxReplicas, value: 3 }
+  - target: { kind: Deployment }
+    patch: |-
+      - { op: replace, path: /spec/replicas, value: 1 }
+  - target: { kind: Ingress }
+    patch: |-
+      - op: add
+        path: /metadata/annotations/alb.ingress.kubernetes.io~1certificate-arn
+        value: arn:aws:acm:ap-south-1:ACCOUNT_ID:certificate/STAGING_CERT_ID
+  - target: { kind: Ingress, name: foodgrid-public }
+    patch: |-
+      - { op: replace, path: /spec/rules/0/host, value: api.staging.foodgrid.in }
+      - { op: replace, path: /spec/rules/1/host, value: staging.foodgrid.in }
+      - { op: remove, path: /spec/rules/2 }
+      - { op: replace, path: /spec/rules/2/host, value: partner.staging.foodgrid.in }
+      - { op: replace, path: /spec/rules/3/host, value: business.staging.foodgrid.in }
+      - { op: replace, path: /spec/rules/4/host, value: supplier.staging.foodgrid.in }
+      - { op: replace, path: /spec/rules/5/host, value: rider.staging.foodgrid.in }
+  - target: { kind: Ingress, name: foodgrid-admin }
+    patch: |-
+      - { op: replace, path: /spec/rules/0/host, value: admin.staging.foodgrid.in }
+  - target: { kind: ConfigMap, name: foodgrid-config }
+    patch: |-
+      - { op: replace, path: /data/S3_MEDIA_BUCKET, value: foodgrid-staging-media }
+      - { op: replace, path: /data/CDN_BASE_URL, value: https://cdn.staging.foodgrid.in }
+      - { op: replace, path: /data/JWT_ISSUER, value: https://auth.staging.foodgrid.in }
+      - { op: replace, path: /data/CORS_ORIGINS, value: https://staging.foodgrid.in }
+      - { op: replace, path: /data/CUSTOMER_WEB_URL, value: https://staging.foodgrid.in }
+      - { op: replace, path: /data/LOG_LEVEL, value: debug }
