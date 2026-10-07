@@ -210,6 +210,33 @@ describe('inventory-service stock ledger (e2e)', () => {
     ).toBe(1);
   });
 
+  it('pages the ingredient list up to 500 rows per page', async () => {
+    await prisma.ingredient.createMany({
+      data: ['Atta', 'Besan', 'Cumin'].map((name) => ({
+        tenantId: TENANT,
+        outletId: OUTLET,
+        name,
+        sku: name.toUpperCase(),
+        category: 'SPICES' as const,
+        unit: 'KG' as const,
+      })),
+    });
+    const list = (query: object) =>
+      api()
+        .get('/api/v1/inventory/ingredients')
+        .query({ outletId: OUTLET, ...query })
+        .set('Authorization', `Bearer ${owner()}`);
+
+    const all = await list({ pageSize: 500 }).expect(200);
+    expect(all.body.meta).toMatchObject({ page: 1, pageSize: 500, total: 4 });
+    expect(all.body.data).toHaveLength(4);
+    const second = await list({ page: 2, pageSize: 3 }).expect(200);
+    expect(second.body.meta).toMatchObject({ page: 2, pageSize: 3, total: 4, totalPages: 2 });
+    expect(second.body.data).toHaveLength(1);
+    expect((await list({}).expect(200)).body.meta.pageSize).toBe(20);
+    for (const pageSize of [501, 0, 2.5]) await list({ pageSize }).expect(400);
+  });
+
   it("keeps each tenant's stock private", async () => {
     const rival = owner('tnt_rival');
     await api()

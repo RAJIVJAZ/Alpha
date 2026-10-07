@@ -185,8 +185,15 @@ export class RecommendationsService {
     if (!ranked.length) return [];
     const items = await this.prisma.menuItem.findMany({
       where: { id: { in: ranked.map((r) => r.itemId) }, isAvailable: true },
+      include: { _count: { select: { variants: true, addonGroups: true } } },
     });
-    const byId = new Map(items.map((i) => [i.id, i]));
+    const byId = new Map(
+      items.map(({ _count, ...i }) => [
+        i.id,
+        // clients open the options sheet instead of quick-adding these
+        { ...i, customisable: _count.variants > 0 || _count.addonGroups > 0 },
+      ]),
+    );
     return ranked
       .filter((r) => byId.has(r.itemId))
       .map((r) => ({ ...byId.get(r.itemId)!, score: r.score }));

@@ -6,7 +6,12 @@ import { conflict, normalizePage, notFound, paginate, round2 } from '@foodgrid/u
 import { stockState } from '../domain/stock';
 import { InternalHttpService } from '@foodgrid/utils/server';
 import { StockService } from '../stock/stock.service';
-import { IngredientDto, ListIngredientsDto, UpdateIngredientDto } from './dto/ingredient.dto';
+import {
+  IngredientDto,
+  ListIngredientsDto,
+  MAX_INGREDIENTS_PAGE,
+  UpdateIngredientDto,
+} from './dto/ingredient.dto';
 
 /** Maps inventory categories to B2B marketplace category codes for procurement. */
 export const DEFAULT_MARKETPLACE_CATEGORY: Partial<Record<Ingredient['category'], string>> = {
@@ -100,7 +105,7 @@ export class IngredientsService {
       .forTenant(tenantId)
       .ingredient.findMany({ where, orderBy: [{ category: 'asc' }, { name: 'asc' }] });
     const views = rows.map(toIngredientView).filter((v) => !q.status || v.status === q.status);
-    const { page, pageSize, skip } = normalizePage(q, 500);
+    const { page, pageSize, skip } = normalizePage(q, MAX_INGREDIENTS_PAGE);
     return paginate(views.slice(skip, skip + pageSize), views.length, page, pageSize);
   }
 

@@ -567,7 +567,8 @@ function Forecast() {
   const alerts = useApi<ReorderAlert[]>('procurement/alerts', { outletId: outletId ?? undefined });
   const ingredients = useApi<{ data: { id: string; name: string }[] }>(
     outletId ? 'inventory/ingredients' : null,
-    { outletId: outletId ?? undefined, pageSize: 100 },
+    // the picker needs every ingredient; 500 is the API's page limit
+    { outletId: outletId ?? undefined, pageSize: 500 },
   );
   const options = ingredients.data?.data ?? [];
   const [ingredientId, setIngredientId] = React.useState<string | null>(null);

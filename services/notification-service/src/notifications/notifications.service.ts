@@ -1,7 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '@foodgrid/database/nest';
 import type { AppKind, NotificationChannel, Prisma } from '@foodgrid/database';
-import { istParts, hhmmToMinutes, normalizePage, paginate } from '@foodgrid/utils';
+import { istParts, hhmmToMinutes, normalizePage, paginate, type PageQuery } from '@foodgrid/utils';
 import { businessCounter, InternalHttpService } from '@foodgrid/utils/server';
 import {
   EMAIL_PROVIDER,
@@ -223,8 +223,8 @@ export class NotificationsService {
   }
 
   // ─── inbox & devices ──────────────────────────────────────────────────────
-  async inbox(userId: string, page = 1) {
-    const p = normalizePage({ page, pageSize: 30 });
+  async inbox(userId: string, q: PageQuery) {
+    const p = normalizePage(q);
     const where = { userId, channel: 'IN_APP' as const };
     const [rows, total, unread] = await Promise.all([
       this.prisma.notification.findMany({

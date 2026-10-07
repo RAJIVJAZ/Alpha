@@ -4,6 +4,7 @@ import { Permissions } from '@foodgrid/auth';
 import { CurrentUser, Internal, RequirePermissions } from '@foodgrid/auth/nest';
 import { PrismaService } from '@foodgrid/database/nest';
 import {
+  InboxQueryDto,
   InternalSendDto,
   InternalSmsDto,
   PreferencesDto,
@@ -32,8 +33,8 @@ export class NotificationsController {
 
   @Get('notifications')
   @ApiOperation({ summary: 'In-app notification inbox' })
-  inbox(@CurrentUser('sub') userId: string, @Query('page') page?: number) {
-    return this.notifications.inbox(userId, Number(page) || 1);
+  inbox(@CurrentUser('sub') userId: string, @Query() q: InboxQueryDto) {
+    return this.notifications.inbox(userId, q);
   }
 
   @Post('notifications/:id/read')

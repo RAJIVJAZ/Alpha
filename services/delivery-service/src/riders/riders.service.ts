@@ -160,6 +160,8 @@ export class RidersService {
     });
     for (const d of active) {
       this.gateway.toOrder(d.orderId, 'rider:location', {
+        orderId: d.orderId,
+        deliveryId: d.id,
         lat: dto.lat,
         lng: dto.lng,
         heading: dto.heading,

@@ -11,6 +11,7 @@ import {
   Min,
 } from 'class-validator';
 import { INGREDIENT_CATEGORIES, IngredientCategory, STOCK_UNITS, StockUnit } from '@foodgrid/types';
+import { Type } from 'class-transformer';
 import { PageQueryDto } from '@foodgrid/utils/server';
 
 export class IngredientDto {
@@ -54,7 +55,21 @@ export class UpdateIngredientDto extends PartialType(
   @ApiPropertyOptional() @IsOptional() @IsBoolean() isActive?: boolean;
 }
 
+/**
+ * Pickers (procurement forecast, the mobile stock list) load an outlet's whole
+ * ingredient list in one page; the service builds that list in memory anyway.
+ */
+export const MAX_INGREDIENTS_PAGE = 500;
+
 export class ListIngredientsDto extends PageQueryDto {
+  // redeclared in full: one subclass validator on a property replaces all inherited ones
+  @ApiPropertyOptional({ default: 20, minimum: 1, maximum: MAX_INGREDIENTS_PAGE })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(MAX_INGREDIENTS_PAGE)
+  override pageSize?: number = 20;
   @ApiPropertyOptional() @IsOptional() @IsString() outletId?: string;
   @ApiPropertyOptional({ enum: INGREDIENT_CATEGORIES })
   @IsOptional()

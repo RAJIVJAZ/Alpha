@@ -9,6 +9,13 @@ import {
   MaxLength,
 } from 'class-validator';
 import { APP_KINDS, AppKind, NOTIFICATION_CHANNELS, NotificationChannel } from '@foodgrid/types';
+import { PageQueryDto } from '@foodgrid/utils/server';
+
+/** Keeps the inbox's 30-per-page default so clients that only send `page` see the same list. */
+export class InboxQueryDto extends PageQueryDto {
+  @ApiPropertyOptional({ default: 30, minimum: 1, maximum: 100 })
+  override pageSize?: number = 30;
+}
 
 export class RegisterDeviceDto {
   @ApiProperty() @IsString() @MaxLength(4096) token!: string;

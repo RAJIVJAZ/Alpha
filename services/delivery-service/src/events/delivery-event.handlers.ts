@@ -21,6 +21,38 @@ export class DeliveryEventHandlers {
     private readonly gateway: TrackingGateway,
   ) {}
 
+  /**
+   * Live feed for merchant dashboards subscribed to the outlet. Declared first so
+   * a failing dispatch handler for the same event can't hold the push back.
+   */
+  @OnDomainEvent(
+    EventTypes.OrderPlaced,
+    EventTypes.OrderAccepted,
+    EventTypes.OrderPreparing,
+    EventTypes.OrderReady,
+    EventTypes.OrderPickedUp,
+    EventTypes.OrderDelivered,
+    EventTypes.OrderCompleted,
+    EventTypes.OrderCancelled,
+    EventTypes.OrderRejected,
+  )
+  async onOrderForOutlet(env: EventEnvelope<string, OrderStatusChangedEvent>) {
+    // picked field by field: the snapshot also carries customer phone and delivery OTP
+    const { orderId, orderNumber, outletId, status, total, placedAt } = env.data;
+    if (!placedAt) return; // unpaid orders never reached the kitchen
+    if (env.type === EventTypes.OrderPlaced)
+      this.gateway.toOutlet(outletId, 'order:new', {
+        orderId,
+        orderNumber,
+        outletId,
+        status,
+        total,
+        placedAt,
+      });
+    else
+      this.gateway.toOutlet(outletId, 'order:status', { orderId, orderNumber, outletId, status });
+  }
+
   /** Dispatch starts when the kitchen accepts, so the rider arrives as food is ready. */
   @OnDomainEvent(EventTypes.OrderAccepted)
   async onAccepted(env: EventEnvelope<string, OrderStatusChangedEvent>) {
