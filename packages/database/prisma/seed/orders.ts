@@ -92,7 +92,7 @@ export async function seedOrders(ctx: SeedContext, sim: Simulation, inv: Invento
     const orderNumber = ctx.docNumber('ORD', o.placedAt);
     const paymentId = addPayment(c, o);
     if (o.paymentMethod === 'WALLET') walletOrders.push({ o, paymentId: paymentId! });
-    addOrderRows(ctx, c, o, orderNumber, paymentId, inv, rng, o.customer?.userId === demo.userId);
+    addOrderRows(ctx, c, o, orderNumber, paymentId, inv, rng);
     if (o.membershipDiscount > 0) {
       membershipSavings.set(
         o.customer!.userId,
@@ -105,7 +105,7 @@ export async function seedOrders(ctx: SeedContext, sim: Simulation, inv: Invento
   for (const o of live) {
     const orderNumber = ctx.docNumber('ORD', o.placedAt);
     const paymentId = addPayment(c, o);
-    addOrderRows(ctx, c, o, orderNumber, paymentId, inv, rng, true);
+    addOrderRows(ctx, c, o, orderNumber, paymentId, inv, rng);
   }
 
   const { prisma } = ctx;
@@ -217,7 +217,6 @@ function addOrderRows(
   paymentId: string | null,
   inv: InventoryResult,
   rng: Rng,
-  withEvents: boolean,
 ) {
   const ok = o.status === 'DELIVERED' || o.status === 'COMPLETED';
   const terminal = ok || o.status === 'CANCELLED' || o.status === 'REJECTED';
@@ -328,47 +327,41 @@ function addOrderRows(
     });
   }
 
-  if (withEvents) {
-    const ev = (
-      from: string | null,
-      to: string,
-      at: Date | null,
-      actorType: 'CUSTOMER' | 'MERCHANT' | 'RIDER' | 'SYSTEM',
-      note?: string,
-    ) => {
-      if (at)
-        c.eventRows.push({
-          orderId: o.id,
-          fromStatus: from as never,
-          toStatus: to as never,
-          actorType,
-          note,
-          createdAt: at,
-        });
-    };
-    ev(null, 'PLACED', o.placedAt, 'CUSTOMER');
-    ev('PLACED', 'ACCEPTED', o.acceptedAt, 'MERCHANT');
-    ev('ACCEPTED', 'PREPARING', o.preparingAt, 'MERCHANT');
-    ev('PREPARING', 'READY', o.readyAt, 'MERCHANT');
-    if (o.type === 'DELIVERY') {
-      ev('READY', 'PICKED_UP', o.pickedUpAt, 'RIDER');
-      ev(
-        'PICKED_UP',
-        'OUT_FOR_DELIVERY',
-        o.pickedUpAt ? addMinutes(o.pickedUpAt, 1) : null,
-        'RIDER',
-      );
-      ev('OUT_FOR_DELIVERY', 'DELIVERED', o.deliveredAt, 'RIDER');
-    } else ev('READY', 'COMPLETED', o.completedAt, 'MERCHANT');
-    if (o.status === 'CANCELLED' || o.status === 'REJECTED')
-      ev(
-        o.acceptedAt ? 'ACCEPTED' : 'PLACED',
-        o.status,
-        o.cancelledAt,
-        o.cancelledBy === 'CUSTOMER' ? 'CUSTOMER' : 'MERCHANT',
-        o.cancelReason ?? undefined,
-      );
-  }
+  // every order gets its timeline: merchant and support screens show it for any order
+  const ev = (
+    from: string | null,
+    to: string,
+    at: Date | null,
+    actorType: 'CUSTOMER' | 'MERCHANT' | 'RIDER' | 'SYSTEM',
+    note?: string,
+  ) => {
+    if (at)
+      c.eventRows.push({
+        orderId: o.id,
+        fromStatus: from as never,
+        toStatus: to as never,
+        actorType,
+        note,
+        createdAt: at,
+      });
+  };
+  ev(null, 'PLACED', o.placedAt, 'CUSTOMER');
+  ev('PLACED', 'ACCEPTED', o.acceptedAt, 'MERCHANT');
+  ev('ACCEPTED', 'PREPARING', o.preparingAt, 'MERCHANT');
+  ev('PREPARING', 'READY', o.readyAt, 'MERCHANT');
+  if (o.type === 'DELIVERY') {
+    ev('READY', 'PICKED_UP', o.pickedUpAt, 'RIDER');
+    ev('PICKED_UP', 'OUT_FOR_DELIVERY', o.pickedUpAt ? addMinutes(o.pickedUpAt, 1) : null, 'RIDER');
+    ev('OUT_FOR_DELIVERY', 'DELIVERED', o.deliveredAt, 'RIDER');
+  } else ev('READY', 'COMPLETED', o.completedAt, 'MERCHANT');
+  if (o.status === 'CANCELLED' || o.status === 'REJECTED')
+    ev(
+      o.acceptedAt ? 'ACCEPTED' : 'PLACED',
+      o.status,
+      o.cancelledAt,
+      o.cancelledBy === 'CUSTOMER' ? 'CUSTOMER' : 'MERCHANT',
+      o.cancelReason ?? undefined,
+    );
 
   // kitchen tickets for orders still in the kitchen
   if (live && o.acceptedAt) {
