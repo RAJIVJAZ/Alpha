@@ -409,7 +409,7 @@
             "bearer": []
           }
         ],
-        "summary": "Rider cash-out request",
+        "summary": "Rider cash-out request (send an Idempotency-Key to make retries safe)",
         "tags": [
           "wallets"
         ]

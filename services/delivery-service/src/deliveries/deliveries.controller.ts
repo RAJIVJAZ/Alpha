@@ -8,6 +8,7 @@ import { IncentivesService } from '../incentives/incentives.service';
 import { LocationPingDto, RiderOnboardingDto } from '../riders/dto/rider.dto';
 import { RidersService } from '../riders/riders.service';
 import { HeatmapService } from '../heatmap/heatmap.service';
+import { riderView } from '../common/rider-view';
 import { DeliveriesService } from './deliveries.service';
 import { CompleteDeliveryDto, FailDeliveryDto, RejectOfferDto } from './dto/delivery.dto';
 
@@ -66,14 +67,15 @@ export class RiderController {
 
   @Roles('RIDER')
   @Get('me/deliveries/current')
-  current(@CurrentUser('sub') userId: string) {
-    return this.riders.current(userId);
+  async current(@CurrentUser('sub') userId: string) {
+    return (await this.riders.current(userId)).map(riderView);
   }
 
   @Roles('RIDER')
   @Get('me/deliveries')
-  history(@CurrentUser('sub') userId: string, @Query('page') page?: number) {
-    return this.riders.history(userId, Number(page) || 1);
+  async history(@CurrentUser('sub') userId: string, @Query('page') page?: number) {
+    const trips = await this.riders.history(userId, Number(page) || 1);
+    return { ...trips, data: trips.data.map(riderView) };
   }
 
   @Roles('RIDER')
@@ -122,8 +124,8 @@ export class DeliveriesController {
 
   @Post('offers/:offerId/accept')
   @HttpCode(200)
-  accept(@CurrentUser('sub') userId: string, @Param('offerId') offerId: string) {
-    return this.dispatch.accept(userId, offerId);
+  async accept(@CurrentUser('sub') userId: string, @Param('offerId') offerId: string) {
+    return riderView(await this.dispatch.accept(userId, offerId));
   }
 
   @Post('offers/:offerId/reject')
@@ -133,38 +135,38 @@ export class DeliveriesController {
   }
 
   @Get(':id')
-  get(@CurrentUser('sub') userId: string, @Param('id') id: string) {
-    return this.deliveries.get(userId, id);
+  async get(@CurrentUser('sub') userId: string, @Param('id') id: string) {
+    return riderView(await this.deliveries.get(userId, id));
   }
 
   @Post(':id/arrived-pickup')
   @HttpCode(200)
-  arrivedPickup(@CurrentUser('sub') userId: string, @Param('id') id: string) {
-    return this.deliveries.arrivedAtPickup(userId, id);
+  async arrivedPickup(@CurrentUser('sub') userId: string, @Param('id') id: string) {
+    return riderView(await this.deliveries.arrivedAtPickup(userId, id));
   }
 
   @Post(':id/picked-up')
   @HttpCode(200)
-  pickedUp(@CurrentUser('sub') userId: string, @Param('id') id: string) {
-    return this.deliveries.pickedUp(userId, id);
+  async pickedUp(@CurrentUser('sub') userId: string, @Param('id') id: string) {
+    return riderView(await this.deliveries.pickedUp(userId, id));
   }
 
   @Post(':id/arrived-drop')
   @HttpCode(200)
-  arrivedDrop(@CurrentUser('sub') userId: string, @Param('id') id: string) {
-    return this.deliveries.arrivedAtDrop(userId, id);
+  async arrivedDrop(@CurrentUser('sub') userId: string, @Param('id') id: string) {
+    return riderView(await this.deliveries.arrivedAtDrop(userId, id));
   }
 
   @Post(':id/complete')
   @HttpCode(200)
   @ApiOperation({ summary: 'Complete with customer OTP or photo proof (upload via /media/presign)' })
-  complete(@CurrentUser('sub') userId: string, @Param('id') id: string, @Body() dto: CompleteDeliveryDto) {
-    return this.deliveries.complete(userId, id, dto);
+  async complete(@CurrentUser('sub') userId: string, @Param('id') id: string, @Body() dto: CompleteDeliveryDto) {
+    return riderView(await this.deliveries.complete(userId, id, dto));
   }
 
   @Post(':id/fail')
   @HttpCode(200)
-  fail(@CurrentUser('sub') userId: string, @Param('id') id: string, @Body() dto: FailDeliveryDto) {
-    return this.deliveries.fail(userId, id, dto);
+  async fail(@CurrentUser('sub') userId: string, @Param('id') id: string, @Body() dto: FailDeliveryDto) {
+    return riderView(await this.deliveries.fail(userId, id, dto));
   }
 }

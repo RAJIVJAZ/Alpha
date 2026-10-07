@@ -1,10 +1,10 @@
-import { Body, Controller, ForbiddenException, Get, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, ForbiddenException, Get, Param, Post, Query, UseInterceptors } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Permissions } from '@foodgrid/auth';
 import { CurrentUser, RequirePermissions, Roles } from '@foodgrid/auth/nest';
 import type { PayoutStatus } from '@foodgrid/database';
 import type { AccessTokenClaims } from '@foodgrid/types';
-import { DirectoryService } from '@foodgrid/utils/server';
+import { DirectoryService, IdempotencyInterceptor } from '@foodgrid/utils/server';
 import { CashDepositDto, MarkPayoutDto, PayoutRequestDto, WalletQueryDto } from './dto/wallet.dto';
 import { WalletLedgerService } from './wallet-ledger.service';
 import { WalletsService } from './wallets.service';
@@ -25,7 +25,8 @@ export class WalletsController {
 
   @Roles('RIDER')
   @Post('me/payouts')
-  @ApiOperation({ summary: 'Rider cash-out request' })
+  @UseInterceptors(IdempotencyInterceptor)
+  @ApiOperation({ summary: 'Rider cash-out request (send an Idempotency-Key to make retries safe)' })
   payout(@CurrentUser('sub') userId: string, @Body() dto: PayoutRequestDto) {
     return this.wallets.requestPayout(userId, dto);
   }

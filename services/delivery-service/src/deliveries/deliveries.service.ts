@@ -28,6 +28,8 @@ export const deliveryStateMachine = new StateMachine<DeliveryStatus>('Delivery',
 const completed = businessCounter('deliveries_completed_total', 'Deliveries completed', ['outcome']);
 /** Riders must be this close to the drop point to complete (GPS sanity check). */
 const MAX_COMPLETION_DISTANCE_KM = 0.5;
+/** A position older than this cannot vouch for where the rider is now. */
+const MAX_POSITION_AGE_MS = 5 * 60_000;
 
 /** Rider-side delivery flow: pickup → drop → proof of delivery. */
 @Injectable()
@@ -102,8 +104,12 @@ export class DeliveriesService {
       }
     }
     if (delivery.isCod && !dto.codCollected) throw conflict('Collect the cash before completing a COD order', 'COD_NOT_COLLECTED');
+    // fail closed: without a recent fix there is nothing to check the drop against
     const pos = await this.geo.last(rider.id);
-    if (pos && haversineKm(pos, { lat: delivery.dropLat, lng: delivery.dropLng }) > MAX_COMPLETION_DISTANCE_KM) {
+    if (!pos || Date.now() - new Date(pos.at).getTime() > MAX_POSITION_AGE_MS) {
+      throw new AppError('LOCATION_REQUIRED', 'Turn on location so we can confirm you are at the drop point', 409);
+    }
+    if (haversineKm(pos, { lat: delivery.dropLat, lng: delivery.dropLng }) > MAX_COMPLETION_DISTANCE_KM) {
       throw new AppError('TOO_FAR_FROM_DROP', 'You seem to be away from the drop location', 409);
     }
 

@@ -347,7 +347,7 @@ Razorpay/UPI/card payments, wallets & ledger, refunds, commissions, settlements,
 | GET | `/api/v1/settlements/pending` | bearer | Accrued but not yet settled amounts |
 | GET | `/api/v1/wallets/me` | bearer | Wallet balance and statement (customer or rider wallet) |
 | GET | `/api/v1/wallets/me/payouts` | bearer |  |
-| POST | `/api/v1/wallets/me/payouts` | bearer | Rider cash-out request |
+| POST | `/api/v1/wallets/me/payouts` | bearer | Rider cash-out request (send an Idempotency-Key to make retries safe) |
 
 ## FoodGrid Procurement Service
 
