@@ -17,7 +17,7 @@ import {
   Wallet,
 } from 'lucide-react';
 import { AppShell, type NavSection } from '@foodgrid/ui';
-import { OutletProvider } from '@foodgrid/ui/merchant';
+import { OutletProvider, useNavForRole } from '@foodgrid/ui/merchant';
 import type { VendorKind } from './kind';
 
 const NAV: Record<VendorKind, NavSection[]> = {
@@ -85,8 +85,9 @@ const SUBTITLE: Record<VendorKind, string> = {
 };
 
 export function Shell({ kind, children }: { kind: VendorKind; children: React.ReactNode }) {
+  const nav = useNavForRole(NAV[kind], '/sales');
   const shell = (
-    <AppShell product="FoodGrid" subtitle={SUBTITLE[kind]} nav={NAV[kind]}>
+    <AppShell product="FoodGrid" subtitle={SUBTITLE[kind]} nav={nav}>
       {children}
     </AppShell>
   );

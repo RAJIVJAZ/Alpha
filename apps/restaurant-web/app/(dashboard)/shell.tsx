@@ -17,7 +17,7 @@ import {
   Wallet,
 } from 'lucide-react';
 import { AppShell, type NavSection } from '@foodgrid/ui';
-import { OutletProvider } from '@foodgrid/ui/merchant';
+import { OutletProvider, useNavForRole } from '@foodgrid/ui/merchant';
 
 const NAV: NavSection[] = [
   {
@@ -51,9 +51,10 @@ const NAV: NavSection[] = [
 ];
 
 export function Shell({ children }: { children: React.ReactNode }) {
+  const nav = useNavForRole(NAV, '/reports');
   return (
     <OutletProvider>
-      <AppShell product="FoodGrid" subtitle="Restaurant" nav={NAV}>
+      <AppShell product="FoodGrid" subtitle="Restaurant" nav={nav}>
         {children}
       </AppShell>
     </OutletProvider>

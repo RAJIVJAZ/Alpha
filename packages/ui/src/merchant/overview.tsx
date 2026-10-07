@@ -24,6 +24,7 @@ import {
   formatShortDate,
 } from '../lib/format';
 import { useApi } from '../lib/hooks';
+import { useCan, useCanSeeSales } from './access';
 import { OutletPicker, useOutlet } from './outlet';
 import type { InventorySummary, ProfitReport, SalesReport } from './types';
 
@@ -47,18 +48,21 @@ export function MerchantOverview({
   links: { orders: string; inventory: string; procurement: string; purchaseOrders: string };
 }) {
   const { outletId, outlet } = useOutlet();
+  // revenue needs reports:read; kitchen and counter staff get the operational half only
+  const canSeeSales = useCanSeeSales();
+  const reports = !!outletId && canSeeSales;
   const q = { outletId: outletId ?? undefined };
-  const sales = useApi<SalesReport>(outletId ? 'analytics/outlet/sales' : null, {
+  const sales = useApi<SalesReport>(reports ? 'analytics/outlet/sales' : null, {
     ...q,
     from: range.from,
     to: range.to,
   });
-  const prev = useApi<SalesReport>(outletId ? 'analytics/outlet/sales' : null, {
+  const prev = useApi<SalesReport>(reports ? 'analytics/outlet/sales' : null, {
     ...q,
     from: range.prevFrom,
     to: range.prevTo,
   });
-  const profit = useApi<ProfitReport>(outletId ? 'analytics/outlet/profitability' : null, {
+  const profit = useApi<ProfitReport>(reports ? 'analytics/outlet/profitability' : null, {
     ...q,
     from: range.from,
     to: range.to,
@@ -69,7 +73,10 @@ export function MerchantOverview({
     { refetchInterval: 15_000 },
   );
   const inventory = useApi<InventorySummary>('inventory/summary', q);
-  const procurement = useApi<ProcurementDashboard>('procurement/dashboard');
+  const canSeeProcurement = useCan('procurement:read');
+  const procurement = useApi<ProcurementDashboard>(
+    canSeeProcurement ? 'procurement/dashboard' : null,
+  );
 
   const daily = chartDays(sales.data?.daily, range, {
     orders: 0,
@@ -90,68 +97,72 @@ export function MerchantOverview({
         description={outlet ? `${outlet.name} · last 30 days vs the 30 before` : 'Last 30 days'}
         actions={<OutletPicker />}
       />
-      <StatGrid>
-        <StatTile
-          label="Net sales"
-          value={k ? formatMoneyCompact(k.netSales) : '—'}
-          icon={<IndianRupee />}
-          delta={
-            k && p
-              ? { pct: pctChange(k.netSales, p.netSales), label: 'vs prior 30 days' }
-              : undefined
-          }
-          trend={daily?.slice(-14).map((d) => d.netSales)}
-        />
-        <StatTile
-          label="Orders"
-          value={k ? formatNumber(k.orders) : '—'}
-          icon={<ShoppingBag />}
-          delta={
-            k && p ? { pct: pctChange(k.orders, p.orders), label: 'vs prior 30 days' } : undefined
-          }
-        />
-        <StatTile
-          label="Average order value"
-          value={k ? formatMoney(k.averageOrderValue, { whole: true }) : '—'}
-          icon={<Timer />}
-          delta={
-            k && p
-              ? {
-                  pct: pctChange(k.averageOrderValue, p.averageOrderValue),
-                  label: 'vs prior 30 days',
-                }
-              : undefined
-          }
-        />
-        <StatTile
-          label="Cancellation rate"
-          value={k ? formatPercent(k.cancellationRatePct) : '—'}
-          icon={<XCircle />}
-          delta={
-            k && p
-              ? {
-                  pct: pctChange(k.cancellationRatePct, p.cancellationRatePct),
-                  label: 'vs prior 30 days',
-                  upIsGood: false,
-                }
-              : undefined
-          }
-        />
-      </StatGrid>
+      {canSeeSales && (
+        <StatGrid>
+          <StatTile
+            label="Net sales"
+            value={k ? formatMoneyCompact(k.netSales) : '—'}
+            icon={<IndianRupee />}
+            delta={
+              k && p
+                ? { pct: pctChange(k.netSales, p.netSales), label: 'vs prior 30 days' }
+                : undefined
+            }
+            trend={daily?.slice(-14).map((d) => d.netSales)}
+          />
+          <StatTile
+            label="Orders"
+            value={k ? formatNumber(k.orders) : '—'}
+            icon={<ShoppingBag />}
+            delta={
+              k && p ? { pct: pctChange(k.orders, p.orders), label: 'vs prior 30 days' } : undefined
+            }
+          />
+          <StatTile
+            label="Average order value"
+            value={k ? formatMoney(k.averageOrderValue, { whole: true }) : '—'}
+            icon={<Timer />}
+            delta={
+              k && p
+                ? {
+                    pct: pctChange(k.averageOrderValue, p.averageOrderValue),
+                    label: 'vs prior 30 days',
+                  }
+                : undefined
+            }
+          />
+          <StatTile
+            label="Cancellation rate"
+            value={k ? formatPercent(k.cancellationRatePct) : '—'}
+            icon={<XCircle />}
+            delta={
+              k && p
+                ? {
+                    pct: pctChange(k.cancellationRatePct, p.cancellationRatePct),
+                    label: 'vs prior 30 days',
+                    upIsGood: false,
+                  }
+                : undefined
+            }
+          />
+        </StatGrid>
+      )}
 
       <div className="mt-6 grid gap-4 lg:grid-cols-3">
-        <TrendChart
-          className="lg:col-span-2"
-          title="Net sales per day"
-          description="After discounts, before commission"
-          data={daily}
-          xKey="date"
-          xFormat={(v) => formatShortDate(String(v))}
-          series={[{ key: 'netSales', label: 'Net sales' }]}
-          kind="area"
-          valueFormat={(v) => formatMoneyCompact(v)}
-          loading={sales.isFetching}
-        />
+        {canSeeSales && (
+          <TrendChart
+            className="lg:col-span-2"
+            title="Net sales per day"
+            description="After discounts, before commission"
+            data={daily}
+            xKey="date"
+            xFormat={(v) => formatShortDate(String(v))}
+            series={[{ key: 'netSales', label: 'Net sales' }]}
+            kind="area"
+            valueFormat={(v) => formatMoneyCompact(v)}
+            loading={sales.isFetching}
+          />
+        )}
         <Card>
           <CardHeader>
             <CardTitle>Needs attention</CardTitle>
@@ -170,27 +181,31 @@ export function MerchantOverview({
               label="In the kitchen"
               value={(counts.ACCEPTED ?? 0) + (counts.PREPARING ?? 0)}
             />
-            <AttentionRow
-              href={links.procurement}
-              icon={<AlertTriangle />}
-              label="Critical & high reorder alerts"
-              value={urgentAlerts}
-              status={urgentAlerts ? 'HIGH' : 'COMPLETED'}
-            />
-            <AttentionRow
-              href={links.purchaseOrders}
-              icon={<ClipboardList />}
-              label="Purchase orders to approve"
-              value={procurement.data?.pendingApproval ?? 0}
-              status={procurement.data?.pendingApproval ? 'PENDING_APPROVAL' : 'COMPLETED'}
-            />
-            <AttentionRow
-              href={links.purchaseOrders}
-              icon={<Package />}
-              label="Deliveries to receive"
-              value={procurement.data?.deliveredNotReceived ?? 0}
-              status={procurement.data?.deliveredNotReceived ? 'DELIVERED' : 'COMPLETED'}
-            />
+            {canSeeProcurement && (
+              <>
+                <AttentionRow
+                  href={links.procurement}
+                  icon={<AlertTriangle />}
+                  label="Critical & high reorder alerts"
+                  value={urgentAlerts}
+                  status={urgentAlerts ? 'HIGH' : 'COMPLETED'}
+                />
+                <AttentionRow
+                  href={links.purchaseOrders}
+                  icon={<ClipboardList />}
+                  label="Purchase orders to approve"
+                  value={procurement.data?.pendingApproval ?? 0}
+                  status={procurement.data?.pendingApproval ? 'PENDING_APPROVAL' : 'COMPLETED'}
+                />
+                <AttentionRow
+                  href={links.purchaseOrders}
+                  icon={<Package />}
+                  label="Deliveries to receive"
+                  value={procurement.data?.deliveredNotReceived ?? 0}
+                  status={procurement.data?.deliveredNotReceived ? 'DELIVERED' : 'COMPLETED'}
+                />
+              </>
+            )}
             <AttentionRow
               href={links.inventory}
               icon={<Package />}
@@ -208,21 +223,23 @@ export function MerchantOverview({
         </Card>
       </div>
 
-      <div className="mt-4 grid gap-4 sm:grid-cols-3">
-        <StatTile
-          label="Food cost"
-          value={profit.data ? formatPercent(profit.data.foodCostPct) : '—'}
-          delta={undefined}
-        />
-        <StatTile
-          label="Platform commission"
-          value={profit.data ? formatPercent(profit.data.commissionPct) : '—'}
-        />
-        <StatTile
-          label="Gross margin"
-          value={profit.data ? formatPercent(profit.data.marginPct) : '—'}
-        />
-      </div>
+      {canSeeSales && (
+        <div className="mt-4 grid gap-4 sm:grid-cols-3">
+          <StatTile
+            label="Food cost"
+            value={profit.data ? formatPercent(profit.data.foodCostPct) : '—'}
+            delta={undefined}
+          />
+          <StatTile
+            label="Platform commission"
+            value={profit.data ? formatPercent(profit.data.commissionPct) : '—'}
+          />
+          <StatTile
+            label="Gross margin"
+            value={profit.data ? formatPercent(profit.data.marginPct) : '—'}
+          />
+        </div>
+      )}
     </>
   );
 }

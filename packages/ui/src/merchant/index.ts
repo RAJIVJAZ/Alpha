@@ -16,3 +16,4 @@ export { ReviewsInbox } from './reviews';
 export { PointOfSale } from './pos';
 export { QrTables } from './qr';
 export type * from './types';
+export { useCan, useCanSeeSales, useNavForRole } from './access';

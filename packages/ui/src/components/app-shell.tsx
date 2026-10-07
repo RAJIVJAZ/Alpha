@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import type { LucideIcon } from 'lucide-react';
 import { Building2, Check, LogOut, Menu } from 'lucide-react';
-import { useSession } from '../lib/hooks';
+import { toast, useSession } from '../lib/hooks';
 import { cn } from '../lib/utils';
 import { humanize } from '../lib/format';
 import { Button } from './button';
@@ -46,7 +46,10 @@ async function switchTenant(tenantId: string) {
     body: JSON.stringify({ tenantId }),
     credentials: 'same-origin',
   });
-  if (res.ok) window.location.assign('/');
+  if (res.ok) return window.location.assign('/');
+  // e.g. APP_ACCESS_DENIED: this app does not serve that business; the session stays as it was
+  const body = (await res.json().catch(() => null)) as { message?: string } | null;
+  toast.error(body?.message ?? 'Could not switch business');
 }
 
 function NavList({ nav, onNavigate }: { nav: NavSection[]; onNavigate?: () => void }) {

@@ -47,6 +47,8 @@ export interface TenantMembershipSummary {
   tenantStatus: string;
   role: TenantRole;
   outletIds: string[];
+  /** What this role may do in that business, so clients can hide what the API would refuse. */
+  permissions: string[];
 }
 
 export interface SessionUser {

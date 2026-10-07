@@ -2,7 +2,7 @@
 
 import { CategoryBarChart, TrendChart, WeekHourHeatmap } from '../charts';
 import { chartDays, DateRangePicker, useDateRange } from '../components/date-range';
-import { FilterBar, PageHeader, StatGrid } from '../components/layout';
+import { EmptyState, FilterBar, PageHeader, StatGrid } from '../components/layout';
 import { pctChange, StatTile } from '../components/stat-tile';
 import {
   formatMoney,
@@ -13,29 +13,34 @@ import {
   humanize,
 } from '../lib/format';
 import { useApi } from '../lib/hooks';
+import { useCanSeeSales } from './access';
 import { OutletPicker, useOutlet } from './outlet';
 import type { ProfitReport, SalesReport } from './types';
 
 /** Daily sales & profitability report (restaurant "daily sales reports", food cart "daily sales tracking"). */
 export function SalesReportView() {
   const { outletId } = useOutlet();
+  const canSeeSales = useCanSeeSales();
   const { range, preset, setPreset } = useDateRange('30d');
   const q = { outletId: outletId ?? undefined };
-  const cur = useApi<SalesReport>(outletId ? 'analytics/outlet/sales' : null, {
+  const cur = useApi<SalesReport>(outletId && canSeeSales ? 'analytics/outlet/sales' : null, {
     ...q,
     from: range.from,
     to: range.to,
   });
-  const prev = useApi<SalesReport>(outletId ? 'analytics/outlet/sales' : null, {
+  const prev = useApi<SalesReport>(outletId && canSeeSales ? 'analytics/outlet/sales' : null, {
     ...q,
     from: range.prevFrom,
     to: range.prevTo,
   });
-  const profit = useApi<ProfitReport>(outletId ? 'analytics/outlet/profitability' : null, {
-    ...q,
-    from: range.from,
-    to: range.to,
-  });
+  const profit = useApi<ProfitReport>(
+    outletId && canSeeSales ? 'analytics/outlet/profitability' : null,
+    {
+      ...q,
+      from: range.from,
+      to: range.to,
+    },
+  );
   const k = cur.data?.kpis;
   const p = prev.data?.kpis;
   const vs = 'vs previous period';
@@ -47,6 +52,14 @@ export function SalesReportView() {
     foodCost: 0,
     grossProfit: 0,
   });
+
+  if (!canSeeSales)
+    return (
+      <EmptyState
+        title="Sales reports are for owners and managers"
+        description="Ask the business owner for access if you need them."
+      />
+    );
 
   return (
     <>

@@ -1,7 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import Redis from 'ioredis';
-import { AccessTokenService, randomToken, sha256 } from '@foodgrid/auth';
+import { AccessTokenService, randomToken, sha256, TENANT_ROLE_PERMISSIONS } from '@foodgrid/auth';
 import { PrismaService } from '@foodgrid/database/nest';
 import type { TenantMember, Tenant, User } from '@foodgrid/database';
 import type { AccessTokenClaims, AuthTokens, SessionResponse, SessionUser } from '@foodgrid/types';
@@ -63,6 +63,7 @@ export class SessionService {
         tenantStatus: m.tenant.status,
         role: m.role,
         outletIds: m.outletIds,
+        permissions: [...(TENANT_ROLE_PERMISSIONS[m.role] ?? [])],
       })),
     };
   }
