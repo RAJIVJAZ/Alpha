@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:foodgrid_core/foodgrid_core.dart';
-import 'package:rider_mobile/src/duty/rider_events.dart';
 
 import 'helpers.dart';
 
@@ -24,7 +23,7 @@ Future<TestRig> signedInRig() async {
 void main() {
   testWidgets('without a session the app opens on rider sign-in', (tester) async {
     final rig = TestRig();
-    await rig.pumpApp(tester, width: 600);
+    await rig.pumpApp(tester);
 
     expect(find.text('FoodGrid Rider'), findsOneWidget);
     expect(find.text('Send code'), findsOneWidget);
@@ -41,7 +40,7 @@ void main() {
           })
       ..on('POST', '/auth/logout', (_) => {'ok': true});
 
-    await rig.pumpApp(tester, width: 600);
+    await rig.pumpApp(tester);
     await tester.enterText(find.byType(TextField), '9740010199');
     await tester.tap(find.text('Send code'));
     await settle(tester);
@@ -89,7 +88,8 @@ void main() {
     await tester.tap(find.descendant(of: find.byType(NavigationBar), matching: find.text('Trips')));
     await settle(tester);
     offered = true;
-    rig.events.add(RiderEvent('offer:new', {'deliveryId': 'd1', 'orderNumber': 'ORD-261007-00005'}));
+    expect(rig.socket.token, isNotNull, reason: 'the shell connects the rider socket');
+    rig.socket.receive('offer:new', {'deliveryId': 'd1', 'orderNumber': 'ORD-261007-00005'});
     await settle(tester);
     expect(find.text('New order offer'), findsOneWidget);
 
@@ -97,7 +97,7 @@ void main() {
     await settle(tester);
     expect(find.text('Earn ₹45.00'), findsOneWidget);
 
-    rig.events.add(RiderEvent('delivery:cancelled', {'deliveryId': 'd1', 'orderNumber': 'ORD-261007-00005'}));
+    rig.socket.receive('delivery:cancelled', {'deliveryId': 'd1', 'orderNumber': 'ORD-261007-00005'});
     await settle(tester);
     expect(find.text('Order ORD-261007-00005 was cancelled — no need to continue'), findsOneWidget);
   });
@@ -108,7 +108,8 @@ void main() {
       ..on('GET', '/riders/me/deliveries/current', (_) => [])
       ..on('POST', '/riders/me/offline', (_) => {'online': false})
       ..on('POST', '/auth/logout', (_) => {'ok': true});
-    await rig.pumpApp(tester, width: 600);
+    await rig.pumpApp(tester);
+    expect(rig.socket.connected, isTrue);
 
     await tester.tap(find.byTooltip('Sign out'));
     await settle(tester);
@@ -118,5 +119,6 @@ void main() {
     expect(rig.api.postPaths(), containsAllInOrder(['/riders/me/offline', '/auth/logout']));
     expect(find.text('Send code'), findsOneWidget);
     expect(await rig.tokens.read(), isNull);
+    expect(rig.socket.connected, isFalse, reason: 'the socket was authenticated as this rider');
   });
 }

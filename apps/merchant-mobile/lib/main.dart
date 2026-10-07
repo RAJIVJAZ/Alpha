@@ -10,7 +10,7 @@ void main() {
   WidgetsFlutterBinding.ensureInitialized();
   runApp(
     ProviderScope(
-      retry: merchantRetry,
+      retry: retryTransientErrors,
       overrides: [appConfigProvider.overrideWithValue(const AppConfig(app: ClientApp.merchant))],
       child: const MerchantApp(),
     ),

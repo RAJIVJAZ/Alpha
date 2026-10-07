@@ -40,3 +40,11 @@ class ApiException implements Exception {
   @override
   String toString() => message;
 }
+
+/// Riverpod retry policy for every app's `ProviderScope(retry: …)`: offline
+/// and 5xx failures are retried up to 3 times (after 1 s, 2 s, 4 s); 4xx
+/// answers will not change, so they fail at once.
+Duration? retryTransientErrors(int retryCount, Object error) {
+  if (retryCount >= 3 || error is! ApiException) return null;
+  return error.isNetwork || error.status >= 500 ? Duration(seconds: 1 << retryCount) : null;
+}

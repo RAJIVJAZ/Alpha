@@ -3,10 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// Refresh cadence, matching the web dashboards (orders 10 s, KDS 5 s).
 /// Tests override it with `AppTimings.none` so nothing polls.
 class AppTimings {
-  const AppTimings({this.ordersPoll, this.kdsPoll, this.purchaseOrdersPoll, this.clockTick});
+  const AppTimings({this.ordersPoll, this.ordersPollLive, this.kdsPoll, this.purchaseOrdersPoll, this.clockTick});
 
   static const live = AppTimings(
     ordersPoll: Duration(seconds: 10),
+    ordersPollLive: Duration(seconds: 30),
     kdsPoll: Duration(seconds: 5),
     purchaseOrdersPoll: Duration(seconds: 30),
     clockTick: Duration(seconds: 1),
@@ -14,6 +15,9 @@ class AppTimings {
   static const none = AppTimings();
 
   final Duration? ordersPoll;
+
+  /// Orders poll while the socket delivers them live.
+  final Duration? ordersPollLive;
   final Duration? kdsPoll;
   final Duration? purchaseOrdersPoll;
 

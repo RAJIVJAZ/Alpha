@@ -49,7 +49,7 @@ class Permissions {
 
   /// Today's sales: owners, managers and accountants (reports) and the
   /// counter (POS "Today" tab on the web). Kitchen roles don't see revenue.
-  bool get canSeeSales => can(Perm.reportsRead) || can(Perm.posOperate);
+  bool get canSeeSales => can(Perm.reportsRead);
 
   String get roleLabel => role == null ? 'Team member' : humanize(role);
 }

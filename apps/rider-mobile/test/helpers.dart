@@ -11,7 +11,6 @@ import 'package:foodgrid_core/foodgrid_core.dart';
 import 'package:rider_mobile/src/app.dart';
 import 'package:rider_mobile/src/common/device.dart';
 import 'package:rider_mobile/src/demand/demand_screen.dart';
-import 'package:rider_mobile/src/duty/rider_events.dart';
 
 const testConfig = AppConfig(app: ClientApp.rider, apiUrl: 'http://api.test/api/v1');
 
@@ -112,14 +111,16 @@ class TestRig {
   final FakeLocation location;
   final TokenStore tokens;
   final opened = <Uri>[];
-  final events = StreamController<RiderEvent>.broadcast();
+
+  /// The tracking socket's wire; `socket.receive('offer:new', …)` plays the server.
+  final socket = FakeSocketTransport();
 
   List<Override> get overrides => [
         appConfigProvider.overrideWithValue(testConfig),
         tokenStoreProvider.overrideWithValue(tokens),
         apiClientProvider.overrideWithValue(fakeClient(api, tokens: tokens)),
         locationServiceProvider.overrideWithValue(location),
-        riderEventsProvider.overrideWith((ref) => events.stream),
+        socketTransportProvider.overrideWithValue(socket),
         urlOpenerProvider.overrideWithValue((uri) async {
           opened.add(uri);
           return true;
@@ -142,11 +143,9 @@ class TestRig {
     await settle(tester);
   }
 
-  /// Pumps the whole app (router, session, shell). [width] is in logical
-  /// pixels; the core LoginScreen's resend row needs more than a phone's
-  /// width with the test font (see README, core issues).
-  Future<void> pumpApp(WidgetTester tester, {double width = 412}) async {
-    _phone(tester, width: width);
+  /// Pumps the whole app (router, session, shell) on a phone-sized screen.
+  Future<void> pumpApp(WidgetTester tester) async {
+    _phone(tester);
     await tester.pumpWidget(ProviderScope(retry: (_, _) => null, overrides: overrides, child: const RiderApp()));
     await settle(tester);
   }

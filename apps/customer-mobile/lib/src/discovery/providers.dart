@@ -109,7 +109,7 @@ class NearbyController extends AsyncNotifier<NearbyList> {
       'page': page,
       'pageSize': pageSize,
     });
-    final p = Page.fromJson(json, OutletSummary.fromJson);
+    final p = PagedResult.fromJson(json, OutletSummary.fromJson);
     // a sponsored outlet can repeat on a later page; keep the first
     final seen = {for (final o in before) o.id};
     return NearbyList(items: [...before, ...p.data.where((o) => seen.add(o.id))], page: p.page, totalPages: p.totalPages, total: p.total);

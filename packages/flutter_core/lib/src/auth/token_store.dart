@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class Tokens {
@@ -13,10 +15,15 @@ class Tokens {
   }
 }
 
-/// Where the session tokens live between launches.
+/// Where the session lives between launches: the tokens, plus the last
+/// signed-in user (`auth/me`) so an offline launch keeps its memberships.
 abstract class TokenStore {
   Future<Tokens?> read();
   Future<void> write(Tokens tokens);
+  Future<Map<String, dynamic>?> readUser();
+  Future<void> writeUser(Map<String, dynamic> user);
+
+  /// Forgets the tokens and the user.
   Future<void> clear();
 }
 
@@ -27,6 +34,7 @@ class SecureTokenStore implements TokenStore {
   final FlutterSecureStorage _storage;
   static const _access = 'fg.access';
   static const _refresh = 'fg.refresh';
+  static const _user = 'fg.user';
 
   @override
   Future<Tokens?> read() async {
@@ -42,15 +50,29 @@ class SecureTokenStore implements TokenStore {
   }
 
   @override
+  Future<Map<String, dynamic>?> readUser() async {
+    try {
+      return jsonDecode(await _storage.read(key: _user) ?? 'null') as Map<String, dynamic>?;
+    } catch (_) {
+      return null; // unreadable: treated as unknown
+    }
+  }
+
+  @override
+  Future<void> writeUser(Map<String, dynamic> user) => _storage.write(key: _user, value: jsonEncode(user));
+
+  @override
   Future<void> clear() async {
-    await _storage.delete(key: _access);
-    await _storage.delete(key: _refresh);
+    for (final key in const [_access, _refresh, _user]) {
+      await _storage.delete(key: key);
+    }
   }
 }
 
 /// In-memory store for tests.
 class MemoryTokenStore implements TokenStore {
   Tokens? _tokens;
+  Map<String, dynamic>? _user;
 
   @override
   Future<Tokens?> read() async => _tokens;
@@ -59,5 +81,14 @@ class MemoryTokenStore implements TokenStore {
   Future<void> write(Tokens tokens) async => _tokens = tokens;
 
   @override
-  Future<void> clear() async => _tokens = null;
+  Future<Map<String, dynamic>?> readUser() async => _user;
+
+  @override
+  Future<void> writeUser(Map<String, dynamic> user) async => _user = user;
+
+  @override
+  Future<void> clear() async {
+    _tokens = null;
+    _user = null;
+  }
 }

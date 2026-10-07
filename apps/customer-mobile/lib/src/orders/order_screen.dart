@@ -48,12 +48,12 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
       if (status == null || activeStatuses.contains(status)) ref.invalidate(trackingProvider(id));
     });
     _socket = ref.read(trackingSocketProvider);
-    _subs.add(_socket.on('rider:location').listen((e) {
+    _subs.add(_socket.onOrder('rider:location', id).listen((e) {
       final lat = optNum(e['lat']);
       final lng = optNum(e['lng']);
       if (lat != null && lng != null && mounted) setState(() => _riderLive = (lat: lat, lng: lng));
     }));
-    _subs.add(_socket.on('delivery:status').listen((_) {
+    _subs.add(_socket.onOrder('delivery:status', id).listen((_) {
       if (!mounted) return;
       ref.invalidate(trackingProvider(id));
       ref.invalidate(orderProvider(id));

@@ -451,8 +451,8 @@ class _GoesWellWith extends ConsumerWidget {
     final inCart = cart.lines.map((l) => l.menuItemId).toSet();
     final pairs = (ref.watch(pairingsProvider((outletId: o.id, itemIds: ids))).value ?? const <MenuItem>[])
         .where((i) => !inCart.contains(i.id) && i.isAvailable)
-        // suggestions carry no variants or add-ons; use the full menu item
-        .map((i) => menu.item(i.id) ?? i)
+        // older servers don't say whether a suggestion is customisable: use the menu's item
+        .map((i) => i.customisableFlag == null ? menu.item(i.id) ?? i : i)
         .take(4)
         .toList();
     if (pairs.isEmpty) return const SizedBox.shrink();
@@ -472,7 +472,8 @@ class _GoesWellWith extends ConsumerWidget {
                 subtitle: Text(money(i.price, whole: true)),
                 trailing: OutlinedButton(
                   style: OutlinedButton.styleFrom(minimumSize: const Size(64, 36)),
-                  onPressed: o.isOpenNow ? () => onAdd(i) : null,
+                  // the customise sheet needs the variants and add-ons from the menu
+                  onPressed: o.isOpenNow ? () => onAdd(i.customisable ? menu.item(i.id) ?? i : i) : null,
                   child: Semantics(label: 'Add ${i.name}', excludeSemantics: true, child: const Text('Add')),
                 ),
               ),

@@ -7,13 +7,13 @@ The FoodGrid customer app for Android and iOS. Customers find restaurants and fo
 | Area | What it does |
 | --- | --- |
 | Location | Pick a saved address, the device location or a popular Bengaluru area. The choice is kept on the device. Signed-in customers start from their default address. |
-| Home | Offer banners with deep links (`foodgrid://offers/CODE` opens the cart with the coupon, `collections/x` opens search, `outlets/slug` opens the outlet). "Order again" reorders straight into the cart. Rails for recommended, top rated and fastest places; a rail that repeats an earlier one is skipped. "All places near you" has type, pure veg, rating 4.0+ and open-now filters, six sort orders and infinite scroll. Closed places are dimmed and labelled "Closed now". Sponsored cards show "Ad" and report the click. |
+| Home | Offer banners with deep links (`foodgrid://offers/CODE` opens the cart with the coupon, `collections/x` opens search, `outlets/slug` opens the outlet). "Order again" reorders straight into the cart. Rails for recommended, top rated and fastest places; a rail that repeats an earlier one is skipped. "All places near you" has type, pure veg, rating 4.0+ and open-now filters, six sort orders and infinite scroll. Closed places (`isOpenNow` false: switched off or outside their hours) are dimmed and labelled "Closed now". Sponsored cards show "Ad" and report the click. |
 | Search | Suggestions (restaurants, cuisines, dishes) as you type, with a debounce; results show places and dishes. |
-| Outlet | Menu with rating, distance, cost for two, and a closed notice with the next opening time (IST). Offers show when signed in. Veg-only toggle, in-menu search and a "Menu" jump list. A customisation sheet handles variants and add-on groups (min/max rules, live price). Add, steppers and remove all update the server cart; switching restaurants asks first and retries with `replace: true`. "Goes well with" suggestions. Tabs for reviews, meal plans (subscribe, then pay) and info (hours, FSSAI, GSTIN, call). |
-| Cart and checkout | Delivery or takeaway, addresses and a new-address form (pin from the device or the area), tips, coupons, and payment by UPI, card, net banking, wallet (shows the balance; disabled when too low) or cash on delivery (delivery only). The live bill comes from `POST cart/quote`: a waived delivery fee shows struck through with "FREE", and unserviceable addresses, the minimum order and a closed kitchen show as blockers. Placing the order uses an Idempotency-Key, then payment, then tracking. |
+| Outlet | Menu with rating, distance, cost for two, and a closed notice with the next opening time (IST). Offers show when signed in. Veg-only toggle, in-menu search and a "Menu" jump list. A customisation sheet handles variants and add-on groups (min/max rules, live price). Add, steppers and remove all update the server cart; switching restaurants asks first and retries with `replace: true`. "Goes well with" suggestions: plain dishes add at once, ones the server marks `customisable` open the sheet. Tabs for reviews, meal plans (subscribe, then pay) and info (hours, FSSAI, GSTIN, call). |
+| Cart and checkout | Delivery or takeaway, addresses and a new-address form (pin from the device or the area), tips, coupons (a refused code shows the server's reason in the sheet), and payment by UPI, card, net banking, wallet (shows the balance; disabled when too low) or cash on delivery (delivery only). The live bill comes from `POST cart/quote`: a waived delivery fee shows struck through with "FREE", and unserviceable addresses, the minimum order and a closed kitchen show as blockers. Placing the order uses an Idempotency-Key, then payment, then tracking. |
 | Payments | A wallet payment that is captured straight away needs nothing more. In the sandbox, a sheet lets you simulate the bank's answer. Otherwise Razorpay Checkout opens, followed by `payments/verify`. The checkout keeps a snapshot of the cart until payment ends, so the payment UI is never torn down. |
 | Orders | History with infinite scroll, status chips, track, reorder and rate. |
-| Tracking | Status, ETA and the delivery OTP. An OpenStreetMap map shows the restaurant, you, and the rider's live pin (Socket.IO `rider:location`); the screen also polls every 10 s while the order is active. A timeline runs from placed to delivered. You can call the rider or the restaurant, cancel while pending payment or placed, retry a pending payment, and review once delivered. |
+| Tracking | Status, ETA (none once `etaMins` is null) and the delivery OTP. An OpenStreetMap map shows the restaurant, you, and the rider's live pin (Socket.IO `rider:location` for this order); the screen also polls every 10 s while the order is active. A timeline runs from placed to delivered. You can call the rider or the restaurant, cancel while pending payment or placed, retry a pending payment, and review once delivered. |
 | Wallet | Balance, top-up through UPI, and a paged statement. |
 | FoodGrid One | Plans, your current membership with savings, and join, extend or switch (payment purpose `MEMBERSHIP`). |
 | Meal plans | Progress, skip days from tomorrow onwards, and cancel. |
@@ -39,7 +39,7 @@ lib/
   src/wallet/  src/membership/  src/meal_plans/  src/account/  src/notifications/  src/table/
 ```
 
-The app uses Riverpod 3 without code generation (`Provider`, `FutureProvider(.family)`, `Notifier` and `AsyncNotifier`), go_router 18 and plain Dart models with `fromJson`. The server decides money values; they arrive as decimal strings and are shown with `money()` (Indian grouping). All times are shown in IST.
+The app uses Riverpod 3 without code generation (`Provider`, `FutureProvider(.family)`, `Notifier` and `AsyncNotifier`) with the core retry policy (`retryTransientErrors`), go_router 18 with routes declared through `materialRoute` from `foodgrid_core` (see its README for why), and plain Dart models with `fromJson`. The server decides money values; they arrive as decimal strings and are shown with `money()` (Indian grouping). All times are shown in IST.
 
 ## Running
 
@@ -107,15 +107,15 @@ The tests pump the whole app (router, theme, providers) inside a `ProviderScope`
 
 - `apiClientProvider` uses an `ApiClient` whose Dio has a fake `HttpClientAdapter` (`FakeApi` in `test/support.dart`). It answers registered routes and records every request.
 - `tokenStoreProvider` uses `MemoryTokenStore`. A signed-in run stores an unsigned test JWT and fakes `auth/me`.
-- `trackingSocketProvider` uses a socket that never connects; tests push events into it.
+- `socketTransportProvider` uses the core `FakeSocketTransport`: tests read what the app sent (`order:subscribe`) and play server events (`receive('rider:location', …)`) through the real `TrackingSocket`.
 - `localStoreProvider` stores values in memory, `paymentGatewayProvider` throws if Razorpay is opened, and `mapTileUrlProvider` is `null`, so no tiles are fetched.
 
 Coverage:
 
-- `home_test.dart`: banners, rails (duplicate rail skipped), nearby outlets from a fake page, the "Closed now" and "Ad" labels, filters, ad-click reporting, and area choice persisted.
-- `outlet_test.dart`: a plain add (exact `POST cart/items` body), a customised add (variant, add-ons, live price), outlet mismatch followed by a `replace` retry, signed-out to sign-in, and a closed outlet.
-- `checkout_test.dart`: the bill with the waived delivery fee struck through, the quote body and re-quote on tip, the closed-kitchen blocker, and place order → sandbox payment → tracking screen (it also asserts the cart is not refetched while paying), plus a failed payment that leads to retry and cancel.
-- `tracking_test.dart`: status, ETA, delivery OTP, rider, map and timeline; the live rider pin over the socket; polling; cancel with a reason; the review body.
+- `home_test.dart`: banners, rails (duplicate rail skipped), nearby outlets from a fake page, the "Closed now" label from `isOpenNow`, the "Ad" label, filters, ad-click reporting, and area choice persisted.
+- `outlet_test.dart`: a plain add (exact `POST cart/items` body), a customised add (variant, add-ons, live price), outlet mismatch followed by a `replace` retry, signed-out to sign-in, a closed outlet, and suggestions added by their `customisable` flag.
+- `checkout_test.dart`: the bill with the waived delivery fee struck through, the quote body and re-quote on tip, the closed-kitchen blocker, and place order → sandbox payment → tracking screen (it also asserts the cart is not refetched while paying), plus a failed payment that leads to retry and cancel, and a refused coupon's reason.
+- `tracking_test.dart`: status, ETA, delivery OTP, rider, map and timeline; the live rider pin over the socket (other orders' pins ignored); polling; no ETA when `etaMins` is null; cancel with a reason; the review body.
 - `table_test.dart`: QR order body and idempotency key, `409 OUTLET_CLOSED` shown, pay-now requiring sign-in, and an unknown table.
 - `signin_test.dart`: OTP sign-in from a guarded page, then back to that page; sign-out.
 - `logic_test.dart`: deep-link mapping, table-token parsing, next opening time in IST, unit price, and the session redirect.

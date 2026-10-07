@@ -23,8 +23,8 @@ class Bill extends StatelessWidget {
     final waived = waivedDeliveryFee ?? 0;
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       KeyValueRow('Item total', money(p.subtotal)),
-      if (p.couponDiscount > 0) KeyValueRow('Coupon discount', '−${money(p.couponDiscount)}', valueStyle: saving),
-      if (p.membershipDiscount > 0) KeyValueRow(member ? 'FoodGrid One discount' : 'Membership discount', '−${money(p.membershipDiscount)}', valueStyle: saving),
+      if (p.couponDiscount > 0) KeyValueRow('Coupon discount', money(-p.couponDiscount), valueStyle: saving),
+      if (p.membershipDiscount > 0) KeyValueRow(member ? 'FoodGrid One discount' : 'Membership discount', money(-p.membershipDiscount), valueStyle: saving),
       if (delivery)
         if (p.deliveryFee == 0 && waived > 0)
           Semantics(
@@ -47,7 +47,7 @@ class Bill extends StatelessWidget {
       if (p.platformFee > 0) KeyValueRow('Platform fee', money(p.platformFee)),
       if (p.igst > 0) KeyValueRow('IGST', money(p.igst)) else if (p.taxTotal > 0) KeyValueRow('GST (CGST + SGST)', money(p.cgst + p.sgst)),
       if (p.tip > 0) KeyValueRow('Rider tip', money(p.tip)),
-      if (p.roundOff != 0) KeyValueRow('Round off', '${p.roundOff < 0 ? '−' : ''}${money(p.roundOff.abs())}'),
+      if (p.roundOff != 0) KeyValueRow('Round off', money(p.roundOff)),
       const Divider(),
       KeyValueRow('To pay', money(p.total), strong: true),
       if (p.savings > 0)

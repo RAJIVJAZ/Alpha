@@ -172,6 +172,7 @@ class MenuItem {
     this.spiceLevel,
     this.variants = const [],
     this.addonGroups = const [],
+    this.customisableFlag,
   });
 
   final String id;
@@ -189,6 +190,10 @@ class MenuItem {
   final List<Variant> variants;
   final List<AddonGroup> addonGroups;
 
+  /// `customisable` as sent with suggestions (recommendations/dishes), which
+  /// carry no variants or add-ons; null when the server didn't say.
+  final bool? customisableFlag;
+
   factory MenuItem.fromJson(Json j) => MenuItem(
         id: str(j['id']),
         categoryId: str(j['categoryId']),
@@ -204,10 +209,11 @@ class MenuItem {
         spiceLevel: optInt(j['spiceLevel']),
         variants: listOf(j['variants'], Variant.fromJson),
         addonGroups: listOf(j['addonGroups'], AddonGroup.fromJson),
+        customisableFlag: j['customisable'] is bool ? j['customisable'] as bool : null,
       );
 
   /// Has a size to pick or add-ons to choose.
-  bool get customisable => variants.length > 1 || addonGroups.any((g) => g.addons.isNotEmpty);
+  bool get customisable => customisableFlag ?? (variants.length > 1 || addonGroups.any((g) => g.addons.isNotEmpty));
 
   bool get bestseller => tags.contains('bestseller');
 

@@ -18,7 +18,3 @@ class CustomerApp extends ConsumerWidget {
     );
   }
 }
-
-/// Riverpod retries: only network failures, twice (4xx answers will not change).
-Duration? retryNetworkErrors(int retryCount, Object error) =>
-    error is ApiException && error.isNetwork && retryCount < 2 ? Duration(milliseconds: 800 * (retryCount + 1)) : null;

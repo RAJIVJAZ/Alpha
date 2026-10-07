@@ -156,10 +156,13 @@ FakeBackend baseBackend({Map<String, dynamic>? user, List<Map<String, dynamic>>?
 }
 
 class TestApp {
-  TestApp(this.backend, this.tokens, this.alerter, this.container);
+  TestApp(this.backend, this.tokens, this.alerter, this.socket, this.container);
   final FakeBackend backend;
   final MemoryTokenStore tokens;
   final RecordingAlerter alerter;
+
+  /// The tracking socket's wire: what the app sent, and server events to play.
+  final FakeSocketTransport socket;
   final ProviderContainer container;
 }
 
@@ -172,6 +175,7 @@ Future<TestApp> pumpMerchantApp(WidgetTester tester, FakeBackend backend, {Strin
   final tokens = MemoryTokenStore();
   await tokens.write(Tokens(accessToken ?? merchantToken(), 'refresh-1'));
   final alerter = RecordingAlerter();
+  final socket = FakeSocketTransport();
   final dio = Dio()..httpClientAdapter = backend;
   final refreshDio = Dio()..httpClientAdapter = backend;
 
@@ -184,12 +188,13 @@ Future<TestApp> pumpMerchantApp(WidgetTester tester, FakeBackend backend, {Strin
       outletStoreProvider.overrideWithValue(MemoryOutletStore(savedOutlets)),
       appTimingsProvider.overrideWithValue(AppTimings.none),
       orderAlerterProvider.overrideWithValue(alerter),
+      socketTransportProvider.overrideWithValue(socket),
     ],
     child: const MerchantApp(),
   ));
   await tester.pumpAndSettle();
   final container = ProviderScope.containerOf(tester.element(find.byType(MerchantApp)));
-  return TestApp(backend, tokens, alerter, container);
+  return TestApp(backend, tokens, alerter, socket, container);
 }
 
 /// Taps a bottom navigation destination by label.

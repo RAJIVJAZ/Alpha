@@ -189,8 +189,6 @@ class SignOutButton extends ConsumerWidget {
             // signing out never depends on the network
           }
           await container.read(sessionProvider.notifier).signOut();
-          // the socket was authenticated as this rider; the next one starts fresh
-          container.invalidate(trackingSocketProvider);
         },
       );
 }

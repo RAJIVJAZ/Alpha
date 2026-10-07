@@ -25,7 +25,7 @@ final ingredientsProvider = FutureProvider.autoDispose.family<List<Ingredient>, 
     'category': other ? null : f.category,
     'status': f.status,
     'q': f.q,
-    'pageSize': 100, // the API's maximum page size
+    'pageSize': 500, // the API's maximum page size
   });
   final rows = [for (final j in rowsOf(r)) Ingredient.fromJson(j)];
   return other ? [for (final i in rows) if (!namedInventoryCategories.contains(i.category)) i] : rows;

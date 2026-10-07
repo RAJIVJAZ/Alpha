@@ -151,4 +151,53 @@ void main() {
     await refreshBoard(tester, app);
     expect(app.alerter.alerts, [1]);
   });
+
+  testWidgets("the server's own 403 wording is shown when it sends one", (tester) async {
+    final backend = baseBackend();
+    backend.get('/merchant/orders', page([orderJson('p1', 'ORD-1001', 'PLACED', type: 'TAKEAWAY')]));
+    backend.post('/merchant/orders/p1/reject', {
+      'statusCode': 403,
+      'code': 'PERMISSION_DENIED',
+      'message': "Your role can't manage orders. Ask the business owner for access.",
+      'details': ['orders:manage'],
+    }, status: 403);
+    await pumpMerchantApp(tester, backend);
+
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Reject'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Kitchen too busy'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Reject order'));
+    await tester.pumpAndSettle();
+
+    expect(find.text("Your role can't manage orders. Ask the business owner for access."), findsOneWidget);
+  });
+
+  testWidgets("the outlet's socket room refreshes the board at once: order:new chimes, order:status moves it", (tester) async {
+    final backend = baseBackend();
+    final app = await pumpMerchantApp(tester, backend);
+    expect(app.socket.sentAs('outlet:subscribe'), [
+      {'outletId': 'o1'},
+    ]);
+    final polls = backend.callsTo('GET', '/merchant/orders').length;
+
+    backend.get('/merchant/orders', page([orderJson('n1', 'ORD-2001', 'PLACED')]));
+    app.socket.receive('order:new', {'orderId': 'n1', 'orderNumber': 'ORD-2001', 'outletId': 'o1', 'status': 'PLACED', 'total': '511.00', 'placedAt': '2026-10-07T10:00:00Z'});
+    await tester.pumpAndSettle();
+    expect(backend.callsTo('GET', '/merchant/orders').length, polls + 2); // active + done today
+    expect(app.alerter.alerts, [1]);
+    expect(find.text('New order ORD-2001'), findsOneWidget);
+
+    // another outlet's order is not ours
+    app.socket.receive('order:new', {'orderId': 'x9', 'orderNumber': 'ORD-9', 'outletId': 'o2', 'status': 'PLACED'});
+    await tester.pumpAndSettle();
+    expect(backend.callsTo('GET', '/merchant/orders').length, polls + 2);
+
+    backend.get('/merchant/orders', page([orderJson('n1', 'ORD-2001', 'ACCEPTED')]));
+    app.socket.receive('order:status', {'orderId': 'n1', 'orderNumber': 'ORD-2001', 'outletId': 'o1', 'status': 'ACCEPTED'});
+    await tester.pumpAndSettle();
+    expect(find.bySemanticsLabel(RegExp(r'^New, 0\b')), findsOneWidget);
+    expect(find.bySemanticsLabel(RegExp(r'^Preparing, 1\b')), findsOneWidget);
+    expect(app.alerter.alerts, [1]);
+  });
 }

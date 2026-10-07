@@ -123,21 +123,20 @@ class _InventoryPageState extends ConsumerState<InventoryPage> {
               ]),
             ),
           ),
-          ...switch (list) {
-            AsyncData(:final value) when value.isEmpty => [
-                const SliverFillRemaining(hasScrollBody: false, child: EmptyView(icon: Icons.inventory_2_outlined, title: 'No ingredients match', message: 'Try another category or status.')),
-              ],
-            AsyncValue(:final value?) => [
-                SliverList.separated(
-                  itemCount: value.length,
-                  separatorBuilder: (_, _) => const Divider(height: 1),
-                  itemBuilder: (_, i) => _IngredientTile(ingredient: value[i], canManage: canManage, onChanged: _refresh),
-                ),
-                const SliverToBoxAdapter(child: SizedBox(height: 24)),
-              ],
-            AsyncError(:final error) => [SliverFillRemaining(hasScrollBody: false, child: ErrorView(error: describeError(error), onRetry: _refresh))],
-            _ => [const SliverFillRemaining(hasScrollBody: false, child: Center(child: CircularProgressIndicator()))],
-          },
+          AsyncView.sliver(
+            value: list,
+            onRetry: _refresh,
+            data: (value) => value.isEmpty
+                ? const SliverFillRemaining(hasScrollBody: false, child: EmptyView(icon: Icons.inventory_2_outlined, title: 'No ingredients match', message: 'Try another category or status.'))
+                : SliverPadding(
+                    padding: const EdgeInsets.only(bottom: 24),
+                    sliver: SliverList.separated(
+                      itemCount: value.length,
+                      separatorBuilder: (_, _) => const Divider(height: 1),
+                      itemBuilder: (_, i) => _IngredientTile(ingredient: value[i], canManage: canManage, onChanged: _refresh),
+                    ),
+                  ),
+          ),
         ]),
       ),
     );

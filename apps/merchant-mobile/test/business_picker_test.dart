@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:foodgrid_core/foodgrid_core.dart';
 import 'package:merchant_mobile/features/auth/authorize.dart';
@@ -24,8 +25,11 @@ void main() {
   testWidgets('the picker lists eligible businesses and switches with switch-tenant', (tester) async {
     final backend = baseBackend(user: userJson(memberships: [for (final m in _memberships) {...m}]));
     final switched = merchantToken(tenantId: 't2', tenantType: 'FOOD_CART', role: 'MANAGER');
-    // auth-service answers with a flat access token and keeps the refresh token
-    backend.post('/auth/switch-tenant', {'accessToken': switched, 'expiresIn': 900, 'tokenType': 'Bearer', 'user': userJson(memberships: [for (final m in _memberships) {...m}])});
+    // the login shape, with the refresh token rotated into the same session
+    backend.post('/auth/switch-tenant', {
+      'tokens': {'accessToken': switched, 'refreshToken': 'refresh-2', 'expiresIn': 900, 'tokenType': 'Bearer'},
+      'user': userJson(memberships: [for (final m in _memberships) {...m}]),
+    });
     backend.get('/merchant/outlets', [outletJson(id: 'c1', name: 'Momo Wagon - Koramangala', type: 'FOOD_CART')]);
     final app = await pumpMerchantApp(tester, backend, accessToken: _noTenantToken);
 
@@ -41,7 +45,7 @@ void main() {
     expect(backend.lastBody('POST', '/auth/switch-tenant'), {'tenantId': 't2'});
     final tokens = await app.tokens.read();
     expect(tokens!.accessToken, switched);
-    expect(tokens.refreshToken, 'refresh-1');
+    expect(tokens.refreshToken, 'refresh-2');
     // session reloaded with the new business; its only outlet opens straight away
     expect(backend.callsTo('GET', '/auth/me').length, greaterThanOrEqualTo(2));
     expect(find.text('Momo Wagon - Koramangala'), findsOneWidget);
@@ -50,6 +54,7 @@ void main() {
 
   testWidgets('a single eligible business opens automatically', (tester) async {
     final backend = baseBackend(user: userJson(memberships: [{..._memberships[0]}, {..._memberships[2]}]));
+    // an older auth-service: a bare access token, the refresh token kept
     backend.post('/auth/switch-tenant', {'accessToken': merchantToken(), 'expiresIn': 900, 'tokenType': 'Bearer'});
     await pumpMerchantApp(tester, backend, accessToken: _noTenantToken);
 
@@ -78,5 +83,26 @@ void main() {
     expect(find.text('Closed: not taking new orders'), findsOneWidget);
     final orderQueries = backend.callsTo('GET', '/merchant/orders');
     expect(orderQueries.last.queryParameters['outletId'], 'o2');
+  });
+
+  testWidgets('sign-in refuses an account with no restaurant or food cart', (tester) async {
+    final backend = baseBackend(user: userJson(memberships: [{..._memberships[2]}]));
+    backend.post('/auth/password', {
+      'tokens': {'accessToken': _noTenantToken, 'refreshToken': 'r-9'},
+    });
+    backend.post('/auth/logout', {});
+    final app = await pumpMerchantApp(tester, backend);
+    await app.tokens.clear();
+    await app.container.read(sessionProvider.notifier).signOut();
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.widgetWithText(TextField, 'Email'), 'owner@cowberry.demo');
+    await tester.enterText(find.widgetWithText(TextField, 'Password'), 'FoodGrid@2026');
+    await tester.tap(find.text('Sign in'));
+    await tester.pumpAndSettle();
+
+    expect(find.text(notMerchantMessage), findsOneWidget);
+    expect(await app.tokens.read(), isNull);
+    expect(find.text('Choose business'), findsNothing);
   });
 }

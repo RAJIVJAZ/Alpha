@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:uuid/uuid.dart';
 
+import '../auth/claims.dart';
 import '../auth/token_store.dart';
 import '../config.dart';
 import 'api_exception.dart';
@@ -90,6 +91,15 @@ class ApiClient {
     return c.future;
   }
 
+  /// A live access token for other channels (the tracking socket), renewed
+  /// first when it is about to expire; null when signed out.
+  Future<String?> accessToken() async {
+    final t = await tokens.read();
+    if (t == null) return null;
+    if (Claims.fromToken(t.accessToken)?.isExpired() ?? false) return (await refresh())?.accessToken;
+    return t.accessToken;
+  }
+
   Future<T> _send<T>(String method, String path, {Object? body, Map<String, dynamic>? query, String? idempotencyKey, bool auth = true}) async {
     try {
       final res = await _dio.request<dynamic>(
@@ -129,9 +139,9 @@ class ApiClient {
   }
 }
 
-/// Paginated list envelope used by the services.
-class Page<T> {
-  const Page(this.data, {required this.page, required this.totalPages, required this.total});
+/// Paginated list envelope used by the services (`{data, meta}`).
+class PagedResult<T> {
+  const PagedResult(this.data, {required this.page, required this.totalPages, required this.total});
 
   final List<T> data;
   final int page;
@@ -140,10 +150,10 @@ class Page<T> {
 
   bool get hasMore => page < totalPages;
 
-  static Page<T> fromJson<T>(Object? json, T Function(Map<String, dynamic>) item) {
+  static PagedResult<T> fromJson<T>(Object? json, T Function(Map<String, dynamic>) item) {
     final m = json as Map<String, dynamic>;
     final meta = (m['meta'] as Map?) ?? const {};
-    return Page(
+    return PagedResult(
       [for (final e in (m['data'] as List)) item(e as Map<String, dynamic>)],
       page: (meta['page'] as num?)?.toInt() ?? 1,
       totalPages: (meta['totalPages'] as num?)?.toInt() ?? 1,

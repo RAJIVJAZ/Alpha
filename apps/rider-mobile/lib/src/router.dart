@@ -26,7 +26,7 @@ class RiderLoginScreen extends StatelessWidget {
 
 /// Where the session says the rider should be, or null to stay at [location].
 String? sessionRedirect(AsyncValue<Session?> session, String location) {
-  if (session.isLoading && !session.hasValue) return location == '/splash' ? null : '/splash';
+  if (session.isRestoring) return location == '/splash' ? null : '/splash';
   final s = session.value;
   final signedIn = s != null && authorizeRider(s.claims) == null;
   if (!signedIn) return location == '/login' ? null : '/login';
@@ -43,16 +43,16 @@ final routerProvider = Provider<GoRouter>((ref) {
     refreshListenable: refresh,
     redirect: (context, state) => sessionRedirect(ref.read(sessionProvider), state.matchedLocation),
     routes: [
-      GoRoute(path: '/splash', builder: (_, _) => const SplashView()),
-      GoRoute(path: '/login', builder: (_, _) => const RiderLoginScreen()),
+      materialRoute('/splash', (_, _) => const SplashView()),
+      materialRoute('/login', (_, _) => const RiderLoginScreen()),
       StatefulShellRoute.indexedStack(
-        builder: (context, state, shell) => HomeShell(shell: shell),
+        pageBuilder: (context, state, shell) => materialPage(state, HomeShell(shell: shell)),
         branches: [
-          StatefulShellBranch(routes: [GoRoute(path: '/duty', builder: (_, _) => const DutyScreen())]),
-          StatefulShellBranch(routes: [GoRoute(path: '/earnings', builder: (_, _) => const EarningsScreen())]),
-          StatefulShellBranch(routes: [GoRoute(path: '/performance', builder: (_, _) => const PerformanceScreen())]),
-          StatefulShellBranch(routes: [GoRoute(path: '/demand', builder: (_, _) => const DemandScreen())]),
-          StatefulShellBranch(routes: [GoRoute(path: '/trips', builder: (_, _) => const TripsScreen())]),
+          StatefulShellBranch(routes: [materialRoute('/duty', (_, _) => const DutyScreen())]),
+          StatefulShellBranch(routes: [materialRoute('/earnings', (_, _) => const EarningsScreen())]),
+          StatefulShellBranch(routes: [materialRoute('/performance', (_, _) => const PerformanceScreen())]),
+          StatefulShellBranch(routes: [materialRoute('/demand', (_, _) => const DemandScreen())]),
+          StatefulShellBranch(routes: [materialRoute('/trips', (_, _) => const TripsScreen())]),
         ],
       ),
     ],

@@ -1,40 +1,15 @@
-import 'dart:convert';
-import 'dart:typed_data';
-
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:foodgrid_core/foodgrid_core.dart';
 
-String _jwt(Map<String, dynamic> claims) {
-  String part(Object o) => base64Url.encode(utf8.encode(jsonEncode(o))).replaceAll('=', '');
-  return '${part({'alg': 'none'})}.${part(claims)}.sig';
-}
-
-/// Answers requests from a handler and records them.
-class FakeAdapter implements HttpClientAdapter {
-  FakeAdapter(this.handler);
-  final Future<(int, Object?)> Function(RequestOptions o) handler;
-  final calls = <RequestOptions>[];
-
-  @override
-  Future<ResponseBody> fetch(RequestOptions options, Stream<Uint8List>? requestStream, Future<void>? cancelFuture) async {
-    calls.add(options);
-    final (status, body) = await handler(options);
-    return ResponseBody.fromString(jsonEncode(body), status, headers: {
-      Headers.contentTypeHeader: [Headers.jsonContentType],
-    });
-  }
-
-  @override
-  void close({bool force = false}) {}
-}
+import 'support.dart';
 
 void main() {
-  const config = AppConfig(app: ClientApp.customer, apiUrl: 'http://api.test/api/v1');
+  const config = testConfig;
 
   test('claims decode roles, tenant and expiry from an access token', () {
     final exp = DateTime.now().add(const Duration(minutes: 15)).millisecondsSinceEpoch ~/ 1000;
-    final c = Claims.fromToken(_jwt({'sub': 'u1', 'roles': ['CUSTOMER', 'RIDER'], 'tenantType': 'RESTAURANT', 'exp': exp}))!;
+    final c = Claims.fromToken(jwt({'sub': 'u1', 'roles': ['CUSTOMER', 'RIDER'], 'tenantType': 'RESTAURANT', 'exp': exp}))!;
     expect(c.sub, 'u1');
     expect(c.hasRole('RIDER'), isTrue);
     expect(c.tenantType, 'RESTAURANT');
@@ -96,5 +71,29 @@ void main() {
     await client.get<dynamic>('outlets/nearby', query: {'lat': 12.9, 'type': null, 'q': ''});
     expect(adapter.calls[0].headers['idempotency-key'], 'k-1');
     expect(adapter.calls[1].queryParameters, {'lat': 12.9});
+  });
+
+  test('paged envelopes parse rows and meta', () {
+    final p = PagedResult.fromJson({
+      'data': [
+        {'id': 'a'},
+        {'id': 'b'},
+      ],
+      'meta': {'page': 2, 'pageSize': 2, 'total': 7, 'totalPages': 4},
+    }, (j) => j['id'] as String);
+    expect(p.data, ['a', 'b']);
+    expect((p.page, p.totalPages, p.total, p.hasMore), (2, 4, 7, true));
+
+    final last = PagedResult.fromJson({'data': <Object>[]}, (j) => j);
+    expect((last.page, last.totalPages, last.total, last.hasMore), (1, 1, 0, false));
+  });
+
+  test('accessToken renews an expired token first', () async {
+    final store = MemoryTokenStore();
+    final expired = jwt({'sub': 'u1', 'exp': DateTime.now().subtract(const Duration(minutes: 1)).millisecondsSinceEpoch ~/ 1000});
+    await store.write(Tokens(expired, 'r1'));
+    final client = fakeClient(routes({'POST /auth/refresh': (_) => {'tokens': {'accessToken': 'fresh', 'refreshToken': 'r2'}}}), store);
+    expect(await client.accessToken(), 'fresh');
+    expect(await fakeClient(routes({}), MemoryTokenStore()).accessToken(), isNull);
   });
 }

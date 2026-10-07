@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:foodgrid_core/foodgrid_core.dart' hide Page;
+import 'package:foodgrid_core/foodgrid_core.dart';
 import 'package:go_router/go_router.dart';
 
 import '../account/account_screen.dart';
@@ -36,7 +36,7 @@ bool requiresSignIn(String path) => _private.any((p) => path == p || path.starts
 /// Splash while the stored session is restored, then sign-in for private pages.
 String? sessionRedirect(AsyncValue<Session?> session, Uri uri) {
   final path = uri.path;
-  if (session.isLoading && !session.hasValue) {
+  if (session.isRestoring) {
     return path == '/splash' ? null : Uri(path: '/splash', queryParameters: {'from': uri.toString()}).toString();
   }
   if (path == '/splash') return uri.queryParameters['from'] ?? '/';
@@ -44,10 +44,6 @@ String? sessionRedirect(AsyncValue<Session?> session, Uri uri) {
   if (!signedIn && requiresSignIn(path)) return Uri(path: '/login', queryParameters: {'from': uri.toString()}).toString();
   return null;
 }
-
-Page<void> _page(GoRouterState state, Widget child) => MaterialPage<void>(key: state.pageKey, name: state.uri.path, child: child);
-
-GoRoute _route(String path, Widget Function(GoRouterState s) build) => GoRoute(path: path, pageBuilder: (context, state) => _page(state, build(state)));
 
 final routerProvider = Provider<GoRouter>((ref) {
   final refresh = ValueNotifier<int>(0);
@@ -57,30 +53,30 @@ final routerProvider = Provider<GoRouter>((ref) {
     initialLocation: ref.read(initialLocationProvider),
     refreshListenable: refresh,
     redirect: (context, state) => sessionRedirect(ref.read(sessionProvider), state.uri),
-    errorPageBuilder: (context, state) => _page(state, const NotFoundScreen()),
+    errorPageBuilder: (context, state) => materialPage(state, const NotFoundScreen()),
     routes: [
-      _route('/splash', (s) => const SplashView()),
-      _route('/login', (s) => SignInScreen(from: s.uri.queryParameters['from'])),
+      materialRoute('/splash', (_, _) => const SplashView()),
+      materialRoute('/login', (_, s) => SignInScreen(from: s.uri.queryParameters['from'])),
       // pages above the tabs; listed first so /orders/:id wins over the Orders tab
-      _route('/outlets/:slug', (s) => OutletScreen(slug: s.pathParameters['slug']!)),
-      _route('/cart', (s) => CheckoutScreen(coupon: s.uri.queryParameters['coupon'])),
-      _route('/orders/:id', (s) => OrderScreen(orderId: s.pathParameters['id']!, rate: s.uri.queryParameters['rate'] == '1')),
-      _route('/wallet', (s) => const WalletScreen()),
-      _route('/membership', (s) => const MembershipScreen()),
-      _route('/meal-plans', (s) => const MealPlansScreen()),
-      _route('/notifications', (s) => const NotificationsScreen()),
-      _route('/account/profile', (s) => const ProfileScreen()),
-      _route('/account/addresses', (s) => const AddressesScreen()),
-      _route('/account/preferences', (s) => const PreferencesScreen()),
-      _route('/scan', (s) => const ScanScreen()),
-      _route('/t/:token', (s) => TableScreen(token: s.pathParameters['token']!)),
+      materialRoute('/outlets/:slug', (_, s) => OutletScreen(slug: s.pathParameters['slug']!)),
+      materialRoute('/cart', (_, s) => CheckoutScreen(coupon: s.uri.queryParameters['coupon'])),
+      materialRoute('/orders/:id', (_, s) => OrderScreen(orderId: s.pathParameters['id']!, rate: s.uri.queryParameters['rate'] == '1')),
+      materialRoute('/wallet', (_, _) => const WalletScreen()),
+      materialRoute('/membership', (_, _) => const MembershipScreen()),
+      materialRoute('/meal-plans', (_, _) => const MealPlansScreen()),
+      materialRoute('/notifications', (_, _) => const NotificationsScreen()),
+      materialRoute('/account/profile', (_, _) => const ProfileScreen()),
+      materialRoute('/account/addresses', (_, _) => const AddressesScreen()),
+      materialRoute('/account/preferences', (_, _) => const PreferencesScreen()),
+      materialRoute('/scan', (_, _) => const ScanScreen()),
+      materialRoute('/t/:token', (_, s) => TableScreen(token: s.pathParameters['token']!)),
       StatefulShellRoute.indexedStack(
-        pageBuilder: (context, state, shell) => _page(state, AppShell(shell: shell)),
+        pageBuilder: (context, state, shell) => materialPage(state, AppShell(shell: shell)),
         branches: [
-          StatefulShellBranch(routes: [_route('/', (s) => const HomeScreen())]),
-          StatefulShellBranch(routes: [_route('/search', (s) => SearchScreen(query: s.uri.queryParameters['q']))]),
-          StatefulShellBranch(routes: [_route('/orders', (s) => const OrdersScreen())]),
-          StatefulShellBranch(routes: [_route('/account', (s) => const AccountScreen())]),
+          StatefulShellBranch(routes: [materialRoute('/', (_, _) => const HomeScreen())]),
+          StatefulShellBranch(routes: [materialRoute('/search', (_, s) => SearchScreen(query: s.uri.queryParameters['q']))]),
+          StatefulShellBranch(routes: [materialRoute('/orders', (_, _) => const OrdersScreen())]),
+          StatefulShellBranch(routes: [materialRoute('/account', (_, _) => const AccountScreen())]),
         ],
       ),
     ],

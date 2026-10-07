@@ -4,8 +4,6 @@ import 'package:foodgrid_core/foodgrid_core.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/errors.dart';
-import '../../core/permissions.dart';
-import '../../core/tenant_switch.dart';
 import 'authorize.dart';
 
 /// Picks the active business when the token has none (several memberships)
@@ -21,8 +19,6 @@ class BusinessPickerPage extends ConsumerStatefulWidget {
 class _BusinessPickerPageState extends ConsumerState<BusinessPickerPage> {
   String? _opening;
   bool _autoTried = false;
-  bool _checking = false;
-  Object? _checkError;
 
   Future<void> _open(Membership m) async {
     final current = ref.read(sessionProvider).value?.claims.tenantId;
@@ -36,7 +32,7 @@ class _BusinessPickerPageState extends ConsumerState<BusinessPickerPage> {
     }
     setState(() => _opening = m.tenantName);
     try {
-      await ref.read(tenantSwitcherProvider).switchTo(m.tenantId);
+      await ref.read(authRepositoryProvider).switchTenant(m.tenantId);
       await ref.read(sessionProvider.notifier).reload();
       // the router sends this on to the outlet picker or the board once outlets load
       if (mounted) context.go('/splash');
@@ -47,29 +43,17 @@ class _BusinessPickerPageState extends ConsumerState<BusinessPickerPage> {
     }
   }
 
-  /// Memberships can be missing when the app started offline; re-check
-  /// with the server before deciding the account has no business.
-  Future<void> _checkMemberships() async {
-    setState(() => (_checking = true, _checkError = null));
-    try {
-      final user = await ref.read(authRepositoryProvider).me();
-      if (user.memberships.any((m) => isMerchantTenant(m.tenantType))) {
-        await ref.read(sessionProvider.notifier).reload();
-      } else {
-        ref.read(loginNoticeProvider.notifier).show(notMerchantMessage);
-        await ref.read(sessionProvider.notifier).signOut();
-      }
-    } catch (e) {
-      if (mounted) setState(() => _checkError = e);
-    } finally {
-      if (mounted) setState(() => _checking = false);
-    }
+  /// The business was removed since the last sign-in (sign-in itself refuses
+  /// accounts without one; offline, the session keeps the last memberships).
+  Future<void> _noBusiness() async {
+    ref.read(loginNoticeProvider.notifier).show(notMerchantMessage);
+    await ref.read(sessionProvider.notifier).signOut();
   }
 
   @override
   Widget build(BuildContext context) {
     final session = ref.watch(sessionProvider).value;
-    final eligible = eligibleMemberships(session);
+    final eligible = eligibleMemberships(session?.user.memberships ?? const []);
     final currentId = session?.claims.tenantId;
 
     if (session != null && !_autoTried) {
@@ -77,17 +61,13 @@ class _BusinessPickerPageState extends ConsumerState<BusinessPickerPage> {
       if (eligible.length == 1 && eligible.first.tenantId != currentId) {
         WidgetsBinding.instance.addPostFrameCallback((_) => _open(eligible.first));
       } else if (eligible.isEmpty) {
-        WidgetsBinding.instance.addPostFrameCallback((_) => _checkMemberships());
+        WidgetsBinding.instance.addPostFrameCallback((_) => _noBusiness());
       }
     }
 
     final Widget body;
     if (_opening != null) {
       body = _Progress('Opening $_opening…');
-    } else if (_checking) {
-      body = const _Progress('Checking your businesses…');
-    } else if (_checkError != null) {
-      body = ErrorView(error: _checkError!, onRetry: _checkMemberships);
     } else if (eligible.isEmpty) {
       body = const _Progress('Checking your businesses…');
     } else {

@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:geolocator/geolocator.dart';
 
 class LocationUnavailable implements Exception {
@@ -37,7 +39,11 @@ class LocationService {
         speedKmph: p.speed > 0 ? p.speed * 3.6 : null,
         heading: p.heading >= 0 ? p.heading : null,
       );
+}
 
-  /// Great-circle distance in km.
-  static double distanceKm(double lat1, double lng1, double lat2, double lng2) => Geolocator.distanceBetween(lat1, lng1, lat2, lng2) / 1000;
+/// Great-circle (haversine) distance in km.
+double distanceKm(double lat1, double lng1, double lat2, double lng2) {
+  const rad = math.pi / 180;
+  final h = math.pow(math.sin((lat2 - lat1) * rad / 2), 2) + math.cos(lat1 * rad) * math.cos(lat2 * rad) * math.pow(math.sin((lng2 - lng1) * rad / 2), 2);
+  return 2 * 6371 * math.asin(math.sqrt(h));
 }

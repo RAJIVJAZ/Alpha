@@ -5,7 +5,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
+import '../auth/auth_repository.dart';
 import '../auth/claims.dart';
+import '../auth/session.dart';
 import '../providers.dart';
 
 enum LoginMode { otp, password }
@@ -13,16 +15,38 @@ enum LoginMode { otp, password }
 /// Sign-in used by every FoodGrid app: phone OTP, optionally email + password
 /// (merchant staff) and "Continue with Google" when a server client id is set.
 ///
-/// [authorize] decides whether this app accepts the account; returning a
-/// message signs the user straight back out and shows it.
+/// [authorize] (from the token's claims) and [authorizeUser] (from `auth/me`,
+/// memberships included) decide whether this app accepts the account;
+/// returning a message signs the user straight back out and shows it.
 class LoginScreen extends ConsumerStatefulWidget {
-  const LoginScreen({super.key, required this.title, this.subtitle, this.modes = const [LoginMode.otp], this.allowGoogle = false, this.authorize});
+  const LoginScreen({
+    super.key,
+    required this.title,
+    this.subtitle,
+    this.notice,
+    this.modes = const [LoginMode.otp],
+    this.allowGoogle = false,
+    this.authorize,
+    this.authorizeUser,
+    this.onSignedIn,
+    this.onClose,
+  });
 
   final String title;
   final String? subtitle;
+
+  /// Highlighted above the form, e.g. why the user was signed out.
+  final String? notice;
   final List<LoginMode> modes;
   final bool allowGoogle;
   final String? Function(Claims claims)? authorize;
+  final Future<String?> Function(SessionUser user)? authorizeUser;
+
+  /// Runs once the session is loaded (e.g. to go back where sign-in was asked for).
+  final void Function(Session session)? onSignedIn;
+
+  /// Shows a back / close button that calls this.
+  final VoidCallback? onClose;
 
   @override
   ConsumerState<LoginScreen> createState() => _LoginScreenState();
@@ -62,12 +86,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _finish(Claims claims) async {
-    final verdict = widget.authorize?.call(claims);
+    final auth = ref.read(authRepositoryProvider);
+    String? verdict;
+    try {
+      verdict = widget.authorize?.call(claims) ?? await widget.authorizeUser?.call(await auth.me());
+    } catch (_) {
+      await auth.logout(); // undecided: don't leave a half-finished sign-in behind
+      rethrow;
+    }
     if (verdict != null) {
-      await ref.read(authRepositoryProvider).logout();
+      await auth.logout();
       throw LoginFailure(verdict);
     }
     await ref.read(sessionProvider.notifier).reload();
+    final session = ref.read(sessionProvider).value;
+    if (session != null && mounted) widget.onSignedIn?.call(session);
   }
 
   Future<void> _sendCode() => _run(() async {
@@ -98,7 +131,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
     final google = widget.allowGoogle && ref.watch(appConfigProvider).googleServerClientId != null;
+    final canPop = Navigator.of(context).canPop();
     return Scaffold(
+      appBar: widget.onClose == null
+          ? null
+          : AppBar(
+              automaticallyImplyLeading: false,
+              leading: IconButton(tooltip: canPop ? 'Back' : 'Close', icon: Icon(canPop ? Icons.arrow_back : Icons.close), onPressed: widget.onClose),
+            ),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -117,6 +157,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   const SizedBox(height: 20),
                   Text(widget.title, style: text.headlineSmall?.copyWith(fontWeight: FontWeight.w600)),
                   if (widget.subtitle != null) Padding(padding: const EdgeInsets.only(top: 4), child: Text(widget.subtitle!, style: text.bodyMedium)),
+                  if (widget.notice != null) _Notice(widget.notice!),
                   const SizedBox(height: 24),
                   if (widget.modes.length > 1)
                     Padding(
@@ -175,7 +216,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           ),
           const SizedBox(height: 8),
           FilledButton(onPressed: _busy ? null : _verify, child: _busy ? const _Spinner() : const Text('Verify and sign in')),
-          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+          // wraps onto two lines on narrow phones and large text
+          OverflowBar(alignment: MainAxisAlignment.spaceBetween, children: [
             TextButton(
               onPressed: () => setState(() {
                 _sentTo = null;
@@ -194,6 +236,26 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         const SizedBox(height: 16),
         FilledButton(onPressed: _busy ? null : _passwordLogin, child: _busy ? const _Spinner() : const Text('Sign in')),
       ];
+}
+
+class _Notice extends StatelessWidget {
+  const _Notice(this.message);
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      margin: const EdgeInsets.only(top: 16),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(color: scheme.secondaryContainer, borderRadius: BorderRadius.circular(10)),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Icon(Icons.info_outline, size: 20, color: scheme.onSecondaryContainer),
+        const SizedBox(width: 10),
+        Expanded(child: Semantics(liveRegion: true, child: Text(message, style: TextStyle(color: scheme.onSecondaryContainer)))),
+      ]),
+    );
+  }
 }
 
 class _Spinner extends StatelessWidget {

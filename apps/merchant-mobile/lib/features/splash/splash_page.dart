@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:foodgrid_core/foodgrid_core.dart';
 
-import '../../core/errors.dart';
 import '../outlets/outlet_providers.dart';
 
 /// Shown while the session and the business's outlets load; outlet errors
@@ -18,7 +17,7 @@ class SplashPage extends ConsumerWidget {
       return Scaffold(
         body: SafeArea(
           child: Column(children: [
-            Expanded(child: ErrorView(error: _explain(outlets.error!), onRetry: () => ref.invalidate(outletControllerProvider))),
+            Expanded(child: ErrorView(error: outlets.error!, onRetry: () => ref.invalidate(outletControllerProvider))),
             TextButton(onPressed: () => signOut(ref), child: const Text('Sign out')),
             const SizedBox(height: 16),
           ]),
@@ -45,6 +44,3 @@ class SplashPage extends ConsumerWidget {
     );
   }
 }
-
-/// Keeps network errors (for the offline icon); explains permission refusals.
-Object _explain(Object e) => e is ApiException && e.status == 403 ? describeError(e) : e;

@@ -109,7 +109,7 @@ class _SpotRow extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = cell;
-    final away = here == null ? null : LocationService.distanceKm(here!.latitude, here!.longitude, c.lat, c.lng);
+    final away = here == null ? null : distanceKm(here!.latitude, here!.longitude, c.lat, c.lng);
     final meta = [
       '${c.demand} open order${c.demand == 1 ? '' : 's'}',
       '${c.riders} rider${c.riders == 1 ? '' : 's'} nearby',

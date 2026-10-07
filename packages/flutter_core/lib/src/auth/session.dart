@@ -12,21 +12,32 @@ class Session {
 
 /// The signed-in user, or null. Restored from secure storage at launch (the
 /// API client renews an expired access token on the first call).
+///
+/// While a sign-in, tenant switch or [SessionController.reload] runs, the
+/// provider keeps its previous value with `isLoading` set, so "signing in" is
+/// never mistaken for "signed out"; see [SessionStates].
 class SessionController extends AsyncNotifier<Session?> {
   @override
   Future<Session?> build() async {
-    final stored = await ref.read(tokenStoreProvider).read();
-    if (stored == null) return null;
+    final store = ref.read(tokenStoreProvider);
+    if (await store.read() == null) return null;
+    SessionUser? user;
     try {
-      final user = await ref.read(authRepositoryProvider).me();
-      final tokens = await ref.read(tokenStoreProvider).read();
-      final claims = Claims.fromToken(tokens?.accessToken);
-      return claims == null ? null : Session(claims, user);
+      user = await ref.read(authRepositoryProvider).me();
+      await store.writeUser(user.toJson());
     } catch (_) {
-      // offline at launch: keep the stored identity, calls retry later
-      final claims = Claims.fromToken(stored.accessToken);
-      return claims == null ? null : Session(claims, SessionUser(id: claims.sub, name: claims.name, phone: claims.phone, roles: claims.roles));
+      // offline at launch: keep the stored identity and the last known user; calls retry later
     }
+    // read again: the call may have renewed the tokens, or a rejected refresh cleared them
+    final claims = Claims.fromToken((await store.read())?.accessToken);
+    if (claims == null) return null;
+    if (user == null) {
+      final last = await store.readUser();
+      user = last != null && last['id'] == claims.sub
+          ? SessionUser.fromJson(last)
+          : SessionUser(id: claims.sub, name: claims.name, phone: claims.phone, roles: claims.roles);
+    }
+    return Session(claims, user);
   }
 
   /// Reloads after a sign-in or tenant switch.
@@ -42,4 +53,13 @@ class SessionController extends AsyncNotifier<Session?> {
 
   /// The refresh token was rejected elsewhere (revoked, expired).
   void expired() => state = const AsyncData<Session?>(null);
+}
+
+/// Router-friendly reads of `ref.watch(sessionProvider)`.
+extension SessionStates on AsyncValue<Session?> {
+  /// The stored session is still being restored at launch (show a splash).
+  bool get isRestoring => isLoading && !hasValue;
+
+  /// Signed out for sure: not restoring, not in the middle of a sign-in.
+  bool get isSignedOut => !isLoading && value == null;
 }

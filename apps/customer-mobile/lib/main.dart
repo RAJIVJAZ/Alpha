@@ -12,7 +12,7 @@ void main() {
   WidgetsFlutterBinding.ensureInitialized();
   runApp(ProviderScope(
     overrides: [appConfigProvider.overrideWithValue(const AppConfig(app: ClientApp.customer))],
-    retry: retryNetworkErrors,
+    retry: retryTransientErrors,
     child: const CustomerApp(),
   ));
 }

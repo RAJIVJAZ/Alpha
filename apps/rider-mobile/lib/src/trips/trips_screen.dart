@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart' hide Page;
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:foodgrid_core/foodgrid_core.dart';
 
@@ -31,8 +31,8 @@ class TripsState {
 final tripsProvider = AsyncNotifierProvider<TripsController, TripsState>(TripsController.new);
 
 class TripsController extends AsyncNotifier<TripsState> {
-  Future<Page<Delivery>> _fetch(int page) async =>
-      Page.fromJson(await ref.read(apiClientProvider).get<Map<String, dynamic>>('riders/me/deliveries', query: {'page': page}), Delivery.fromJson);
+  Future<PagedResult<Delivery>> _fetch(int page) async =>
+      PagedResult.fromJson(await ref.read(apiClientProvider).get<Map<String, dynamic>>('riders/me/deliveries', query: {'page': page}), Delivery.fromJson);
 
   @override
   Future<TripsState> build() async {

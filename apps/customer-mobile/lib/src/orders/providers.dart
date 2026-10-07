@@ -41,7 +41,7 @@ class OrderHistoryController extends AsyncNotifier<OrderHistory> {
   }
 
   Future<OrderHistory> _fetch(int page, List<OrderSummary> before) async {
-    final p = Page.fromJson(await ref.read(apiClientProvider).get<dynamic>('orders', query: {'page': page, 'pageSize': 10}), OrderSummary.fromJson);
+    final p = PagedResult.fromJson(await ref.read(apiClientProvider).get<dynamic>('orders', query: {'page': page, 'pageSize': 10}), OrderSummary.fromJson);
     final seen = {for (final o in before) o.id};
     return OrderHistory(items: [...before, ...p.data.where((o) => seen.add(o.id))], page: p.page, totalPages: p.totalPages);
   }

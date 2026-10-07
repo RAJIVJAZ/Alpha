@@ -74,7 +74,7 @@ void main() {
     expect(find.text('₹250'), findsOneWidget);
 
     // wallet: negative balance means COD cash to hand in
-    expect(find.text('-₹1,390.80'), findsOneWidget);
+    expect(find.text('−₹1,390.80'), findsOneWidget); // U+2212 minus
     expect(find.text('Cash due'), findsOneWidget);
     expect(find.textContaining('You hold ₹1,390.80 of COD cash beyond your earnings'), findsOneWidget);
     expect(cashOutButton(tester).onPressed, isNull);

@@ -41,7 +41,7 @@ you hit the OTP rate limit: `redis-cli --scan --pattern 'otp:*' | xargs -r redis
 |---|---|---|
 | **Sign-in** | Phone OTP via the core `LoginScreen`. Accounts without the `RIDER` role are refused ("This number is not registered as a FoodGrid rider.") and signed straight out. A restored session without the role is sent back to sign-in too. | `auth/otp/request`, `auth/otp/verify`, `auth/me` |
 | **Duty** (home) | Greeting with rating and delivery count. Online/offline switch (going online sends the current fix), today's earnings, and the location-sharing status. **Offers** (polled every 5 s while online, and refreshed at once on the socket's `offer:new`) show a countdown, pickup, drop, distances, COD and estimated earning, with Accept and Reject (with a reason). **Active deliveries** (polled every 10 s) show where to go, *Navigate* (Google Maps, `travelmode=two-wheeler`), *Call restaurant/customer*, and one large step button: ASSIGNED → arrived-pickup → AT_PICKUP → picked-up → PICKED_UP → arrived-drop → AT_DROP → complete. The **complete sheet** takes the 4-digit OTP or a camera proof photo (uploaded to `delivery-proof`), plus "I collected ₹X in cash" for COD. Fail-delivery sheet. **Best route** card with ordered stops and a full-route Maps link. | `riders/me`, `riders/me/online`, `riders/me/offline`, `riders/me/location`, `riders/me/offers`, `deliveries/offers/{id}/accept\|reject`, `riders/me/deliveries/current`, `deliveries/{id}/arrived-pickup\|picked-up\|arrived-drop\|complete\|fail`, `riders/me/route`, `media/presign` |
-| **Earnings** | Presets: Today, 7 days, 30 days, This month (IST `yyyy-MM-dd` from `istToday`). KPI tiles (earned, deliveries, per delivery, today), a daily bar chart (tap a bar to inspect it) with a list alternative, and a by-type breakdown. Wallet balance with a **Cash due** notice when it is negative (COD cash the rider holds beyond their earnings), a paged statement, payout history, and a cash-out dialog (₹100 to balance, UPI or bank on file). Cash-out is disabled while a payout is REQUESTED or PROCESSING. | `riders/me/earnings`, `wallets/me?as=RIDER`, `wallets/me/payouts` |
+| **Earnings** | Presets: Today, 7 days, 30 days, This month (IST `yyyy-MM-dd` from `istToday`). KPI tiles (earned, deliveries, per delivery, today), a daily bar chart (tap a bar to inspect it) with a list alternative, and a by-type breakdown. Wallet balance (a negative one reads −₹1,390.80) with a **Cash due** notice when it is negative (COD cash the rider holds beyond their earnings), a paged statement, payout history, and a cash-out dialog (₹100 to balance, UPI or bank on file). Cash-out is disabled while a payout is REQUESTED or PROCESSING. | `riders/me/earnings`, `wallets/me?as=RIDER`, `wallets/me/payouts` |
 | **Performance** | Incentives with a progress meter, reward, status and **"Ends <last day>"** (`endsAt − 1 ms`, because schemes end at midnight IST). For `RATING` schemes it explains that progress is paused while the rider's rating is below `minRating`. Monthly attendance calendar (Monday first) with days worked, hours and deliveries. | `riders/me/incentives`, `riders/me/attendance?month=yyyy-MM` |
 | **Demand** | `flutter_map` with zone polygons (rings of `[lng, lat]`), labels without the "Bengaluru - " prefix and surge, demand circles sized by open orders and shaded on a sequential blue ramp (`#cfe1f7` → `#13498e`) by orders per rider, a legend, and the rider's position. **Busiest spots** names each cell by the containing zone whose centre is nearest, with distance from the rider and a navigate button. | `riders/heatmap` |
 | **Trips** | Delivery history with infinite scroll: outlet → customer, order number, IST time, distance, earning plus tip, status. | `riders/me/deliveries?page` |
@@ -136,14 +136,16 @@ The shell re-registers whenever a different rider signs in.
 ## Architecture
 
 * Riverpod 3 without code generation, and go_router 18 with a session redirect
-  (`/splash` → `/login` → a `StatefulShellRoute` with five tabs).
-* `ProviderScope(retry: null)`: screens poll and offer "Try again", so there are
-  no hidden retry loops on top.
+  (`/splash` → `/login` → a `StatefulShellRoute` with five tabs), routes declared
+  with `materialRoute` from `foodgrid_core`.
+* `ProviderScope(retry: retryTransientErrors)` from `foodgrid_core`: offline and
+  5xx failures are retried up to three times; 4xx answers fail at once. Screens
+  also poll and offer "Try again".
 * Polling uses `pollEvery(ref, duration)`, a self-invalidating timer inside the
   provider. Riverpod pauses providers on off-stage tabs, so hidden tabs stop
   polling.
 * Repositories watch the signed-in user id, so a different rider signing in
-  starts from fresh data. Sign-out also disposes the tracking socket.
+  starts from fresh data. Signing out disconnects the tracking socket (core).
 
 ```
 lib/
@@ -178,9 +180,11 @@ provides:
   headers. The `ApiClient` uses it with a `MemoryTokenStore`.
 * `FakeLocation`, a `LocationService` with a fixed fix and a controllable stream,
   injected through `locationServiceProvider`.
-* Overrides for `riderEventsProvider` (a plain stream instead of Socket.IO),
-  `urlOpenerProvider` (records Maps and tel links) and `mapTilesProvider` (no
-  tile downloads).
+* The core `FakeSocketTransport` behind the tracking socket
+  (`socketTransportProvider`): tests play rider-room events with
+  `socket.receive('offer:new', …)`.
+* Overrides for `urlOpenerProvider` (records Maps and tel links) and
+  `mapTilesProvider` (no tile downloads).
 
 Coverage:
 
@@ -210,7 +214,7 @@ Coverage:
   * signed-out start, refusing a non-rider login, a restored session landing on Duty
   * switching tabs
   * socket events (offer on another tab with *View*, cancellations)
-  * sign-out going offline first
+  * sign-out going offline first and disconnecting the socket
 * `models_test.dart`
   * parsing of decimal strings, IST presets, zero-filled daily series, wallet and
     payout states, incentive last day and paused logic
@@ -226,7 +230,7 @@ Coverage:
   background ahead of time. On a slow network the button shows "Uploading photo…".
 * Map tiles come from OpenStreetMap by default (see `MAP_TILE_URL`).
 
-## Issues found in `foodgrid_core` (not modified; worked around here)
+## Issues found in `foodgrid_core` (still worked around here)
 
 1. `LocationService.watch()` uses plain `LocationSettings`: no Android
    foreground service and no iOS background updates. Its `Position → Fix`
@@ -235,16 +239,12 @@ Coverage:
 2. `LocationService.current()` has a fixed 15 s limit and no "last known /
    maximum age" option. The app wraps it with its own 6 s timeout and keeps its
    own last fix.
-3. `TrackingSocket` has no `disconnect()`, and `connect()` is a no-op once a
-   socket exists. After sign-out a new rider would reuse the old authenticated
-   socket. Worked around by invalidating `trackingSocketProvider` on sign-out.
-4. In `LoginScreen`, the "Change number / Resend in 30s" `Row`
-   (`login_screen.dart:178`) has no `Wrap`/`Flexible` and overflows on narrow
-   phones or at large text scale. App tests render sign-in at 600 dp for that reason.
-5. The exported `Page` class collides with Flutter's navigator `Page`. Files that
-   use both need `import 'package:flutter/material.dart' hide Page;`.
-6. `LoginScreen.authorize` only runs at sign-in. A restored session is not
+3. `LoginScreen.authorize` only runs at sign-in. A restored session is not
    re-checked, so the router enforces the RIDER role itself.
-7. There is no weekday date formatter (needed for incentive end dates). The app
+4. There is no weekday date formatter (needed for incentive end dates). The app
    uses `intl` directly, with `show DateFormat`, because intl's `TextDirection`
    clashes with Flutter's.
+
+Fixed in core since: the tracking socket disconnects on sign-out, the sign-in
+resend row wraps on narrow phones, and the paged envelope is `PagedResult`
+(no clash with Flutter's `Page`).

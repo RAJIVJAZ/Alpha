@@ -24,9 +24,14 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) => AuthRepository(
 
 final sessionProvider = AsyncNotifierProvider<SessionController, Session?>(SessionController.new);
 
+/// Tests override this with a [FakeSocketTransport].
+final socketTransportProvider = Provider<SocketTransport>((ref) => IoSocketTransport(ref.watch(appConfigProvider).origin));
+
 /// One Socket.IO connection per app session, opened on first use.
 final trackingSocketProvider = Provider<TrackingSocket>((ref) {
-  final socket = TrackingSocket(ref.watch(appConfigProvider), ref.watch(tokenStoreProvider), ref.watch(apiClientProvider));
+  final socket = TrackingSocket(ref.watch(socketTransportProvider), ref.watch(apiClientProvider).accessToken);
+  // the socket is authenticated as one user and business: start over when either changes
+  ref.listen(sessionProvider.select((s) => (s.value?.claims.sub, s.value?.claims.tenantId)), (_, _) => socket.disconnect());
   ref.onDispose(socket.dispose);
   return socket;
 });

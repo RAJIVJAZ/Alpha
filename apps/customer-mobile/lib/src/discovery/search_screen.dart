@@ -170,11 +170,11 @@ class _Results extends ConsumerWidget {
             const SectionTitle('Dishes'),
             for (final d in r.dishes)
               Opacity(
-                opacity: d.outlet.isOpen ? 1 : 0.6,
+                opacity: d.outlet.isOpenNow ? 1 : 0.6,
                 child: ListTile(
                   leading: FoodImage(url: d.imageUrl, width: 56, height: 56, radius: 10),
                   title: Row(children: [VegMark(veg: d.isVeg, size: 14), const SizedBox(width: 6), Expanded(child: Text(d.name, overflow: TextOverflow.ellipsis))]),
-                  subtitle: Text('${money(d.price, whole: true)} · ${d.outlet.name} · ${d.outlet.etaMins} min${d.outlet.isOpen ? '' : ' · closed now'}', style: text.bodySmall),
+                  subtitle: Text('${money(d.price, whole: true)} · ${d.outlet.name} · ${d.outlet.etaMins} min${d.outlet.isOpenNow ? '' : ' · closed now'}', style: text.bodySmall),
                   onTap: () {
                     if (d.outlet.sponsored) reportAdClick(ref.read(apiClientProvider), d.outlet.adCampaignId);
                     context.push('/outlets/${d.outlet.slug}');

@@ -119,7 +119,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                     title: Text(t.description ?? humanize(t.reason)),
                     subtitle: Text(dateTime(t.createdAt)),
                     trailing: Text(
-                      '${t.isCredit ? '+' : '−'}${money(t.amount)}',
+                      money(t.isCredit ? t.amount : -t.amount, signed: true),
                       style: text.bodyMedium?.copyWith(fontWeight: FontWeight.w600, color: t.isCredit ? FoodGridTheme.goodText : null, fontFeatures: const [FontFeature.tabularFigures()]),
                     ),
                   ),

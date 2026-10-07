@@ -27,6 +27,7 @@ class CouponsSheet extends ConsumerStatefulWidget {
 class _CouponsSheetState extends ConsumerState<CouponsSheet> {
   final _code = TextEditingController();
   String? _busy;
+  String? _error;
 
   @override
   void dispose() {
@@ -37,17 +38,15 @@ class _CouponsSheetState extends ConsumerState<CouponsSheet> {
   Future<void> _apply(String code) async {
     final c = code.trim().toUpperCase();
     if (c.isEmpty) return;
-    setState(() => _busy = c);
+    setState(() => (_busy = c, _error = null));
     try {
       await ref.read(cartProvider.notifier).applyCoupon(c);
       if (!mounted) return;
       showMessage(context, '$c applied');
       Navigator.of(context).pop();
     } catch (e) {
-      if (mounted) {
-        showError(context, e);
-        setState(() => _busy = null);
-      }
+      // an unknown, expired or inapplicable code is a 4xx whose message says why
+      if (mounted) setState(() => (_busy = null, _error = e.toString()));
     }
   }
 
@@ -70,7 +69,7 @@ class _CouponsSheetState extends ConsumerState<CouponsSheet> {
                 child: TextField(
                   controller: _code,
                   textCapitalization: TextCapitalization.characters,
-                  decoration: const InputDecoration(labelText: 'Coupon code', hintText: 'Enter a code'),
+                  decoration: InputDecoration(labelText: 'Coupon code', hintText: 'Enter a code', errorText: _error, errorMaxLines: 3),
                   onSubmitted: _apply,
                 ),
               ),

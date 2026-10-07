@@ -36,7 +36,8 @@ String? merchantRedirect(Ref ref, GoRouterState state) {
   String? go(String target) => loc == target ? null : target;
 
   final session = ref.read(sessionProvider);
-  if (session.isLoading) return go('/splash');
+  if (session.isRestoring) return go('/splash');
+  // signing in or switching business keeps the previous session (null or no business) meanwhile
   final s = session.value;
   if (s == null) return go('/login');
   if (!isMerchantTenant(s.claims.tenantType)) return go('/business');
@@ -72,39 +73,39 @@ final routerProvider = Provider<GoRouter>((ref) {
     refreshListenable: refresh,
     redirect: (context, state) => merchantRedirect(ref, state),
     routes: [
-      GoRoute(path: '/splash', builder: (_, _) => const SplashPage()),
-      GoRoute(path: '/login', builder: (_, _) => const LoginPage()),
-      GoRoute(path: '/business', builder: (_, _) => const BusinessPickerPage()),
-      GoRoute(path: '/outlet', builder: (_, _) => const OutletPickerPage()),
+      materialRoute('/splash', (_, _) => const SplashPage()),
+      materialRoute('/login', (_, _) => const LoginPage()),
+      materialRoute('/business', (_, _) => const BusinessPickerPage()),
+      materialRoute('/outlet', (_, _) => const OutletPickerPage()),
       StatefulShellRoute.indexedStack(
-        builder: (_, _, shell) => HomeShell(shell: shell),
+        pageBuilder: (_, state, shell) => materialPage(state, HomeShell(shell: shell)),
         // branch order matches HomeTab
         branches: [
           StatefulShellBranch(routes: [
-            GoRoute(
-              path: '/orders',
-              builder: (_, _) => const OrdersPage(),
+            materialRoute(
+              '/orders',
+              (_, _) => const OrdersPage(),
               routes: [
-                GoRoute(path: ':id', parentNavigatorKey: rootNavigatorKey, builder: (_, s) => OrderDetailPage(orderId: s.pathParameters['id']!)),
+                materialRoute(':id', parentNavigatorKey: rootNavigatorKey, (_, s) => OrderDetailPage(orderId: s.pathParameters['id']!)),
               ],
             ),
           ]),
-          StatefulShellBranch(routes: [GoRoute(path: '/kitchen', builder: (_, _) => const KitchenPage())]),
-          StatefulShellBranch(routes: [GoRoute(path: '/pos', builder: (_, _) => const PosPage())]),
-          StatefulShellBranch(routes: [GoRoute(path: '/menu', builder: (_, _) => const MenuPage())]),
+          StatefulShellBranch(routes: [materialRoute('/kitchen', (_, _) => const KitchenPage())]),
+          StatefulShellBranch(routes: [materialRoute('/pos', (_, _) => const PosPage())]),
+          StatefulShellBranch(routes: [materialRoute('/menu', (_, _) => const MenuPage())]),
           StatefulShellBranch(routes: [
-            GoRoute(
-              path: '/more',
-              builder: (_, _) => const MorePage(),
+            materialRoute(
+              '/more',
+              (_, _) => const MorePage(),
               routes: [
-                GoRoute(path: 'sales', builder: (_, _) => const SalesPage()),
-                GoRoute(path: 'inventory', builder: (_, _) => const InventoryPage()),
-                GoRoute(
-                  path: 'purchasing',
-                  builder: (_, _) => const ProcurementPage(),
-                  routes: [GoRoute(path: 'po/:id', builder: (_, s) => PoDetailPage(poId: s.pathParameters['id']!))],
+                materialRoute('sales', (_, _) => const SalesPage()),
+                materialRoute('inventory', (_, _) => const InventoryPage()),
+                materialRoute(
+                  'purchasing',
+                  (_, _) => const ProcurementPage(),
+                  routes: [materialRoute('po/:id', (_, s) => PoDetailPage(poId: s.pathParameters['id']!))],
                 ),
-                GoRoute(path: 'reviews', builder: (_, _) => const ReviewsPage()),
+                materialRoute('reviews', (_, _) => const ReviewsPage()),
               ],
             ),
           ]),

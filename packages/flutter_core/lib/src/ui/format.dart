@@ -7,18 +7,24 @@ final _int = NumberFormat.decimalPattern('en_IN');
 double _num(Object? v) => v is num ? v.toDouble() : double.tryParse(v?.toString() ?? '') ?? double.nan;
 
 /// ₹1,23,456.50 (Indian digit grouping). Accepts numbers or decimal strings.
-String money(Object? value, {bool whole = false}) {
+/// Negative amounts take a true minus (−₹1,234.50); [signed] also marks
+/// positive ones (+₹50.00), for credits and debits.
+String money(Object? value, {bool whole = false, bool signed = false}) {
   final n = _num(value);
   if (n.isNaN) return '—';
-  return (whole ? _inrWhole : _inr).format(n);
+  final f = whole ? _inrWhole : _inr;
+  final s = f.format(n.abs());
+  // sign from the rounded amount: −0.001 is ₹0.00, not −₹0.00
+  if (s == f.format(0)) return s;
+  return n < 0 ? '−$s' : signed ? '+$s' : s;
 }
 
 /// ₹950, ₹38K, ₹6.5L, ₹3.4Cr — thousand, lakh, crore.
 String moneyCompact(Object? value) {
   final n = _num(value);
   if (n.isNaN) return '—';
-  if (n.abs() < 1000) return _inrWhole.format(n);
-  return '${n < 0 ? '-' : ''}₹${compactIndian(n.abs())}';
+  if (n.abs() < 1000) return money(n, whole: true);
+  return '${n < 0 ? '−' : ''}₹${compactIndian(n.abs())}';
 }
 
 /// 12.5K, 6.5L, 3.4Cr.

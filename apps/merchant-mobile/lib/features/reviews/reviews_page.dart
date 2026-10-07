@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart' hide Page;
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:foodgrid_core/foodgrid_core.dart';
 
@@ -62,10 +62,10 @@ enum ReviewFilter {
 }
 
 /// GET merchant/reviews?outletId=&page= (30 per page, newest first).
-final reviewsProvider = FutureProvider.autoDispose.family<Page<Review>, int>((ref, page) async {
+final reviewsProvider = FutureProvider.autoDispose.family<PagedResult<Review>, int>((ref, page) async {
   final outletId = ref.watch(currentOutletIdProvider);
-  if (outletId == null) return const Page([], page: 1, totalPages: 1, total: 0);
-  return Page.fromJson(await ref.watch(apiClientProvider).get<Map<String, dynamic>>('merchant/reviews', query: {'outletId': outletId, 'page': page}), Review.fromJson);
+  if (outletId == null) return const PagedResult([], page: 1, totalPages: 1, total: 0);
+  return PagedResult.fromJson(await ref.watch(apiClientProvider).get<Map<String, dynamic>>('merchant/reviews', query: {'outletId': outletId, 'page': page}), Review.fromJson);
 });
 
 class ReviewsPage extends ConsumerStatefulWidget {
@@ -98,7 +98,7 @@ class _ReviewsPageState extends ConsumerState<ReviewsPage> {
           child: ChoiceWrap<ReviewFilter>(values: ReviewFilter.values, selected: _filter, label: (f) => f.label, onSelected: (f) => setState(() => _filter = f), semanticsLabel: 'Show'),
         ),
         Expanded(
-          child: AsyncView<Page<Review>>(
+          child: AsyncView<PagedResult<Review>>(
             value: list,
             onRetry: () => ref.invalidate(reviewsProvider(_page)),
             data: (p) {

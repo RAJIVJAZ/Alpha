@@ -9,7 +9,7 @@ class OrdersRepository {
   OrdersRepository(this._api);
   final ApiClient _api;
 
-  Future<Page<MerchantOrder>> list({
+  Future<PagedResult<MerchantOrder>> list({
     required String outletId,
     required List<String> statuses,
     String? from,
@@ -27,7 +27,7 @@ class OrdersRepository {
       'page': page,
       'pageSize': pageSize,
     });
-    return Page.fromJson(r, MerchantOrder.fromJson);
+    return PagedResult.fromJson(r, MerchantOrder.fromJson);
   }
 
   Future<MerchantOrder> get(String id) async => MerchantOrder.fromJson(await _api.get<Map<String, dynamic>>('merchant/orders/$id'));

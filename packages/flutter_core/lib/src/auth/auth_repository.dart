@@ -13,18 +13,29 @@ class OtpChallenge {
 
 /// A business the signed-in user belongs to (merchant apps).
 class Membership {
-  const Membership({required this.tenantId, required this.tenantName, required this.tenantType, required this.role});
+  const Membership({required this.tenantId, required this.tenantName, required this.tenantType, required this.role, this.tenantStatus, this.outletIds = const []});
   final String tenantId;
   final String tenantName;
   final String tenantType;
   final String role;
+
+  /// The business's status (ACTIVE, PENDING_APPROVAL, …).
+  final String? tenantStatus;
+
+  /// Outlets this membership is limited to; empty means every outlet.
+  final List<String> outletIds;
 
   factory Membership.fromJson(Map<String, dynamic> j) => Membership(
         tenantId: j['tenantId'] as String,
         tenantName: (j['tenantName'] ?? j['name'] ?? '') as String,
         tenantType: (j['tenantType'] ?? j['type'] ?? '') as String,
         role: (j['role'] ?? '') as String,
+        tenantStatus: j['tenantStatus'] as String?,
+        outletIds: [for (final o in (j['outletIds'] as List? ?? const [])) o.toString()],
       );
+
+  Map<String, dynamic> toJson() =>
+      {'tenantId': tenantId, 'tenantName': tenantName, 'tenantType': tenantType, 'role': role, 'tenantStatus': tenantStatus, 'outletIds': outletIds};
 }
 
 class SessionUser {
@@ -42,8 +53,10 @@ class SessionUser {
         phone: j['phone'] as String?,
         email: j['email'] as String?,
         roles: [for (final r in (j['roles'] as List? ?? const [])) r.toString()],
-        memberships: [for (final m in (j['memberships'] as List? ?? const [])) Membership.fromJson(m as Map<String, dynamic>)],
+        memberships: [for (final m in (j['memberships'] as List? ?? const [])) Membership.fromJson(Map<String, dynamic>.from(m as Map))],
       );
+
+  Map<String, dynamic> toJson() => {'id': id, 'name': name, 'phone': phone, 'email': email, 'roles': roles, 'memberships': [for (final m in memberships) m.toJson()]};
 }
 
 /// Sign-in flows against auth-service; successful logins store the tokens.
@@ -69,8 +82,14 @@ class AuthRepository {
 
   Future<Claims> loginWithGoogle(String idToken) => _login('auth/google', {'idToken': idToken});
 
-  /// Picks the active business for merchant apps; the new token carries tenant claims.
-  Future<Claims> switchTenant(String? tenantId) => _login('auth/switch-tenant', {'tenantId': tenantId}, authed: true);
+  /// Picks the active business for merchant apps; the new access token carries
+  /// the tenant claims. The answer has the login shape, with a rotated refresh
+  /// token whose session remembers the business; older auth-services sent a
+  /// bare `accessToken` and kept the refresh token, which still works.
+  Future<Claims> switchTenant(String? tenantId) async {
+    final r = await _api.post<Map<String, dynamic>>('auth/switch-tenant', body: {'tenantId': tenantId});
+    return _store(r['tokens'] ?? {'accessToken': r['accessToken'], 'refreshToken': (await _tokens.read())?.refreshToken});
+  }
 
   Future<SessionUser> me() async => SessionUser.fromJson(await _api.get<Map<String, dynamic>>('auth/me'));
 
@@ -86,9 +105,10 @@ class AuthRepository {
     await _tokens.clear();
   }
 
-  Future<Claims> _login(String path, Map<String, dynamic> body, {bool authed = false}) async {
-    final r = await _api.post<Map<String, dynamic>>(path, body: body, auth: authed);
-    final tokens = Tokens.fromJson(r['tokens']);
+  Future<Claims> _login(String path, Map<String, dynamic> body) async => _store((await _api.post<Map<String, dynamic>>(path, body: body, auth: false))['tokens']);
+
+  Future<Claims> _store(Object? json) async {
+    final tokens = Tokens.fromJson(json);
     final claims = Claims.fromToken(tokens?.accessToken);
     if (tokens == null || claims == null) throw StateError('Sign-in response had no tokens');
     await _tokens.write(tokens);

@@ -31,7 +31,7 @@ class OutletCard extends ConsumerWidget {
       label: [
         o.name,
         if (o.sponsored) 'Ad',
-        if (!o.isOpen) 'Closed now',
+        if (!o.isOpenNow) 'Closed now',
         o.ratingCount > 0 ? 'rated ${o.ratingAvg.toStringAsFixed(1)}' : 'new',
         o.cuisines.join(', '),
         meta,
@@ -43,7 +43,7 @@ class OutletCard extends ConsumerWidget {
         borderRadius: BorderRadius.circular(14),
         onTap: () => _open(context, ref),
         child: Opacity(
-          opacity: o.isOpen ? 1 : 0.6,
+          opacity: o.isOpenNow ? 1 : 0.6,
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             AspectRatio(
               aspectRatio: compact ? 16 / 10 : 16 / 9,
@@ -59,7 +59,7 @@ class OutletCard extends ConsumerWidget {
                       child: Text('Ad', style: text.labelSmall?.copyWith(color: Colors.white, fontWeight: FontWeight.w600)),
                     ),
                   ),
-                if (!o.isOpen)
+                if (!o.isOpenNow)
                   Positioned(
                     left: 0,
                     right: 0,

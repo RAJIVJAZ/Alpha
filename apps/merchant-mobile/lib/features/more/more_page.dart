@@ -18,7 +18,7 @@ class MorePage extends ConsumerWidget {
     final perms = ref.watch(permissionsProvider);
     final outlet = ref.watch(currentOutletProvider);
     final outlets = ref.watch(outletControllerProvider).value?.outlets ?? const [];
-    final businesses = eligibleMemberships(session);
+    final businesses = eligibleMemberships(session?.user.memberships ?? const []);
     final business = businesses.where((m) => m.tenantId == session?.claims.tenantId).map((m) => m.tenantName).firstOrNull;
     final text = Theme.of(context).textTheme;
 

@@ -14,7 +14,7 @@ final locationServiceProvider = Provider<LocationService>((ref) => const RiderLo
 /// [LocationService] whose stream keeps running while the app is in the
 /// background during a shift: a foreground-service notification on Android,
 /// background location updates (with the blue status-bar pill) on iOS.
-/// `current()`, permissions and `distanceKm` come from foodgrid_core unchanged.
+/// `current()` and permissions come from foodgrid_core unchanged.
 class RiderLocationService extends LocationService {
   const RiderLocationService();
 

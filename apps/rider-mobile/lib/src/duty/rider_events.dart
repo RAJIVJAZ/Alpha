@@ -19,8 +19,7 @@ class RiderEvent {
 const riderEventNames = ['offer:new', 'order:ready', 'delivery:cancelled'];
 
 /// Connects the tracking socket and merges the rider-room events while the
-/// signed-in shell listens. Tests override this with a plain stream so nothing
-/// touches the network.
+/// signed-in shell listens.
 final riderEventsProvider = StreamProvider.autoDispose<RiderEvent>((ref) {
   final socket = ref.watch(trackingSocketProvider);
   final out = StreamController<RiderEvent>();

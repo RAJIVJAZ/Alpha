@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -58,31 +57,6 @@ class FakeApi implements HttpClientAdapter {
   void close({bool force = false}) {}
 }
 
-/// Live-tracking socket that never connects; tests push events with [emit].
-class FakeTrackingSocket extends TrackingSocket {
-  FakeTrackingSocket(super.config, super.tokens, super.api);
-
-  final _events = StreamController<(String, Map<String, dynamic>)>.broadcast();
-  final subscribed = <String>[];
-
-  void emit(String event, Map<String, dynamic> data) => _events.add((event, data));
-
-  @override
-  Stream<Map<String, dynamic>> on(String event) => _events.stream.where((e) => e.$1 == event).map((e) => e.$2);
-
-  @override
-  Future<void> subscribeOrder(String orderId) async => subscribed.add(orderId);
-
-  @override
-  void unsubscribeOrder(String orderId) => subscribed.remove(orderId);
-
-  @override
-  void dispose() {
-    _events.close();
-    super.dispose();
-  }
-}
-
 class NoGateway implements PaymentGateway {
   @override
   Future<GatewayResult> open(Map<String, dynamic> options) => throw StateError('Razorpay must not open in tests');
@@ -91,7 +65,9 @@ class NoGateway implements PaymentGateway {
 class Harness {
   Harness(this.api, this.socket, this.store);
   final FakeApi api;
-  final FakeTrackingSocket socket;
+
+  /// The tracking socket's wire: what the app sent, and server events to play.
+  final FakeSocketTransport socket;
   final MemoryLocalStore store;
 }
 
@@ -108,7 +84,7 @@ Future<Harness> pumpApp(WidgetTester tester, FakeApi api, {String location = '/'
     api.on('GET /auth/me', {'id': 'u-1', 'name': 'Aarav Sharma', 'phone': '+919845000001', 'roles': ['CUSTOMER']});
   }
   final client = ApiClient(config: testConfig, tokens: tokens, dio: Dio()..httpClientAdapter = api, refreshDio: Dio()..httpClientAdapter = api);
-  final socket = FakeTrackingSocket(testConfig, tokens, client);
+  final socket = FakeSocketTransport();
   final store = MemoryLocalStore();
   await tester.pumpWidget(ProviderScope(
     retry: (_, _) => null,
@@ -116,7 +92,7 @@ Future<Harness> pumpApp(WidgetTester tester, FakeApi api, {String location = '/'
       appConfigProvider.overrideWithValue(testConfig),
       tokenStoreProvider.overrideWithValue(tokens),
       apiClientProvider.overrideWithValue(client),
-      trackingSocketProvider.overrideWithValue(socket),
+      socketTransportProvider.overrideWithValue(socket),
       localStoreProvider.overrideWithValue(store),
       paymentGatewayProvider.overrideWithValue(NoGateway()),
       mapTileUrlProvider.overrideWithValue(null),
@@ -136,7 +112,9 @@ Future<void> unmount(WidgetTester tester) async {
 
 // ---------------------------------------------------------------- fixtures
 
-Map<String, dynamic> outletJson({String id = 'o-1', String slug = 'spice-garden', String name = 'Spice Garden - Koramangala', bool open = true, bool sponsored = false, String? campaign}) => {
+/// An outlet card as discovery sends it: `isOpen` is the outlet's "accepting
+/// orders" switch, `isOpenNow` whether it can take an order right now.
+Map<String, dynamic> outletJson({String id = 'o-1', String slug = 'spice-garden', String name = 'Spice Garden - Koramangala', bool open = true, bool accepting = true, bool sponsored = false, String? campaign}) => {
       'id': id,
       'slug': slug,
       'name': name,
@@ -150,7 +128,8 @@ Map<String, dynamic> outletJson({String id = 'o-1', String slug = 'spice-garden'
       'costForTwo': '700.00',
       'avgPrepTimeMins': 22,
       'isPureVeg': false,
-      'isOpen': open,
+      'isOpen': accepting,
+      'isOpenNow': open,
       'coverImageUrl': null,
       'distanceKm': 0.3,
       'etaMins': 28,

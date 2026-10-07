@@ -26,13 +26,17 @@ void main() {
     expect(find.bySemanticsLabel(RegExp(r'^Picked up by your rider, done at')), findsOneWidget);
     expect(find.bySemanticsLabel('Delivered, pending'), findsOneWidget);
 
-    // live rider pin over the socket
-    expect(h.socket.subscribed, ['ord-2']);
-    h.socket.emit('rider:location', {'lat': 12.92, 'lng': 77.63, 'heading': 90});
+    // live rider pin over the socket, for this order only
+    expect(h.socket.sentAs('order:subscribe'), [
+      {'orderId': 'ord-2'},
+    ]);
+    h.socket.receive('rider:location', {'orderId': 'ord-9', 'deliveryId': 'd-9', 'lat': 13.1, 'lng': 77.7});
+    h.socket.receive('rider:location', {'orderId': 'ord-2', 'deliveryId': 'd-2', 'lat': 12.92, 'lng': 77.63, 'heading': 90});
     await tester.pump();
     await tester.pump();
-    final map = tester.widget<MarkerLayer>(find.byType(MarkerLayer));
-    expect(map.markers.map((m) => (m.point.latitude, m.point.longitude)), contains((12.92, 77.63)));
+    final pins = tester.widget<MarkerLayer>(find.byType(MarkerLayer)).markers.map((m) => (m.point.latitude, m.point.longitude));
+    expect(pins, contains((12.92, 77.63)));
+    expect(pins, isNot(contains((13.1, 77.7))));
 
     // polled every 10 seconds while active
     final before = api.callsTo('GET /orders/ord-2/track').length;
@@ -41,7 +45,9 @@ void main() {
     expect(api.callsTo('GET /orders/ord-2/track').length, greaterThan(before));
 
     await unmount(tester);
-    expect(h.socket.subscribed, isEmpty);
+    expect(h.socket.sentAs('order:unsubscribe'), [
+      {'orderId': 'ord-2'},
+    ]);
   });
 
   testWidgets('a placed order can be cancelled with a reason', (tester) async {
@@ -87,6 +93,17 @@ void main() {
       'foodRating': 4,
       'tags': ['tasty'],
     });
+    await unmount(tester);
+  });
+
+  testWidgets('an order without an ETA shows none', (tester) async {
+    final api = FakeApi()
+      ..on('GET /orders/ord-5', orderDetailJson(id: 'ord-5', status: 'PREPARING'))
+      ..on('GET /orders/ord-5/track', trackingJson(id: 'ord-5', status: 'PREPARING', eta: null));
+    await pumpApp(tester, api, location: '/orders/ord-5', signedIn: true);
+
+    expect(find.text('Your food is being prepared.'), findsOneWidget);
+    expect(textContaining('Arriving in'), findsNothing);
     await unmount(tester);
   });
 }

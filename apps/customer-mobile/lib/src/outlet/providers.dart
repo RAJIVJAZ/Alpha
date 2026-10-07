@@ -24,7 +24,7 @@ final outletCouponsProvider = FutureProvider.autoDispose.family<List<Coupon>, St
 typedef ReviewsPage = ({List<Review> items, int page, int totalPages, int total});
 
 final reviewsProvider = FutureProvider.autoDispose.family<ReviewsPage, ({String outletId, int page})>((ref, arg) async {
-  final p = Page.fromJson(await ref.watch(apiClientProvider).get<dynamic>('outlets/${arg.outletId}/reviews', query: {'page': arg.page, 'pageSize': 10}), Review.fromJson);
+  final p = PagedResult.fromJson(await ref.watch(apiClientProvider).get<dynamic>('outlets/${arg.outletId}/reviews', query: {'page': arg.page, 'pageSize': 10}), Review.fromJson);
   return (items: p.data, page: p.page, totalPages: p.totalPages, total: p.total);
 });
 

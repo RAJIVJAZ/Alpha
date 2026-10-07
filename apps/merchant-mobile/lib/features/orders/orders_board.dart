@@ -73,26 +73,45 @@ class OrdersBoard {
 }
 
 /// Live board for the current outlet: GET merchant/orders with the outlet
-/// and status filters, refreshed every 10 s.
+/// and status filters. The outlet's socket room (`order:new`,
+/// `order:status`) refreshes it at once; polling every 10 s is the fallback,
+/// every 30 s while the socket is connected.
 class OrdersBoardController extends AsyncNotifier<OrdersBoard> {
   Set<String>? _seenPlaced;
   bool _loading = false;
+  bool _again = false;
+  DateTime _loadedAt = DateTime(0);
 
   @override
   Future<OrdersBoard> build() async {
     final outletId = ref.watch(currentOutletIdProvider);
     _seenPlaced = null;
-    final poll = ref.watch(appTimingsProvider).ordersPoll;
-    if (poll != null) {
-      final timer = Timer.periodic(poll, (_) => refresh());
+    final timings = ref.watch(appTimingsProvider);
+    final socket = ref.watch(trackingSocketProvider);
+    if (timings.ordersPoll case final poll?) {
+      final timer = Timer.periodic(poll, (_) {
+        final live = socket.connected && DateTime.now().difference(_loadedAt) < (timings.ordersPollLive ?? poll);
+        if (!live) refresh();
+      });
       ref.onDispose(timer.cancel);
     }
     if (outletId == null) return OrdersBoard.empty;
+    final subs = [
+      for (final event in const ['order:new', 'order:status']) socket.onOutlet(event, outletId).listen((_) => refresh()),
+    ];
+    unawaited(socket.subscribeOutlet(outletId).catchError((Object _) {})); // polling covers a failed connect
+    ref.onDispose(() {
+      for (final s in subs) {
+        s.cancel();
+      }
+      socket.unsubscribeOutlet(outletId);
+    });
     return _load(outletId);
   }
 
   Future<OrdersBoard> _load(String outletId) async {
     _loading = true;
+    _loadedAt = DateTime.now();
     try {
       final repo = ref.read(ordersRepositoryProvider);
       final today = istToday();
@@ -109,13 +128,23 @@ class OrdersBoardController extends AsyncNotifier<OrdersBoard> {
       return OrdersBoard(lanes: OrdersBoard.group(orders), arrived: arrived, fetchedAt: DateTime.now());
     } finally {
       _loading = false;
+      if (_again) {
+        _again = false;
+        Timer.run(refresh); // after this result is on the board
+      }
     }
   }
 
-  /// Background refresh: keeps the board on screen if it fails.
+  /// Background refresh: keeps the board on screen if it fails. Asked while
+  /// a load runs (an order arriving mid-poll), it loads once more afterwards.
   Future<void> refresh() async {
+    if (!ref.mounted) return;
     final outletId = ref.read(currentOutletIdProvider);
-    if (outletId == null || _loading) return;
+    if (outletId == null) return;
+    if (_loading) {
+      _again = true;
+      return;
+    }
     try {
       final board = await _load(outletId);
       if (ref.mounted) state = AsyncData(board);

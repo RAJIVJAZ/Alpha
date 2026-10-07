@@ -14,10 +14,11 @@ const _permissionNames = {
   'reports:read': 'see reports',
 };
 
-/// Message for the person at the counter: 403s explain which permission is
-/// missing instead of the bare "Missing permission".
+/// Message for the person at the counter. The server words its 403s
+/// ("Your role can't manage orders. …"); older servers said only "Missing
+/// permission", so those are explained here from the missing permission.
 String describeError(Object error) {
-  if (error is ApiException && error.status == 403 && error.code == 'PERMISSION_DENIED') {
+  if (error is ApiException && error.status == 403 && error.code == 'PERMISSION_DENIED' && error.message == 'Missing permission') {
     final details = error.details;
     final missing = details is List && details.isNotEmpty ? details.first.toString() : null;
     final what = _permissionNames[missing] ?? 'do this';

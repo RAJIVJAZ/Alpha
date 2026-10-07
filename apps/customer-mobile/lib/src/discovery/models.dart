@@ -15,7 +15,7 @@ class OutletSummary {
     this.costForTwo = 0,
     this.avgPrepTimeMins = 0,
     this.isPureVeg = false,
-    this.isOpen = true,
+    this.isOpenNow = true,
     this.coverImageUrl,
     this.distanceKm = 0,
     this.etaMins = 0,
@@ -37,7 +37,9 @@ class OutletSummary {
   final double costForTwo;
   final int avgPrepTimeMins;
   final bool isPureVeg;
-  final bool isOpen;
+  /// Taking orders right now (the outlet's switch is on and it is within its
+  /// hours); `isOpen` on the wire is only the switch.
+  final bool isOpenNow;
   final String? coverImageUrl;
   final double distanceKm;
   final int etaMins;
@@ -61,7 +63,8 @@ class OutletSummary {
         costForTwo: toNum(j['costForTwo']),
         avgPrepTimeMins: toInt(j['avgPrepTimeMins']),
         isPureVeg: toBool(j['isPureVeg']),
-        isOpen: toBool(j['isOpenNow'] ?? j['isOpen'], true),
+        // servers before the isOpen / isOpenNow split sent "open now" as isOpen
+        isOpenNow: toBool(j['isOpenNow'] ?? j['isOpen'], true),
         coverImageUrl: optStr(j['coverImageUrl']),
         distanceKm: toNum(j['distanceKm']),
         etaMins: toInt(j['etaMins']),

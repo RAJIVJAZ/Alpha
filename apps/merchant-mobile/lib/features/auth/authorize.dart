@@ -8,8 +8,8 @@ const notMerchantMessage =
     'ask the owner to add you as staff, or use the FoodGrid web dashboard.';
 
 /// LoginScreen gate: restaurant / food-cart tokens pass; a token without a
-/// business passes too (the business picker then checks the memberships and
-/// switches, or signs out with [notMerchantMessage]); anything else is refused.
+/// business passes too (sign-in then needs an eligible membership, and the
+/// business picker switches to it); anything else is refused.
 String? authorizeMerchant(Claims claims) {
   final type = claims.tenantType;
   if (claims.tenantId == null || type == null) return null;
@@ -19,8 +19,8 @@ String? authorizeMerchant(Claims claims) {
 }
 
 /// Memberships this app can open.
-List<Membership> eligibleMemberships(Session? session) => [
-      for (final m in session?.user.memberships ?? const <Membership>[])
+List<Membership> eligibleMemberships(List<Membership> memberships) => [
+      for (final m in memberships)
         if (isMerchantTenant(m.tenantType)) m,
     ];
 

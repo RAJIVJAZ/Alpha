@@ -108,34 +108,60 @@ class EmptyView extends StatelessWidget {
   }
 }
 
+/// A failure in words people understand: offline, signed out, not allowed
+/// (with the server's own message, e.g. "Your role can't manage orders."),
+/// not found, trouble on our side; [title] / [message] replace that copy.
 class ErrorView extends StatelessWidget {
-  const ErrorView({super.key, required this.error, this.onRetry});
+  const ErrorView({super.key, required this.error, this.onRetry, this.title, this.message});
   final Object error;
   final VoidCallback? onRetry;
+  final String? title;
+  final String? message;
+
+  static (String, String) _copy(Object e) => switch (e) {
+        ApiException(isNetwork: true) => ("You're offline", 'Check your internet connection and try again.'),
+        ApiException(status: 401) => ('Please sign in again', 'Your session has ended.'),
+        ApiException(status: 403) => ("You can't open this", e.toString()),
+        ApiException(status: 404) => ('Not found', 'It may have been removed, or the link is out of date.'),
+        ApiException(:final status) when status >= 500 => ('Something went wrong on our side', 'Please try again in a moment.'),
+        _ => ('Something went wrong', e.toString()),
+      };
 
   @override
-  Widget build(BuildContext context) => EmptyView(
-        icon: error is ApiException && (error as ApiException).isNetwork ? Icons.wifi_off : Icons.error_outline,
-        title: 'Something went wrong',
-        message: error.toString(),
-        action: onRetry == null ? null : OutlinedButton(onPressed: onRetry, child: const Text('Try again')),
-      );
+  Widget build(BuildContext context) {
+    final (t, m) = _copy(error);
+    return EmptyView(
+      icon: error is ApiException && (error as ApiException).isNetwork ? Icons.wifi_off : Icons.error_outline,
+      title: title ?? t,
+      message: message ?? m,
+      action: onRetry == null ? null : OutlinedButton(onPressed: onRetry, child: const Text('Try again')),
+    );
+  }
 }
 
-/// Loading / error / data for a Riverpod [AsyncValue].
+/// Loading / error / data for a Riverpod [AsyncValue]. A refresh keeps the
+/// data on screen. [errorBuilder] replaces the default [ErrorView]; with
+/// [AsyncView.sliver], [data] returns a sliver and the other states fill the
+/// rest of the scroll view.
 class AsyncView<T> extends StatelessWidget {
-  const AsyncView({super.key, required this.value, required this.data, this.onRetry});
+  const AsyncView({super.key, required this.value, required this.data, this.onRetry, this.errorBuilder}) : sliver = false;
+  const AsyncView.sliver({super.key, required this.value, required this.data, this.onRetry, this.errorBuilder}) : sliver = true;
   final AsyncValue<T> value;
   final Widget Function(T data) data;
   final VoidCallback? onRetry;
+  final Widget Function(Object error)? errorBuilder;
+  final bool sliver;
 
   @override
-  Widget build(BuildContext context) => switch (value) {
-        AsyncData(:final value) => data(value),
-        AsyncError(:final error) when !value.hasValue => ErrorView(error: error, onRetry: onRetry),
-        _ when value.hasValue => data(value.requireValue),
-        _ => const Center(child: CircularProgressIndicator()),
-      };
+  Widget build(BuildContext context) {
+    final Widget other = switch (value) {
+      AsyncData(:final value) => data(value),
+      AsyncError(:final error) when !value.hasValue => errorBuilder?.call(error) ?? ErrorView(error: error, onRetry: onRetry),
+      _ when value.hasValue => data(value.requireValue),
+      _ => const Center(child: CircularProgressIndicator()),
+    };
+    return !sliver || value.hasValue ? other : SliverFillRemaining(hasScrollBody: false, child: other);
+  }
 }
 
 /// KPI tile for dashboards (earnings, sales).

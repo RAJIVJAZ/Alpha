@@ -138,4 +138,28 @@ void main() {
     final add = tester.widget<OutlinedButton>(find.byKey(const Key('add-i-garlic')));
     expect(add.onPressed, isNull);
   });
+
+  testWidgets('suggestions say whether they are customisable: plain ones add at once, others open the sheet', (tester) async {
+    final api = menuApi()
+      ..on('GET /cart', cartJson(lines: [lineJson(itemId: 'i-garlic', name: 'Garlic Bread', unit: '129.00', variant: null, addons: [])]))
+      // suggestions carry no variants or add-ons, only the flag
+      ..on('GET /recommendations/dishes', [
+        {...item('i-coke', 'Coke (300 ml)', '60'), 'customisable': false},
+        {...item('i-margherita', 'Margherita', '249'), 'customisable': true},
+      ])
+      ..on('POST /cart/items', cartJson(lines: [lineJson(itemId: 'i-garlic', name: 'Garlic Bread', unit: '129.00', variant: null, addons: [])]));
+    await pumpApp(tester, api, location: '/outlets/pizza-republic', signedIn: true);
+
+    final card = find.ancestor(of: find.text('Goes well with your order'), matching: find.byType(Card));
+    final adds = find.descendant(of: card, matching: find.widgetWithText(OutlinedButton, 'Add'));
+    expect(adds, findsNWidgets(2));
+
+    // not on the menu at all: the flag alone decides
+    await tester.tapAndSettle(adds.at(0));
+    expect(api.lastBody('POST /cart/items'), {'menuItemId': 'i-coke', 'quantity': 1});
+
+    await tester.tapAndSettle(adds.at(1));
+    expect(find.byKey(const Key('variant-v-med')), findsOneWidget);
+    expect(find.text('Add · ₹249'), findsOneWidget);
+  });
 }

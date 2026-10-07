@@ -10,15 +10,14 @@ class LoginPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final notice = ref.watch(loginNoticeProvider);
     return LoginScreen(
       title: 'FoodGrid Business',
-      subtitle: notice ?? 'Live orders, kitchen, menu and stock for your restaurant or food cart.',
+      subtitle: 'Live orders, kitchen, menu and stock for your restaurant or food cart.',
+      notice: ref.watch(loginNoticeProvider),
       modes: const [LoginMode.password, LoginMode.otp],
-      authorize: (claims) {
-        ref.read(loginNoticeProvider.notifier).clear();
-        return authorizeMerchant(claims);
-      },
+      authorize: authorizeMerchant,
+      authorizeUser: (user) async => eligibleMemberships(user.memberships).isEmpty ? notMerchantMessage : null,
+      onSignedIn: (_) => ref.read(loginNoticeProvider.notifier).clear(),
     );
   }
 }

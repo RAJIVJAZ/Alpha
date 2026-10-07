@@ -11,8 +11,7 @@ void main() {
   WidgetsFlutterBinding.ensureInitialized();
   runApp(
     ProviderScope(
-      // screens poll and offer "Try again"; no hidden retry loops on top
-      retry: (_, _) => null,
+      retry: retryTransientErrors,
       overrides: [appConfigProvider.overrideWithValue(const AppConfig(app: ClientApp.rider))],
       child: const RiderApp(),
     ),

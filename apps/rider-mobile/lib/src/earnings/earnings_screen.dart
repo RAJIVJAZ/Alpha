@@ -237,7 +237,6 @@ class _TxnRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final sign = txn.isCredit ? '+' : '−';
     return MergeSemantics(
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 8),
@@ -253,7 +252,7 @@ class _TxnRow extends StatelessWidget {
             ]),
           ),
           Text(
-            '$sign${money(txn.amount)}',
+            money(txn.isCredit ? txn.amount : -txn.amount, signed: true),
             semanticsLabel: '${txn.isCredit ? 'Credit' : 'Debit'} ${money(txn.amount)}',
             style: TextStyle(fontWeight: FontWeight.w600, fontFeatures: const [FontFeature.tabularFigures()], color: txn.isCredit ? FoodGridTheme.goodText : null),
           ),

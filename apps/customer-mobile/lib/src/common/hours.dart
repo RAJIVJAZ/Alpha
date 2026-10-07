@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'json.dart';
 
 /// One opening window on a weekday (0 = Sunday), times as "HH:mm" in IST.
@@ -46,11 +44,4 @@ String? nextOpening(List<OpeningHours>? hours, {DateTime? now}) {
     }
   }
   return null;
-}
-
-/// Great-circle distance in km.
-double distanceKm(double lat1, double lng1, double lat2, double lng2) {
-  const r = math.pi / 180;
-  final h = math.pow(math.sin((lat2 - lat1) * r / 2), 2) + math.cos(lat1 * r) * math.cos(lat2 * r) * math.pow(math.sin((lng2 - lng1) * r / 2), 2);
-  return 12742 * math.asin(math.sqrt(h));
 }

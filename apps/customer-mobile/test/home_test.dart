@@ -18,6 +18,7 @@ FakeApi homeApi() {
     ..on('GET /outlets/nearby', {
       'data': [
         outletJson(),
+        // switched on, but outside its hours
         outletJson(id: 'o-2', slug: 'momo-wagon', name: 'Momo Wagon - Koramangala', open: false),
         outletJson(id: 'o-3', slug: 'dosa-corner', name: 'Dosa Corner - Jayanagar', sponsored: true, campaign: 'camp-9'),
       ],
@@ -40,8 +41,10 @@ void main() {
 
     expect(find.text('Momo Wagon - Koramangala'), findsOneWidget);
     expect(find.text('Dosa Corner - Jayanagar'), findsOneWidget);
-    // closed places are dimmed and labelled; sponsored ones carry "Ad"
+    // closed places (isOpenNow false) are dimmed and labelled; sponsored ones carry "Ad"
     expect(find.text('Closed now'), findsOneWidget);
+    expect(find.bySemanticsLabel(RegExp(r'^Momo Wagon - Koramangala, Closed now')), findsOneWidget);
+    expect(find.bySemanticsLabel(RegExp(r'^Spice Garden - Koramangala, rated')), findsWidgets);
     expect(find.text('Ad'), findsOneWidget);
 
     final q = api.callsTo('GET /outlets/nearby').single.queryParameters;

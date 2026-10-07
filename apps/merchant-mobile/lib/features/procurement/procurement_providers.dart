@@ -40,8 +40,8 @@ class ProcurementRepository {
     );
   }
 
-  Future<Page<PurchaseOrder>> purchaseOrders({List<String>? statuses, int pageSize = 50}) async =>
-      Page.fromJson(await _api.get<Map<String, dynamic>>('procurement/purchase-orders', query: {'status': statuses, 'pageSize': pageSize}), PurchaseOrder.fromJson);
+  Future<PagedResult<PurchaseOrder>> purchaseOrders({List<String>? statuses, int pageSize = 50}) async =>
+      PagedResult.fromJson(await _api.get<Map<String, dynamic>>('procurement/purchase-orders', query: {'status': statuses, 'pageSize': pageSize}), PurchaseOrder.fromJson);
 
   Future<PurchaseOrder> purchaseOrder(String id) async => PurchaseOrder.fromJson(await _api.get<Map<String, dynamic>>('procurement/purchase-orders/$id'));
 

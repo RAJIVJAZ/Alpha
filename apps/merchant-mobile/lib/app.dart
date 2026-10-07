@@ -25,10 +25,3 @@ class MerchantApp extends ConsumerWidget {
         tabBarTheme: base.tabBarTheme.copyWith(labelStyle: base.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
       );
 }
-
-/// Riverpod retries: only transient failures (offline, 5xx), a few times.
-Duration? merchantRetry(int retryCount, Object error) {
-  if (retryCount >= 3) return null;
-  if (error is ApiException && (error.isNetwork || error.status >= 500)) return Duration(seconds: 1 << retryCount);
-  return null;
-}

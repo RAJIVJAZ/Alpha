@@ -32,18 +32,18 @@ also sign in with a mobile OTP.
 
 ## Flow
 
-`/splash` → `/login` (email + password or mobile OTP) → `/business` when the
-token has no business (several memberships; exactly one eligible business is
-opened automatically through `auth/switch-tenant`; none signs out with an
-explanation) → `/outlet` when the business has several outlets and none is
-remembered → home tabs. The chosen outlet is remembered per business
+`/splash` → `/login` (email + password or mobile OTP; an account with no
+restaurant or food cart is refused there with an explanation) → `/business`
+when the token has no business (several memberships; exactly one eligible
+business is opened automatically through `auth/switch-tenant`) → `/outlet` when
+the business has several outlets and none is remembered → home tabs. The chosen outlet is remembered per business
 (`shared_preferences`). Only RESTAURANT and FOOD_CART businesses are accepted.
 
 ## Features
 
 | Tab / screen | What it does | API |
 | --- | --- | --- |
-| **Orders** (home) | Board for the outlet grouped **New / Preparing / Ready / Done today** (IST), polled every 10 s. A newly placed order plays a chime, buzzes and shows a banner; the tab carries a badge with waiting orders. Accept with a prep-time picker (10–45 min), reject with a reason, start preparing, mark ready, hand over (takeaway / dine-in), cancel (detail screen). Order detail: items, variants, add-ons, notes, customer, address, payment status and the full bill with CGST / SGST. | `GET merchant/orders?outletId&status=…` (+ `from`/`to` for done today), `GET merchant/orders/{id}`, `POST merchant/orders/{id}/accept {prepTimeMins}` / `reject {reason}` / `preparing` / `ready` / `complete` / `cancel {reason}` |
+| **Orders** (home) | Board for the outlet grouped **New / Preparing / Ready / Done today** (IST). It joins the outlet's room on the tracking socket (`outlet:subscribe`) and refreshes at once on `order:new` and `order:status`; polling every 10 s is the fallback (every 30 s while the socket is connected). A newly placed order plays a chime, buzzes and shows a banner; the tab carries a badge with waiting orders. Accept with a prep-time picker (10–45 min), reject with a reason, start preparing, mark ready, hand over (takeaway / dine-in), cancel (detail screen). Order detail: items, variants, add-ons, notes, customer, address, payment status and the full bill with CGST / SGST. | `GET merchant/orders?outletId&status=…` (+ `from`/`to` for done today), `GET merchant/orders/{id}`, `POST merchant/orders/{id}/accept {prepTimeMins}` / `reject {reason}` / `preparing` / `ready` / `complete` / `cancel {reason}` |
 | **Kitchen** | KDS tickets by station (filter chips) in Queued / Cooking / Ready tabs, oldest first, polled every 5 s. Timers count up every second with colour + icon + word: *On time*, *Due soon* (12 min), *Overdue* (20 min). Start, ready, served (bump), recall. | `GET kds/tickets?outletId&station`, `POST kds/tickets/{id}/start\|ready\|bump\|recall` |
 | **Counter** (POS) | Category chips, search, big item buttons, variant / add-on picker; bill with quantities, takeaway / dine-in + table, customer, flat discount, UPI / cash / card; charge with an `Idempotency-Key` per bill; GST receipt (CGST, SGST, packaging, round-off). Open counter / QR orders can be handed over. Food carts get this tab second. | `GET merchant/outlets/{id}/menu`, `GET merchant/outlets/{id}/tables`, `POST pos/orders`, `POST pos/orders/{id}/complete` |
 | **Menu** | Dishes by category with search and an "out of stock only" filter; in / out of stock switches (instant, rolled back if refused), whole-category on / off. | `GET merchant/outlets/{id}/menu`, `POST merchant/items/availability {itemIds, isAvailable}` |
@@ -61,7 +61,8 @@ Indian-formatted, times are IST.
 
 Permissions mirror `TENANT_ROLE_PERMISSIONS` (`packages/auth/src/permissions.ts`),
 see `lib/core/permissions.dart`. The API enforces them; the app hides what a
-role can't do, and any 403 is explained ("Your role can't manage orders…").
+role can't do, and any 403 is explained with the server's message ("Your role
+can't manage orders. Ask the business owner for access.").
 
 | Role | Orders | Kitchen | Counter | Menu stock | Sales | Inventory | Purchasing |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -74,7 +75,7 @@ role can't do, and any 403 is explained ("Your role can't manage orders…").
 
 ¹ `GET merchant/outlets` requires `orders:read`, which the procurement-manager
 role lacks, so that role can't load its outlets (on the web dashboards either)
-and sees an explained error after sign-in.
+and sees the server's explanation after sign-in.
 
 ## Push notifications
 
@@ -90,15 +91,15 @@ await unregisterMerchantPush(ref, token); // before signing out
 ```
 
 These wrap `registerPushToken` / `unregisterPushToken` from `foodgrid_core`.
-Until then the board polls every 10 seconds and chimes for new orders while the
-app is open.
+Until then new orders reach the open app over the tracking socket (with polling
+as the fallback) and chime.
 
 ## Code layout
 
 ```
 lib/
-  main.dart, app.dart, router.dart   ProviderScope, theme, go_router with the session redirect
-  core/        permissions, JSON readers, shared widgets, tenant switch, outlet store, order alert, timings, push
+  main.dart, app.dart, router.dart   ProviderScope (core retry policy), theme, go_router (materialRoute) with the session redirect
+  core/        permissions, JSON readers, shared widgets, outlet store, order alert, timings, push
   features/    auth, outlets, orders, kitchen, menu, pos, inventory, procurement, sales, reviews, more, shell, splash
 assets/sounds/new_order.wav          new-order chime
 ```
@@ -114,9 +115,12 @@ flutter test
 
 Widget tests run the whole app (router, shell, providers) against an in-memory
 gateway (`test/helpers.dart`: a Dio `HttpClientAdapter` fake, `MemoryTokenStore`,
-polling and timers off), so they never touch the network. They cover the board
-grouping and accepting with a prep time, a chef's restricted actions and an
-explained 403, the new-order alert, the business picker and `switch-tenant`
-(including auto-open and refusal), outlet choice, KDS overdue labels and bump,
+the core `FakeSocketTransport` for the tracking socket, polling and timers off),
+so they never touch the network. They cover the board grouping and accepting
+with a prep time, a chef's restricted actions and explained 403s (the server's
+message, or an older server's bare "Missing permission"), the new-order alert,
+the board refreshing on `order:new` / `order:status` from the outlet room, the
+business picker and `switch-tenant` (both answer shapes, auto-open, refusal at
+sign-in and for a restored session), outlet choice, KDS overdue labels and bump,
 menu availability (and rollback), the POS bill total, idempotency key and GST
 receipt, and PO approval by the owner vs. a manager.

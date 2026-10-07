@@ -108,7 +108,7 @@ void main() {
     // tracking for the new order
     expect(find.text('Waiting for the restaurant to confirm.'), findsOneWidget);
     expect(find.text('ORD-261007-00042 · 7 Oct, 3:30 pm'), findsOneWidget);
-    expect(h.socket.subscribed, contains('ord-1'));
+    expect(h.socket.sentAs('order:subscribe'), contains(equals({'orderId': 'ord-1'})));
     await unmount(tester);
   });
 
@@ -133,5 +133,21 @@ void main() {
     expect(find.byKey(const Key('retry-payment')), findsOneWidget);
     expect(find.byKey(const Key('cancel-order')), findsOneWidget);
     await unmount(tester);
+  });
+
+  testWidgets('a refused coupon shows the reason from the server in the sheet', (tester) async {
+    final api = checkoutApi()
+      ..on('GET /coupons', [])
+      ..on('POST /cart/coupon', {'statusCode': 422, 'code': 'COUPON_EXPIRED', 'message': 'This coupon expired on 30 Sep.'}, status: 422);
+    await pumpApp(tester, api, location: '/cart', signedIn: true);
+
+    await scrollTo(tester, find.text('Apply a coupon'));
+    await tester.tapAndSettle(find.text('Apply a coupon'));
+    await tester.enterText(find.widgetWithText(TextField, 'Coupon code'), 'diwali50');
+    await tester.tapAndSettle(find.widgetWithText(FilledButton, 'Apply'));
+
+    expect(api.lastBody('POST /cart/coupon'), {'code': 'DIWALI50'});
+    expect(find.text('This coupon expired on 30 Sep.'), findsOneWidget);
+    expect(find.text('Coupons'), findsOneWidget, reason: 'the sheet stays open to try another code');
   });
 }
