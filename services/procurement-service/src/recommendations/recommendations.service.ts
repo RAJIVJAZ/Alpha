@@ -4,6 +4,7 @@ import type { SupplierStrategy } from '@foodgrid/database';
 import type { SupplierRecommendation } from '@foodgrid/types';
 import { notFound, unprocessable } from '@foodgrid/utils';
 import { ClientsService, RankedOption } from '../clients/clients.service';
+import { assertOutletAccess, OutletActor } from '../common/outlet-access';
 import { SettingsService } from '../settings/settings.service';
 
 /**
@@ -23,9 +24,11 @@ export class RecommendationsService {
     ingredientId: string,
     quantity?: number,
     strategy?: SupplierStrategy,
+    user?: OutletActor,
   ): Promise<SupplierRecommendation & { ingredientName: string }> {
     const ing = await this.clients.ingredient(ingredientId);
     if (ing.tenantId !== tenantId) throw notFound('Ingredient', ingredientId);
+    assertOutletAccess(user, ing.outletId);
     const settings = await this.settings.get(tenantId);
     const chosen = strategy ?? settings.defaultStrategy;
     const alert = await this.prisma.reorderAlert.findFirst({

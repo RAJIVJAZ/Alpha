@@ -3,6 +3,7 @@ import { PrismaService } from '@foodgrid/database/nest';
 import type { Prisma } from '@foodgrid/database';
 import { dateOnly, istDate } from '@foodgrid/utils';
 import { ClientsService, StockStatus } from '../clients/clients.service';
+import { assertOutletAccess, hasOutletAccess, OutletActor } from '../common/outlet-access';
 import { SettingsService } from '../settings/settings.service';
 
 const CONCURRENCY = 5;
@@ -22,10 +23,11 @@ export class ForecastsService {
     private readonly settings: SettingsService,
   ) {}
 
-  async runForTenant(tenantId: string, outletId?: string) {
+  async runForTenant(tenantId: string, outletId?: string, user?: OutletActor) {
+    if (outletId) assertOutletAccess(user, outletId);
     const settings = await this.settings.get(tenantId);
     const ingredients = (await this.clients.stockStatus(tenantId, outletId)).filter(
-      (i) => i.avgDailyUsage > 0 || i.currentStock > 0,
+      (i) => (i.avgDailyUsage > 0 || i.currentStock > 0) && hasOutletAccess(user, i.outletId),
     );
     let ok = 0;
     let failed = 0;
@@ -105,9 +107,10 @@ export class ForecastsService {
   }
 
   /** History + forecast series for the ingredient chart. */
-  async series(tenantId: string, ingredientId: string) {
+  async series(tenantId: string, ingredientId: string, user: OutletActor) {
     const ing = await this.clients.ingredient(ingredientId);
     if (ing.tenantId !== tenantId) return { history: [], forecast: [] };
+    assertOutletAccess(user, ing.outletId);
     const [history, forecast] = await Promise.all([
       this.clients.consumption(ingredientId, 60),
       this.prisma

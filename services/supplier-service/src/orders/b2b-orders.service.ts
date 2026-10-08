@@ -19,7 +19,13 @@ import {
 import { OutboxService } from '@foodgrid/utils/server';
 import { TenantDirectory } from '../common/tenant-directory.service';
 import { DealersService } from '../dealers/dealers.service';
-import { computeB2bTotals, Segment, tierPrice, validateQuantity } from '../domain/b2b-pricing';
+import {
+  catalogueUnitPrice,
+  computeB2bTotals,
+  creditDays,
+  Segment,
+  validateQuantity,
+} from '../domain/b2b-pricing';
 import { deliveryChargeFor, findZone, slotBookable } from '../domain/logistics';
 import { stockStatusFor } from '../products/products.service';
 import {
@@ -61,8 +67,6 @@ export interface PlaceInput extends PlaceB2bOrderDto {
   buyerTenantId: string;
   buyerName?: string;
   sourcePurchaseOrderId?: string;
-  /** Prices agreed on the purchase order (procurement); validated against the catalogue. */
-  agreedPrices?: Map<string, number>;
 }
 
 /**
@@ -85,10 +89,9 @@ export class B2bOrdersService {
   async place(input: PlaceInput) {
     if (input.buyerTenantId === input.sellerTenantId)
       throw conflict('You cannot order from yourself', 'SELF_ORDER');
-    const [seller, buyer, dealer] = await Promise.all([
+    const [seller, { buyer, dealer, segment }] = await Promise.all([
       this.tenants.get(input.sellerTenantId),
-      this.tenants.get(input.buyerTenantId),
-      this.dealers.termsFor(input.sellerTenantId, input.buyerTenantId),
+      this.buyerTerms(input.sellerTenantId, input.buyerTenantId),
     ]);
     if (seller.status !== 'ACTIVE')
       throw conflict('This seller is not accepting orders', 'SELLER_INACTIVE');
@@ -98,11 +101,6 @@ export class B2bOrdersService {
       include: { priceTiers: true },
     });
     const byId = new Map(products.map((p) => [p.id, p]));
-    const segment: Segment = dealer
-      ? 'DEALER'
-      : buyer.type === 'RETAILER' || buyer.type === 'WHOLESALER'
-        ? 'RETAILER'
-        : 'RESTAURANT';
     const errors: string[] = [];
     const lines = input.items.map((i) => {
       const p = byId.get(i.productId);
@@ -118,23 +116,12 @@ export class B2bOrdersService {
       if (qtyError) errors.push(`${p.name}: ${qtyError}`);
       if (Number(p.stockQty) < i.quantity)
         errors.push(`${p.name}: only ${Number(p.stockQty)} in stock`);
-      const catalogue = tierPrice(
-        Number(p.price),
-        p.priceTiers.map((t) => ({
-          ...t,
-          minQty: Number(t.minQty),
-          maxQty: t.maxQty ? Number(t.maxQty) : null,
-          unitPrice: Number(t.unitPrice),
-          segment: t.segment as Segment,
-        })),
-        i.quantity,
-        segment,
-      );
-      const agreed = input.agreedPrices?.get(p.id);
+      // The seller's catalogue is the only price source: prices carried on a buyer's
+      // purchase order are estimates (possibly already net of the dealer discount).
       return {
         product: p,
         quantity: i.quantity,
-        unitPrice: agreed !== undefined ? Math.min(agreed, catalogue) : catalogue,
+        unitPrice: catalogueUnitPrice(p, i.quantity, segment),
       };
     });
     if (errors.length) throw unprocessable(errors.join('; '), 'ORDER_INVALID', errors);
@@ -189,15 +176,18 @@ export class B2bOrdersService {
 
     const paymentTerms: PaymentTerms =
       input.paymentTerms ?? (dealer?.paymentTerms as PaymentTerms | undefined) ?? 'PREPAID';
-    if (paymentTerms !== 'PREPAID' && paymentTerms !== 'COD') {
+    const onCredit = creditDays(paymentTerms) > 0;
+    if (onCredit) {
       if (!dealer)
         throw forbidden(
           'Credit terms are available to registered dealers only',
           'CREDIT_NOT_ALLOWED',
         );
-      const exposure = Number(dealer.outstanding) + gross;
-      if (exposure > Number(dealer.creditLimit))
-        throw unprocessable('Credit limit exceeded', 'CREDIT_LIMIT');
+      if (creditDays(paymentTerms) > creditDays(dealer.paymentTerms))
+        throw forbidden(
+          `Your agreed payment terms with ${seller.name} are ${dealer.paymentTerms}`,
+          'TERMS_NOT_ALLOWED',
+        );
     }
 
     const interState = isInterState(seller.stateCode, buyer.stateCode);
@@ -220,6 +210,16 @@ export class B2bOrdersService {
     );
 
     return this.prisma.$transaction(async (tx) => {
+      // Credit orders hold their invoiced total against the dealer's limit until
+      // paid, cancelled or rejected; the conditional update serialises concurrent orders.
+      if (onCredit) {
+        const reserved = await tx.$executeRaw`
+          UPDATE "marketplace"."Dealer"
+             SET outstanding = outstanding + ${String(totals.total)}::numeric, "updatedAt" = now()
+           WHERE id = ${dealer!.id} AND status = 'ACTIVE'
+             AND outstanding + ${String(totals.total)}::numeric <= "creditLimit"`;
+        if (!reserved) throw unprocessable('Credit limit exceeded', 'CREDIT_LIMIT');
+      }
       const order = await tx.b2bOrder.create({
         data: {
           orderNumber: await generateDocumentNumber(tx, 'SO'),
@@ -263,6 +263,43 @@ export class B2bOrdersService {
       });
       await this.emit(tx, order, interState);
       return order;
+    });
+  }
+
+  /** The buyer's pricing segment with this seller and the dealer terms behind it. */
+  async buyerTerms(sellerTenantId: string, buyerTenantId: string) {
+    const [buyer, dealer] = await Promise.all([
+      this.tenants.get(buyerTenantId),
+      this.dealers.termsFor(sellerTenantId, buyerTenantId),
+    ]);
+    const segment: Segment = dealer
+      ? 'DEALER'
+      : buyer.type === 'RETAILER' || buyer.type === 'WHOLESALER'
+        ? 'RETAILER'
+        : 'RESTAURANT';
+    return { buyer, dealer, segment };
+  }
+
+  /** Gives back dealer credit an unpaid order on terms was holding (cancel, reject, re-bill, payment). */
+  private async releaseCredit(tx: Tx, order: B2bOrder, amount: number) {
+    if (!creditDays(order.paymentTerms) || order.paymentStatus === 'PAID' || amount <= 0) return;
+    await tx.$executeRaw`
+      UPDATE "marketplace"."Dealer"
+         SET outstanding = GREATEST(outstanding - ${String(amount)}::numeric, 0), "updatedAt" = now()
+       WHERE id = (SELECT id FROM "marketplace"."Dealer"
+                    WHERE "tenantId" = ${order.sellerTenantId} AND "dealerTenantId" = ${order.buyerTenantId}
+                    ORDER BY (status = 'ACTIVE') DESC, "createdAt" ASC LIMIT 1)`;
+  }
+
+  /** A captured payment settles the order and frees the dealer credit it held. */
+  async markPaid(id: string) {
+    await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM "marketplace"."B2bOrder" WHERE id = ${id} FOR UPDATE`;
+      const order = await tx.b2bOrder.findUnique({ where: { id } });
+      if (!order || order.paymentStatus === 'PAID') return;
+      await tx.b2bOrder.update({ where: { id }, data: { paymentStatus: 'PAID' } });
+      if (order.status !== 'CANCELLED' && order.status !== 'REJECTED')
+        await this.releaseCredit(tx, order, Number(order.total));
     });
   }
 
@@ -328,6 +365,8 @@ export class B2bOrdersService {
         },
         include: { items: true },
       });
+      if (to === 'CANCELLED' || to === 'REJECTED')
+        await this.releaseCredit(tx, order, Number(order.total));
       await this.emit(tx, updated, undefined, { note, ...extra });
       return { before: order, after: updated };
     });
@@ -373,7 +412,11 @@ export class B2bOrdersService {
       );
     }
 
+    const status: B2bOrderStatus = partial ? 'PARTIALLY_CONFIRMED' : 'CONFIRMED';
     return this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM "marketplace"."B2bOrder" WHERE id = ${id} FOR UPDATE`;
+      const current = await tx.b2bOrder.findUniqueOrThrow({ where: { id } });
+      b2bStateMachine.assert(current.status, status);
       // reserve stock atomically; fail if it moved since the order was placed
       for (const [productId, qty] of confirmed) {
         if (qty <= 0) continue;
@@ -399,8 +442,7 @@ export class B2bOrdersService {
           },
         });
       }
-      const status: B2bOrderStatus = partial ? 'PARTIALLY_CONFIRMED' : 'CONFIRMED';
-      b2bStateMachine.assert(order.status, status);
+      if (rebilled) await this.releaseCredit(tx, current, Number(current.total) - rebilled.total);
       const updated = await tx.b2bOrder.update({
         where: { id },
         data: {

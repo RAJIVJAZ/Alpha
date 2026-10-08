@@ -36,8 +36,8 @@ export class ProcurementController {
   @Get('dashboard')
   @RequirePermissions(Permissions.ProcurementRead)
   @ApiOperation({ summary: 'Alerts by severity, pending approvals, in-transit POs, spend' })
-  overview(@TenantId() tenantId: string) {
-    return this.dashboard.overview(tenantId);
+  overview(@TenantId() tenantId: string, @CurrentUser() user: AccessTokenClaims) {
+    return this.dashboard.overview(tenantId, user);
   }
 
   @Get('settings')
@@ -62,38 +62,55 @@ export class ProcurementController {
   @ApiOperation({
     summary: 'Forecast ingredient demand (history + seasonality + weather + festivals)',
   })
-  runForecasts(@TenantId() tenantId: string, @Query('outletId') outletId?: string) {
-    return this.forecasts.runForTenant(tenantId, outletId);
+  runForecasts(
+    @TenantId() tenantId: string,
+    @CurrentUser() user: AccessTokenClaims,
+    @Query('outletId') outletId?: string,
+  ) {
+    return this.forecasts.runForTenant(tenantId, outletId, user);
   }
 
   @Get('forecasts/:ingredientId')
   @RequirePermissions(Permissions.ProcurementRead)
-  forecastSeries(@TenantId() tenantId: string, @Param('ingredientId') ingredientId: string) {
-    return this.forecasts.series(tenantId, ingredientId);
+  forecastSeries(
+    @TenantId() tenantId: string,
+    @CurrentUser() user: AccessTokenClaims,
+    @Param('ingredientId') ingredientId: string,
+  ) {
+    return this.forecasts.series(tenantId, ingredientId, user);
   }
 
   @Post('alerts/scan')
   @HttpCode(200)
   @RequirePermissions(Permissions.ProcurementManage)
   @ApiOperation({ summary: 'Predict depletion dates and raise reorder alerts' })
-  scan(@TenantId() tenantId: string, @Query('outletId') outletId?: string) {
-    return this.alerts.scan(tenantId, outletId);
+  scan(
+    @TenantId() tenantId: string,
+    @CurrentUser() user: AccessTokenClaims,
+    @Query('outletId') outletId?: string,
+  ) {
+    return this.alerts.scan(tenantId, outletId, undefined, user);
   }
 
   @Get('alerts')
   @RequirePermissions(Permissions.ProcurementRead)
   listAlerts(
     @TenantId() tenantId: string,
+    @CurrentUser() user: AccessTokenClaims,
     @Query() q: { status?: string; outletId?: string; severity?: string },
   ) {
-    return this.alerts.list(tenantId, q);
+    return this.alerts.list(tenantId, q, user);
   }
 
   @Post('alerts/:id/dismiss')
   @HttpCode(200)
   @RequirePermissions(Permissions.ProcurementManage)
-  dismiss(@TenantId() tenantId: string, @Param('id') id: string) {
-    return this.alerts.dismiss(tenantId, id);
+  dismiss(
+    @TenantId() tenantId: string,
+    @CurrentUser() user: AccessTokenClaims,
+    @Param('id') id: string,
+  ) {
+    return this.alerts.dismiss(tenantId, id, user);
   }
 
   // ─── supplier comparison ──────────────────────────────────────────────────
@@ -104,6 +121,7 @@ export class ProcurementController {
   })
   recommend(
     @TenantId() tenantId: string,
+    @CurrentUser() user: AccessTokenClaims,
     @Query('ingredientId') ingredientId: string,
     @Query('quantity') quantity?: string,
     @Query('strategy') strategy?: SupplierStrategy,
@@ -113,6 +131,7 @@ export class ProcurementController {
       ingredientId,
       quantity ? Number(quantity) : undefined,
       strategy,
+      user,
     );
   }
 
@@ -120,8 +139,12 @@ export class ProcurementController {
   @Post('purchase-orders/auto')
   @RequirePermissions(Permissions.ProcurementManage)
   @ApiOperation({ summary: 'Auto-create POs for open alerts using the recommended suppliers' })
-  auto(@TenantId() tenantId: string, @CurrentUser('sub') userId: string, @Body() dto: AutoPoDto) {
-    return this.pos.autoCreate(tenantId, userId, dto);
+  auto(
+    @TenantId() tenantId: string,
+    @CurrentUser() user: AccessTokenClaims,
+    @Body() dto: AutoPoDto,
+  ) {
+    return this.pos.autoCreate(tenantId, user, dto);
   }
 
   @Post('purchase-orders')
@@ -132,15 +155,23 @@ export class ProcurementController {
 
   @Get('purchase-orders')
   @RequirePermissions(Permissions.ProcurementRead)
-  list(@TenantId() tenantId: string, @Query() q: ListPoDto) {
-    return this.pos.list(tenantId, q);
+  list(
+    @TenantId() tenantId: string,
+    @CurrentUser() user: AccessTokenClaims,
+    @Query() q: ListPoDto,
+  ) {
+    return this.pos.list(tenantId, q, user);
   }
 
   @Get('purchase-orders/:id')
   @RequirePermissions(Permissions.ProcurementRead)
   @ApiOperation({ summary: 'PO with approval history and delivery tracking timeline' })
-  get(@TenantId() tenantId: string, @Param('id') id: string) {
-    return this.pos.get(tenantId, id);
+  get(
+    @TenantId() tenantId: string,
+    @CurrentUser() user: AccessTokenClaims,
+    @Param('id') id: string,
+  ) {
+    return this.pos.get(tenantId, id, user);
   }
 
   @Post('purchase-orders/:id/submit')

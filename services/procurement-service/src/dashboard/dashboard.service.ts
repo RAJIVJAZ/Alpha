@@ -1,23 +1,31 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@foodgrid/database/nest';
 import { istMonthStart, round2, sumMoney } from '@foodgrid/utils';
+import { OutletActor, outletScope } from '../common/outlet-access';
 
 @Injectable()
 export class DashboardService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async overview(tenantId: string) {
+  async overview(tenantId: string, user: OutletActor) {
     const db = this.prisma.forTenant(tenantId);
+    const outlets = outletScope(user);
     const monthStart = istMonthStart();
     const [alerts, byStatus, monthPos, quotes] = await Promise.all([
       db.reorderAlert.groupBy({
         by: ['severity'],
-        where: { status: 'OPEN' },
+        where: { status: 'OPEN', ...outlets },
         _count: { _all: true },
       }),
-      db.purchaseOrder.groupBy({ by: ['status'], _count: { _all: true }, _sum: { total: true } }),
+      db.purchaseOrder.groupBy({
+        by: ['status'],
+        where: outlets,
+        _count: { _all: true },
+        _sum: { total: true },
+      }),
       db.purchaseOrder.findMany({
         where: {
+          ...outlets,
           createdAt: { gte: monthStart },
           status: { notIn: ['CANCELLED', 'REJECTED', 'DRAFT'] },
         },

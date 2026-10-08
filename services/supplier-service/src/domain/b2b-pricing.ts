@@ -37,6 +37,41 @@ export function tierPrice(
   return valid[0]?.unitPrice ?? basePrice;
 }
 
+/** Catalogue price of a product row (Prisma decimals) for a buyer segment at a quantity. */
+export function catalogueUnitPrice(
+  product: {
+    price: unknown;
+    priceTiers: {
+      minQty: unknown;
+      maxQty: unknown;
+      unitPrice: unknown;
+      segment: string;
+      validFrom: Date | null;
+      validTo: Date | null;
+    }[];
+  },
+  qty: number,
+  segment: Segment,
+): number {
+  return tierPrice(
+    Number(product.price),
+    product.priceTiers.map((t) => ({
+      ...t,
+      minQty: Number(t.minQty),
+      maxQty: t.maxQty == null ? null : Number(t.maxQty),
+      unitPrice: Number(t.unitPrice),
+      segment: t.segment as Segment,
+    })),
+    qty,
+    segment,
+  );
+}
+
+const CREDIT_DAYS: Record<string, number> = { NET_7: 7, NET_15: 15, NET_30: 30 };
+
+/** Days of credit a payment term grants; PREPAID and COD grant none. */
+export const creditDays = (terms: string): number => CREDIT_DAYS[terms] ?? 0;
+
 export interface QuantityRules {
   moq: number;
   stepQty: number;

@@ -1,10 +1,12 @@
-import { Body, Controller, Get, HttpCode, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, Post, Query } from '@nestjs/common';
 import { ApiOperation, ApiProperty, ApiPropertyOptional, ApiTags } from '@nestjs/swagger';
 import { IsArray, IsIn, IsNumber, IsOptional, IsString, Min } from 'class-validator';
 import { Internal } from '@foodgrid/auth/nest';
 import { PrismaService } from '@foodgrid/database/nest';
 import { STOCK_UNITS } from '@foodgrid/types';
 import { notFound, Unit } from '@foodgrid/utils';
+import { catalogueUnitPrice } from '../domain/b2b-pricing';
+import { B2bOrdersService } from '../orders/b2b-orders.service';
 import { QuotesService } from '../quotes/quotes.service';
 
 class QuoteRequestDto {
@@ -26,6 +28,7 @@ export class InternalController {
   constructor(
     private readonly prisma: PrismaService,
     private readonly quotes: QuotesService,
+    private readonly orders: B2bOrdersService,
   ) {}
 
   @Post('quotes')
@@ -68,13 +71,24 @@ export class InternalController {
     };
   }
 
+  /**
+   * With buyerTenantId + quantity, `buyerUnitPrice` is the catalogue price that
+   * buyer would be billed (segment, validity and quantity rules; before any
+   * dealer discount), so purchase orders never re-implement tier selection.
+   */
   @Get('products/:id')
-  async product(@Param('id') id: string) {
+  async product(
+    @Param('id') id: string,
+    @Query('buyerTenantId') buyerTenantId?: string,
+    @Query('quantity') quantity?: string,
+  ) {
     const product = await this.prisma.product.findUnique({
       where: { id },
       include: { priceTiers: true },
     });
     if (!product) throw notFound('Product', id);
-    return product;
+    if (!buyerTenantId || !Number(quantity)) return product;
+    const { segment } = await this.orders.buyerTerms(product.tenantId, buyerTenantId);
+    return { ...product, buyerUnitPrice: catalogueUnitPrice(product, Number(quantity), segment) };
   }
 }

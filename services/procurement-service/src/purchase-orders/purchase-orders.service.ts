@@ -30,6 +30,7 @@ import {
 } from '@foodgrid/utils';
 import { InternalHttpService, OutboxService } from '@foodgrid/utils/server';
 import { ClientsService } from '../clients/clients.service';
+import { assertOutletAccess, OutletActor, outletScope } from '../common/outlet-access';
 import { requiresApproval } from '../domain/assessment';
 import { poAmountsFromSupplier, SupplierBilledAmounts } from '../domain/billing';
 import { poStateMachine } from '../domain/po-state';
@@ -50,7 +51,8 @@ interface ProductInfo {
   price: string;
   gstRate: string;
   deliveryTimeHours: number;
-  priceTiers: { minQty: string; unitPrice: string; segment: string }[];
+  /** Supplier's catalogue price for this buyer at the requested quantity. */
+  buyerUnitPrice?: number;
 }
 
 interface DraftLine {
@@ -163,24 +165,19 @@ export class PurchaseOrdersService {
     const tenantId = user.tenantId!;
     const outlet = await this.clients.outlet(dto.outletId);
     if (outlet.tenantId !== tenantId) throw notFound('Outlet', dto.outletId);
+    assertOutletAccess(user, dto.outletId);
     const lines: DraftLine[] = [];
     let supplierName = 'Supplier';
     for (const item of dto.items) {
       const p = await this.internal.get<ProductInfo>(
         'supplier',
         `internal/marketplace/products/${item.productId}`,
+        { query: { buyerTenantId: tenantId, quantity: item.quantity } },
       );
       if (p.tenantId !== dto.supplierTenantId)
         throw badRequest(`${p.name} is not sold by this supplier`, 'SUPPLIER_MISMATCH');
       const ing = item.ingredientId ? await this.clients.ingredient(item.ingredientId) : null;
       if (ing && ing.tenantId !== tenantId) throw notFound('Ingredient', item.ingredientId!);
-      const tier = p.priceTiers
-        .filter(
-          (t) =>
-            (t.segment === 'ALL' || t.segment === 'RESTAURANT') &&
-            Number(t.minQty) <= item.quantity,
-        )
-        .sort((a, b) => Number(b.minQty) - Number(a.minQty))[0];
       lines.push({
         ingredientId: item.ingredientId ?? null,
         productId: p.id,
@@ -188,7 +185,7 @@ export class PurchaseOrdersService {
         sku: p.sku,
         quantity: item.quantity,
         unit: `${Number(p.packSize)} ${p.unit}`,
-        unitPrice: tier ? Number(tier.unitPrice) : Number(p.price),
+        unitPrice: p.buyerUnitPrice ?? Number(p.price),
         gstRate: Number(p.gstRate),
         baseQtyPerPack: ing
           ? convertPack(Number(p.packSize), p.unit, ing.unit)
@@ -222,10 +219,19 @@ export class PurchaseOrdersService {
    * groups lines by (outlet, supplier) and routes each PO through approval —
    * or straight to the supplier when it is within the auto-approve limit.
    */
-  async autoCreate(tenantId: string, actorId: string | null, dto: AutoPoDto = {}) {
+  async autoCreate(
+    tenantId: string,
+    actor: Pick<AccessTokenClaims, 'sub' | 'outletIds'> | null,
+    dto: AutoPoDto = {},
+  ) {
+    const actorId = actor?.sub ?? null;
     const settings = await this.settings.get(tenantId);
     const alerts = await this.prisma.forTenant(tenantId).reorderAlert.findMany({
-      where: { status: 'OPEN', ...(dto.alertIds?.length ? { id: { in: dto.alertIds } } : {}) },
+      where: {
+        status: 'OPEN',
+        ...outletScope(actor),
+        ...(dto.alertIds?.length ? { id: { in: dto.alertIds } } : {}),
+      },
     });
     const groups = new Map<
       string,
@@ -430,14 +436,17 @@ export class PurchaseOrdersService {
     });
   }
 
-  private async owned(tenantId: string, id: string) {
-    const po = await this.prisma.forTenant(tenantId).purchaseOrder.findUnique({ where: { id } });
+  private async owned(user: AccessTokenClaims, id: string) {
+    const po = await this.prisma
+      .forTenant(user.tenantId!)
+      .purchaseOrder.findUnique({ where: { id } });
     if (!po) throw notFound('Purchase order', id);
+    assertOutletAccess(user, po.outletId);
     return po;
   }
 
   async submit(user: AccessTokenClaims, id: string) {
-    const po = await this.owned(user.tenantId!, id);
+    const po = await this.owned(user, id);
     const settings = await this.settings.get(user.tenantId!);
     return this.prisma.$transaction(async (tx) => {
       if (!requiresApproval(Number(po.total), Number(settings.autoApproveBelow))) {
@@ -471,7 +480,7 @@ export class PurchaseOrdersService {
 
   /** Restaurant owner approval → the PO is sent to the supplier immediately. */
   async approve(user: AccessTokenClaims, id: string, comment?: string) {
-    await this.owned(user.tenantId!, id);
+    await this.owned(user, id);
     return this.prisma.$transaction(async (tx) => {
       await tx.purchaseOrderApproval.create({
         data: { purchaseOrderId: id, approverId: user.sub, decision: 'APPROVED', comment },
@@ -496,7 +505,7 @@ export class PurchaseOrdersService {
   }
 
   async reject(user: AccessTokenClaims, id: string, comment?: string) {
-    await this.owned(user.tenantId!, id);
+    await this.owned(user, id);
     return this.prisma.$transaction(async (tx) => {
       await tx.purchaseOrderApproval.create({
         data: { purchaseOrderId: id, approverId: user.sub, decision: 'REJECTED', comment },
@@ -518,7 +527,7 @@ export class PurchaseOrdersService {
   }
 
   async cancel(user: AccessTokenClaims, id: string, reason?: string) {
-    const po = await this.owned(user.tenantId!, id);
+    const po = await this.owned(user, id);
     if (
       ['DISPATCHED', 'IN_TRANSIT', 'DELIVERED', 'RECEIVED', 'PARTIALLY_RECEIVED'].includes(
         po.status,
@@ -549,6 +558,7 @@ export class PurchaseOrdersService {
       .forTenant(user.tenantId!)
       .purchaseOrder.findUnique({ where: { id }, include: { items: true } });
     if (!po) throw notFound('Purchase order', id);
+    assertOutletAccess(user, po.outletId);
     const byId = new Map(po.items.map((i) => [i.id, i]));
     for (const l of dto.lines)
       if (!byId.has(l.itemId)) throw badRequest(`Unknown line ${l.itemId}`, 'INVALID_LINE');
@@ -678,11 +688,11 @@ export class PurchaseOrdersService {
   }
 
   // ─── queries ───────────────────────────────────────────────────────────────
-  async list(tenantId: string, q: ListPoDto) {
+  async list(tenantId: string, q: ListPoDto, user: OutletActor) {
     const { page, pageSize, skip, take } = normalizePage(q);
     const where: Prisma.PurchaseOrderWhereInput = {
       ...(q.status?.length ? { status: { in: q.status } } : {}),
-      outletId: q.outletId,
+      ...outletScope(user, q.outletId),
       supplierTenantId: q.supplierTenantId,
     };
     const db = this.prisma.forTenant(tenantId);
@@ -699,12 +709,13 @@ export class PurchaseOrdersService {
     return paginate(rows, total, page, pageSize);
   }
 
-  async get(tenantId: string, id: string) {
+  async get(tenantId: string, id: string, user: OutletActor) {
     const po = await this.prisma.forTenant(tenantId).purchaseOrder.findUnique({
       where: { id },
       include: { items: true, approvals: true, events: { orderBy: { createdAt: 'asc' } } },
     });
     if (!po) throw notFound('Purchase order', id);
+    assertOutletAccess(user, po.outletId);
     return po;
   }
 }

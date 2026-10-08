@@ -1,4 +1,10 @@
-import { computeB2bTotals, tierPrice, validateQuantity } from './b2b-pricing';
+import {
+  catalogueUnitPrice,
+  computeB2bTotals,
+  creditDays,
+  tierPrice,
+  validateQuantity,
+} from './b2b-pricing';
 import { deliveryChargeFor, findZone, slotBookable } from './logistics';
 
 describe('bulk pricing tiers', () => {
@@ -19,6 +25,41 @@ describe('bulk pricing tiers', () => {
     expect(tierPrice(1000, [{ ...tiers[0]!, validTo: new Date('2020-01-01') }], 20, 'ALL')).toBe(
       1000,
     );
+  });
+});
+
+describe('catalogue price for a buyer', () => {
+  const tier = (over: object) => ({
+    minQty: '1',
+    maxQty: null,
+    unitPrice: '0',
+    segment: 'ALL',
+    validFrom: null,
+    validTo: null,
+    ...over,
+  });
+  const flour = {
+    price: '680',
+    priceTiers: [
+      tier({ unitPrice: '400', validTo: new Date('2026-01-31T23:59:59Z') }), // expired promo
+      tier({ unitPrice: '410', validFrom: new Date('2999-01-01') }), // not started
+      tier({ unitPrice: '450', maxQty: '2' }), // trial price, capped
+      tier({ unitPrice: '500', segment: 'RETAILER' }),
+    ],
+  };
+  it('ignores expired, future, over-cap and other-segment tiers', () => {
+    expect(catalogueUnitPrice(flour, 4, 'RESTAURANT')).toBe(680);
+    expect(catalogueUnitPrice(flour, 4, 'DEALER')).toBe(680);
+    expect(catalogueUnitPrice(flour, 2, 'RESTAURANT')).toBe(450);
+    expect(catalogueUnitPrice(flour, 2, 'RETAILER')).toBe(500);
+  });
+});
+
+describe('credit terms', () => {
+  it('ranks terms by days of credit', () => {
+    expect(['PREPAID', 'COD', 'NET_7', 'NET_15', 'NET_30'].map(creditDays)).toEqual([
+      0, 0, 7, 15, 30,
+    ]);
   });
 });
 

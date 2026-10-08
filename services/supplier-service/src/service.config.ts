@@ -4,7 +4,7 @@ import type { ServiceBootstrapOptions } from '@foodgrid/utils/server';
 export const SERVICE_NAME = 'supplier-service';
 
 /** Event streams consumed by this service. */
-export const SUBSCRIBED_STREAMS: EventStream[] = ['procurement', 'identity'];
+export const SUBSCRIBED_STREAMS: EventStream[] = ['procurement', 'identity', 'payment'];
 
 export const SERVICE: ServiceBootstrapOptions = {
   name: SERVICE_NAME,

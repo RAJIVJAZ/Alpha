@@ -22,14 +22,14 @@ import { SERVICE } from '../src/service.config';
 
 const TENANT = 'tnt_spice';
 const OUTLET = 'outlet_kora';
-const member = (role: string, tenantId = TENANT) =>
+const member = (role: string, tenantId = TENANT, outletIds: string[] = []) =>
   issueTestToken({
     sub: `${role.toLowerCase()}_${tenantId}`,
     roles: ['CUSTOMER'],
     tenantId,
     tenantType: 'RESTAURANT',
     tenantRole: role as never,
-    outletIds: [],
+    outletIds,
   });
 
 const ingredient = (over: Partial<StockStatus>): StockStatus => ({
@@ -456,5 +456,129 @@ describe('procurement-service smart procurement flow (e2e)', () => {
       .set(as(intruder))
       .expect(200);
     expect(list.body.data).toHaveLength(0);
+  });
+
+  it('confines outlet-scoped staff to their own outlets', async () => {
+    const owner = member('OWNER');
+    await api().post('/api/v1/procurement/alerts/scan').set(as(owner)).send({}).expect(200);
+    const { body } = await api()
+      .post('/api/v1/procurement/purchase-orders/auto')
+      .set(as(owner))
+      .send({})
+      .expect(201);
+    const poId = body.created[0].id as string; // delivers to OUTLET (Koramangala)
+    const po = await prisma.purchaseOrder.findUniqueOrThrow({
+      where: { id: poId },
+      include: { items: true },
+    });
+
+    const elsewhere = member('PROCUREMENT_MANAGER', TENANT, ['outlet_indira']);
+    const elsewhereOwner = member('OWNER', TENANT, ['outlet_indira']);
+    const forbidden = async (req: request.Test) =>
+      expect((await req.expect(403)).body.code).toBe('OUTLET_FORBIDDEN');
+    await forbidden(api().get(`/api/v1/procurement/purchase-orders/${poId}`).set(as(elsewhere)));
+    for (const action of ['submit', 'cancel'])
+      await forbidden(
+        api()
+          .post(`/api/v1/procurement/purchase-orders/${poId}/${action}`)
+          .set(as(elsewhere))
+          .send({}),
+      );
+    for (const action of ['approve', 'reject'])
+      await forbidden(
+        api()
+          .post(`/api/v1/procurement/purchase-orders/${poId}/${action}`)
+          .set(as(elsewhereOwner))
+          .send({}),
+      );
+    await forbidden(
+      api()
+        .post(`/api/v1/procurement/purchase-orders/${poId}/receive`)
+        .set(as(elsewhere))
+        .send({ lines: [{ itemId: po.items[0]!.id, receivedQty: 1 }] }),
+    );
+    await forbidden(
+      api()
+        .post('/api/v1/procurement/purchase-orders')
+        .set(as(elsewhere))
+        .send({
+          outletId: OUTLET,
+          supplierTenantId: 'sup_cowberry',
+          items: [{ productId: 'prod_cow_butter', quantity: 4 }],
+        }),
+    );
+    await forbidden(
+      api()
+        .get('/api/v1/procurement/purchase-orders')
+        .query({ outletId: OUTLET })
+        .set(as(elsewhere)),
+    );
+    await forbidden(
+      api().post('/api/v1/procurement/alerts/scan').query({ outletId: OUTLET }).set(as(elsewhere)),
+    );
+    await forbidden(
+      api()
+        .get('/api/v1/procurement/recommendations')
+        .query({ ingredientId: 'ing_butter' })
+        .set(as(elsewhere)),
+    );
+    await forbidden(api().get('/api/v1/procurement/forecasts/ing_butter').set(as(elsewhere)));
+
+    // unfiltered lists default to the staffer's outlets instead of the whole tenant
+    const list = await api()
+      .get('/api/v1/procurement/purchase-orders')
+      .set(as(elsewhere))
+      .expect(200);
+    expect(list.body.data).toHaveLength(0);
+    const dash = await api().get('/api/v1/procurement/dashboard').set(as(elsewhere)).expect(200);
+    expect(dash.body.pendingApproval).toBe(0);
+    expect(
+      (await api().post('/api/v1/procurement/alerts/scan').set(as(elsewhere)).send({}).expect(200))
+        .body.scanned,
+    ).toBe(0);
+
+    // staff assigned to the PO's outlet keep full access
+    const here = member('PROCUREMENT_MANAGER', TENANT, [OUTLET]);
+    await api().get(`/api/v1/procurement/purchase-orders/${poId}`).set(as(here)).expect(200);
+    expect(
+      (await api().get('/api/v1/procurement/purchase-orders').set(as(here)).expect(200)).body.data,
+    ).toHaveLength(1);
+    expect(
+      (await api().get('/api/v1/procurement/dashboard').set(as(here)).expect(200)).body
+        .pendingApproval,
+    ).toBe(1);
+  });
+
+  it("prices manual POs with the supplier's catalogue price for this buyer", async () => {
+    http.on('GET', 'supplier', 'internal/marketplace/products/:id', ({ params, opts }) => ({
+      id: params.id,
+      tenantId: 'sup_cowberry',
+      name: 'Pizza Flour Type 00',
+      sku: 'FLOUR-00',
+      unit: 'KG',
+      packSize: '10',
+      price: '680',
+      gstRate: '5',
+      deliveryTimeHours: 24,
+      priceTiers: [
+        { minQty: '1', unitPrice: '650', segment: 'RESTAURANT' },
+        // an expired bulk promo the PO must not pick up on its own
+        { minQty: '4', unitPrice: '400', segment: 'ALL', validTo: '2026-01-31T23:59:59Z' },
+      ],
+      ...(opts.query?.buyerTenantId === TENANT && Number(opts.query?.quantity) === 4
+        ? { buyerUnitPrice: 650 }
+        : {}),
+    }));
+    const created = await api()
+      .post('/api/v1/procurement/purchase-orders')
+      .set(as(member('PROCUREMENT_MANAGER')))
+      .send({
+        outletId: OUTLET,
+        supplierTenantId: 'sup_cowberry',
+        items: [{ productId: 'prod_flour', quantity: 4 }],
+      })
+      .expect(201);
+    expect(Number(created.body.items[0].unitPrice)).toBe(650);
+    expect(Number(created.body.subtotal)).toBe(2600);
   });
 });

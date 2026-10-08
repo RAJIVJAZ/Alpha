@@ -3,6 +3,7 @@ import { PrismaService } from '@foodgrid/database/nest';
 import {
   EventEnvelope,
   EventTypes,
+  PaymentEvent,
   PurchaseOrderEvent,
   TenantStatusChangedEvent,
 } from '@foodgrid/types';
@@ -15,6 +16,7 @@ import { B2bOrdersService } from '../orders/b2b-orders.service';
  * - procurement.po.approved  → becomes a B2B sales order for the supplier
  *   (supplier then confirms / rejects in the supplier dashboard).
  * - procurement.po.cancelled → cancels the linked sales order if not shipped.
+ * - payment.captured (B2B order) → marks it paid and frees the dealer's credit.
  */
 @Injectable()
 export class SupplierEventHandlers {
@@ -57,7 +59,6 @@ export class SupplierEventHandlers {
         },
         paymentTerms: (po.paymentTerms as 'PREPAID') ?? 'PREPAID',
         notes: po.notes ?? `PO ${po.poNumber}`,
-        agreedPrices: new Map(lines.map((l) => [l.productId!, Number(l.unitPrice)])),
       });
     } catch (err) {
       // Business rule failures (MOQ, stock, serviceability) are reported back
@@ -94,6 +95,11 @@ export class SupplierEventHandlers {
     if (!order || !['PLACED', 'CONFIRMED', 'PARTIALLY_CONFIRMED', 'PACKED'].includes(order.status))
       return;
     await this.orders.cancel(order.id, { reason: 'Purchase order cancelled by buyer' });
+  }
+
+  @OnDomainEvent(EventTypes.PaymentCaptured)
+  async onPaymentCaptured(env: EventEnvelope<string, PaymentEvent>) {
+    if (env.data.purpose === 'B2B_ORDER') await this.orders.markPaid(env.data.referenceId);
   }
 
   @OnDomainEvent(EventTypes.TenantStatusChanged)

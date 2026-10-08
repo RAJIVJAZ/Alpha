@@ -52,7 +52,7 @@ export class DealersService {
   async updateTerritory(tenantId: string, id: string, dto: UpdateTerritoryDto) {
     if (!(await this.prisma.forTenant(tenantId).territory.findUnique({ where: { id } })))
       throw notFound('Territory', id);
-    return this.prisma.territory.update({ where: { id }, data: dto });
+    return this.prisma.forTenant(tenantId).territory.update({ where: { id }, data: dto });
   }
 
   dealers(tenantId: string, q: { territoryId?: string; status?: string; q?: string }) {
@@ -75,15 +75,18 @@ export class DealersService {
     });
   }
 
-  async createDealer(tenantId: string, dto: DealerDto) {
+  /** A dealer may only be placed in one of the seller's own territories. */
+  private async assertOwnTerritory(tenantId: string, territoryId?: string | null) {
     if (
-      dto.territoryId &&
-      !(await this.prisma
-        .forTenant(tenantId)
-        .territory.findUnique({ where: { id: dto.territoryId } }))
+      territoryId &&
+      !(await this.prisma.forTenant(tenantId).territory.findUnique({ where: { id: territoryId } }))
     ) {
       throw badRequest('Unknown territory', 'INVALID_TERRITORY');
     }
+  }
+
+  async createDealer(tenantId: string, dto: DealerDto) {
+    await this.assertOwnTerritory(tenantId, dto.territoryId);
     return this.prisma.forTenant(tenantId).dealer.create({
       data: { ...dto, tenantId, onboardedAt: dto.status === 'ACTIVE' ? new Date() : null },
     });
@@ -92,7 +95,8 @@ export class DealersService {
   async updateDealer(tenantId: string, id: string, dto: UpdateDealerDto) {
     const dealer = await this.prisma.forTenant(tenantId).dealer.findUnique({ where: { id } });
     if (!dealer) throw notFound('Dealer', id);
-    return this.prisma.dealer.update({
+    await this.assertOwnTerritory(tenantId, dto.territoryId);
+    return this.prisma.forTenant(tenantId).dealer.update({
       where: { id },
       data: {
         ...dto,
@@ -116,6 +120,7 @@ export class DealersService {
   async termsFor(sellerTenantId: string, buyerTenantId: string) {
     return this.prisma.dealer.findFirst({
       where: { tenantId: sellerTenantId, dealerTenantId: buyerTenantId, status: 'ACTIVE' },
+      orderBy: { createdAt: 'asc' },
     });
   }
 }

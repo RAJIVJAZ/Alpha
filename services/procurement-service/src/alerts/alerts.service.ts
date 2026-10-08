@@ -2,6 +2,12 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@foodgrid/database/nest';
 import { addDays, dateOnly, istDate, notFound } from '@foodgrid/utils';
 import { ClientsService, StockStatus } from '../clients/clients.service';
+import {
+  assertOutletAccess,
+  hasOutletAccess,
+  OutletActor,
+  outletScope,
+} from '../common/outlet-access';
 import { assessIngredient } from '../domain/assessment';
 import { OPEN_PO_STATUSES } from '../domain/po-state';
 import { SettingsService } from '../settings/settings.service';
@@ -18,9 +24,12 @@ export class AlertsService {
     private readonly settings: SettingsService,
   ) {}
 
-  async scan(tenantId: string, outletId?: string, onlyIngredientId?: string) {
+  async scan(tenantId: string, outletId?: string, onlyIngredientId?: string, user?: OutletActor) {
+    if (outletId) assertOutletAccess(user, outletId);
     const settings = await this.settings.get(tenantId);
-    let ingredients = await this.clients.stockStatus(tenantId, outletId);
+    let ingredients = (await this.clients.stockStatus(tenantId, outletId)).filter((i) =>
+      hasOutletAccess(user, i.outletId),
+    );
     if (onlyIngredientId) ingredients = ingredients.filter((i) => i.id === onlyIngredientId);
     const tomorrow = addDays(dateOnly(istDate()), 1);
     const forecasts = await this.prisma.forTenant(tenantId).demandForecast.findMany({
@@ -103,20 +112,25 @@ export class AlertsService {
     };
   }
 
-  list(tenantId: string, q: { status?: string; outletId?: string; severity?: string }) {
+  list(
+    tenantId: string,
+    q: { status?: string; outletId?: string; severity?: string },
+    user?: OutletActor,
+  ) {
     return this.prisma.forTenant(tenantId).reorderAlert.findMany({
       where: {
         status: (q.status as 'OPEN' | undefined) ?? 'OPEN',
-        outletId: q.outletId,
+        ...outletScope(user, q.outletId),
         severity: q.severity as 'HIGH' | undefined,
       },
       orderBy: [{ severity: 'desc' }, { daysOfCover: 'asc' }],
     });
   }
 
-  async dismiss(tenantId: string, id: string) {
+  async dismiss(tenantId: string, id: string, user: OutletActor) {
     const alert = await this.prisma.forTenant(tenantId).reorderAlert.findUnique({ where: { id } });
     if (!alert) throw notFound('Alert', id);
+    assertOutletAccess(user, alert.outletId);
     return this.prisma.reorderAlert.update({
       where: { id },
       data: { status: 'DISMISSED', resolvedAt: new Date() },
