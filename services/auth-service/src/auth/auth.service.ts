@@ -211,8 +211,16 @@ export class AuthService {
     let user = account?.user;
     let isNew = false;
     if (!user) {
+      const holder = await this.prisma.user.findUnique({ where: { email: profile.email } });
+      // only an account that proved it owns the address may be linked; anyone can type an email
+      if (holder && !holder.emailVerifiedAt)
+        throw new AppError(
+          'EMAIL_NOT_CONFIRMED',
+          'This email is on an account that has not confirmed it. Sign in with your phone and confirm the email first.',
+          409,
+        );
       user =
-        (await this.prisma.user.findUnique({ where: { email: profile.email } })) ??
+        holder ??
         (await this.createUser({
           email: profile.email,
           name: profile.name,

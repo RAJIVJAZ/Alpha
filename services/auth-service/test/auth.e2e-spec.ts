@@ -12,6 +12,7 @@ import {
   truncateSchemas,
 } from '@foodgrid/utils/testing';
 import { AppModule } from '../src/app.module';
+import { GoogleTokenVerifier } from '../src/auth/google-verifier';
 import { SERVICE } from '../src/service.config';
 
 describe('auth-service (e2e)', () => {
@@ -314,5 +315,35 @@ describe('auth-service (e2e)', () => {
       .post('/api/v1/auth/refresh')
       .send({ refreshToken: login.body.tokens.refreshToken })
       .expect(401);
+  });
+
+  it('links Google sign-in only to an account that confirmed the email', async () => {
+    const google = jest.spyOn(app.get(GoogleTokenVerifier), 'verify');
+    const signIn = (sub: string, email: string) => {
+      google.mockResolvedValueOnce({ sub, email, emailVerified: true, name: 'Asha' });
+      return api().post('/api/v1/auth/google').send({ idToken: 'token' });
+    };
+    // someone typed the victim's address into their own profile without confirming it
+    const squatter = await otpLogin('+919800000101');
+    await prisma.user.update({
+      where: { id: squatter.body.user.id },
+      data: { email: 'asha@example.com', emailVerifiedAt: null },
+    });
+    const refused = await signIn('google-asha', 'asha@example.com').expect(409);
+    expect(refused.body.code).toBe('EMAIL_NOT_CONFIRMED');
+    expect(await prisma.oAuthAccount.count()).toBe(0);
+
+    // a confirmed address links to its account
+    await prisma.user.update({
+      where: { id: squatter.body.user.id },
+      data: { emailVerifiedAt: new Date() },
+    });
+    const linked = await signIn('google-asha', 'asha@example.com').expect(200);
+    expect(linked.body.user.id).toBe(squatter.body.user.id);
+
+    // an unknown address creates a new account
+    const fresh = await signIn('google-ravi', 'ravi@example.com').expect(200);
+    expect(fresh.body.isNewUser).toBe(true);
+    google.mockRestore();
   });
 });
