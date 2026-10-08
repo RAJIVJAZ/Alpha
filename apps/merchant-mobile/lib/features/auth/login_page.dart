@@ -16,7 +16,10 @@ class LoginPage extends ConsumerWidget {
       notice: ref.watch(loginNoticeProvider),
       modes: const [LoginMode.password, LoginMode.otp],
       authorize: authorizeMerchant,
-      authorizeUser: (user) async => eligibleMemberships(user.memberships).isEmpty ? notMerchantMessage : null,
+      // someone with a pending invitation stays signed in to accept it in the business picker
+      authorizeUser: (user) async => eligibleMemberships(user.memberships).isNotEmpty || (await ref.read(pendingInvitesProvider.future)).isNotEmpty
+          ? null
+          : notMerchantMessage,
       onSignedIn: (_) => ref.read(loginNoticeProvider.notifier).clear(),
     );
   }

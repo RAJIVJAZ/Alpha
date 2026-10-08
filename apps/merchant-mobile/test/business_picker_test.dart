@@ -105,4 +105,31 @@ void main() {
     expect(await app.tokens.read(), isNull);
     expect(find.text('Choose business'), findsNothing);
   });
+
+  testWidgets('a pending invitation can be accepted from the picker', (tester) async {
+    final invited = {..._memberships[0], 'role': 'CHEF'};
+    final backend = baseBackend(user: userJson(memberships: []));
+    backend.get('/tenants/invites', [
+      {'id': 'm1', 'role': 'CHEF', 'tenant': {'id': 't1', 'name': 'Spice Garden', 'type': 'RESTAURANT', 'city': 'Bengaluru'}},
+      {'id': 'm9', 'role': 'OWNER', 'tenant': {'id': 't3', 'name': 'Cowberry Dairy', 'type': 'SUPPLIER', 'city': null}},
+    ]);
+    backend.post('/tenants/invites/m1/accept', {'id': 'm1', 'status': 'ACTIVE'});
+    backend.post('/auth/switch-tenant', {
+      'tokens': {'accessToken': merchantToken(role: 'CHEF'), 'refreshToken': 'refresh-2', 'expiresIn': 900, 'tokenType': 'Bearer'},
+      'user': userJson(memberships: [invited]),
+    });
+    final app = await pumpMerchantApp(tester, backend, accessToken: _noTenantToken);
+
+    expect(find.text('You have been invited to join'), findsOneWidget);
+    expect(find.text('Spice Garden'), findsOneWidget);
+    expect(find.text('Cowberry Dairy'), findsNothing); // supplier invites belong to the web dashboard
+    expect(await app.tokens.read(), isNotNull); // not signed out while an invitation waits
+
+    backend.get('/auth/me', userJson(memberships: [invited]));
+    await tester.tap(find.text('Accept'));
+    await tester.pumpAndSettle();
+
+    expect(backend.callsTo('POST', '/tenants/invites/m1/accept'), hasLength(1));
+    expect(backend.lastBody('POST', '/auth/switch-tenant'), {'tenantId': 't1'});
+  });
 }

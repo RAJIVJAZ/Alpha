@@ -564,10 +564,35 @@ export function AccountView() {
     setName(me.data.name ?? '');
     setEmail(me.data.email ?? '');
   }, [me.data]);
-  const saveProfile = useApiMutation(
-    () => api.patch('users/me', { name: name.trim(), email: email.trim() || undefined }),
-    { invalidate: ['users/me', 'session'], success: 'Profile saved' },
+  // a new email is stored only after the code sent to it is entered
+  const [pendingEmail, setPendingEmail] = React.useState<{ email: string; hint?: string } | null>(
+    null,
   );
+  const [code, setCode] = React.useState('');
+  const saveProfile = useApiMutation(
+    () =>
+      api.patch<Profile & { emailVerification?: { pendingEmail: string; devCode?: string } }>(
+        'users/me',
+        { name: name.trim(), email: email.trim() || undefined },
+      ),
+    {
+      invalidate: ['users/me', 'session'],
+      onSuccess: (res) => {
+        const v = res.emailVerification;
+        if (!v) return toast.success('Profile saved');
+        setCode('');
+        setPendingEmail({
+          email: v.pendingEmail,
+          hint: v.devCode ? `Development code: ${v.devCode}` : undefined,
+        });
+      },
+    },
+  );
+  const verifyEmail = useApiMutation(() => api.post('users/me/email/verify', { code }), {
+    invalidate: ['users/me', 'session'],
+    success: 'Email confirmed',
+    onSuccess: () => setPendingEmail(null),
+  });
   const remove = useApiMutation((id: string) => api.delete(`users/me/addresses/${id}`), {
     invalidate: ['users/me/addresses'],
     success: 'Address removed',
@@ -607,6 +632,31 @@ export function AccountView() {
                 autoComplete="email"
               />
             </Field>
+            {pendingEmail ? (
+              <div className="grid gap-2 rounded-lg border bg-muted/40 p-3">
+                <Field
+                  label={`Code sent to ${pendingEmail.email}`}
+                  hint={pendingEmail.hint ?? 'Check your inbox; the code expires in 15 minutes.'}
+                >
+                  <Input
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    maxLength={6}
+                    value={code}
+                    onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+                  />
+                </Field>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={code.length !== 6}
+                  loading={verifyEmail.isPending}
+                  onClick={() => verifyEmail.mutate()}
+                >
+                  Confirm email
+                </Button>
+              </div>
+            ) : null}
             <div className="flex items-center justify-between gap-3">
               {me.data?.referralCode ? (
                 <span className="text-sm text-muted-foreground">
@@ -625,6 +675,7 @@ export function AccountView() {
           </form>
         </CardContent>
       </Card>
+      <BusinessInvites />
       <Card>
         <CardHeader className="flex-row items-center justify-between">
           <CardTitle>Addresses</CardTitle>
@@ -828,5 +879,49 @@ export function NotificationsView() {
         })}
       </ul>
     </div>
+  );
+}
+
+interface BusinessInvite {
+  id: string;
+  role: string;
+  tenant: { id: string; name: string; type: string; city: string | null };
+}
+
+/** Staff invitations wait here until the invited person accepts them. */
+function BusinessInvites() {
+  const invites = useApi<BusinessInvite[]>('tenants/invites');
+  const accept = useApiMutation((id: string) => api.post(`tenants/invites/${id}/accept`, {}), {
+    invalidate: ['tenants/invites', 'session'],
+    success: 'Invitation accepted. Sign in to the business app to start.',
+  });
+  if (!invites.data?.length) return null;
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Business invitations</CardTitle>
+        <CardDescription>Accept to join the business's team on FoodGrid.</CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-2">
+        {invites.data.map((i) => (
+          <div key={i.id} className="flex items-center gap-3 rounded-lg border px-3 py-2">
+            <span className="min-w-0 flex-1 text-sm">
+              <span className="font-medium">{i.tenant.name}</span>
+              <span className="block text-muted-foreground">
+                {humanize(i.tenant.type)}
+                {i.tenant.city ? ` · ${i.tenant.city}` : ''} · as {humanize(i.role)}
+              </span>
+            </span>
+            <Button
+              size="sm"
+              loading={accept.isPending && accept.variables === i.id}
+              onClick={() => accept.mutate(i.id)}
+            >
+              Accept
+            </Button>
+          </div>
+        ))}
+      </CardContent>
+    </Card>
   );
 }

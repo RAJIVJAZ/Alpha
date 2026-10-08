@@ -18,6 +18,30 @@ String? authorizeMerchant(Claims claims) {
       'use the FoodGrid web dashboard for this business.';
 }
 
+/// A staff invitation the user has not accepted yet (GET tenants/invites).
+class PendingInvite {
+  const PendingInvite({required this.id, required this.tenantName, required this.tenantType, required this.role});
+  final String id;
+  final String tenantName;
+  final String tenantType;
+  final String role;
+
+  factory PendingInvite.fromJson(Map<String, dynamic> j) {
+    final tenant = j['tenant'] as Map<String, dynamic>;
+    return PendingInvite(id: '${j['id']}', tenantName: '${tenant['name']}', tenantType: '${tenant['type']}', role: '${j['role']}');
+  }
+}
+
+/// Restaurant and food-cart invitations waiting for this user.
+/// Failing to load them counts as none, so the usual "not a merchant" message still shows.
+final pendingInvitesProvider = FutureProvider.autoDispose<List<PendingInvite>>((ref) async {
+  final rows = await ref.read(apiClientProvider).get<List<dynamic>>('tenants/invites').catchError((Object _) => <dynamic>[]);
+  return [
+    for (final r in rows)
+      if (PendingInvite.fromJson(r as Map<String, dynamic>) case final i when isMerchantTenant(i.tenantType)) i,
+  ];
+});
+
 /// Memberships this app can open.
 List<Membership> eligibleMemberships(List<Membership> memberships) => [
       for (final m in memberships)

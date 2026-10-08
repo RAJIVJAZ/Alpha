@@ -43,6 +43,19 @@ class _BusinessPickerPageState extends ConsumerState<BusinessPickerPage> {
     }
   }
 
+  Future<void> _accept(PendingInvite invite) async {
+    setState(() => _opening = invite.tenantName);
+    try {
+      await ref.read(apiClientProvider).post<dynamic>('tenants/invites/${invite.id}/accept');
+      await ref.read(sessionProvider.notifier).reload();
+      _autoTried = false; // the new membership opens like any single business
+    } catch (e) {
+      if (mounted) showApiError(context, e);
+    } finally {
+      if (mounted) setState(() => _opening = null);
+    }
+  }
+
   /// The business was removed since the last sign-in (sign-in itself refuses
   /// accounts without one; offline, the session keeps the last memberships).
   Future<void> _noBusiness() async {
@@ -56,18 +69,42 @@ class _BusinessPickerPageState extends ConsumerState<BusinessPickerPage> {
     final eligible = eligibleMemberships(session?.user.memberships ?? const []);
     final currentId = session?.claims.tenantId;
 
+    // with no business yet, pending invitations are the way in
+    final invites = eligible.isEmpty ? ref.watch(pendingInvitesProvider) : null;
+
     if (session != null && !_autoTried) {
-      _autoTried = true;
       if (eligible.length == 1 && eligible.first.tenantId != currentId) {
+        _autoTried = true;
         WidgetsBinding.instance.addPostFrameCallback((_) => _open(eligible.first));
-      } else if (eligible.isEmpty) {
+      } else if (eligible.isEmpty && invites != null && !invites.isLoading && (invites.value?.isEmpty ?? true)) {
+        _autoTried = true;
         WidgetsBinding.instance.addPostFrameCallback((_) => _noBusiness());
+      } else if (eligible.isNotEmpty) {
+        _autoTried = true;
       }
     }
 
     final Widget body;
     if (_opening != null) {
       body = _Progress('Opening $_opening…');
+    } else if (eligible.isEmpty && (invites?.value?.isNotEmpty ?? false)) {
+      body = ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          Text('You have been invited to join', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 12),
+          for (final i in invites!.value!) ...[
+            Card(
+              child: ListTile(
+                title: Text(i.tenantName),
+                subtitle: Text('${humanize(i.tenantType)} · as ${humanize(i.role)}'),
+                trailing: FilledButton(onPressed: () => _accept(i), child: const Text('Accept')),
+              ),
+            ),
+            const SizedBox(height: 10),
+          ],
+        ],
+      );
     } else if (eligible.isEmpty) {
       body = const _Progress('Checking your businesses…');
     } else {

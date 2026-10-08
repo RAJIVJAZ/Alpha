@@ -47,15 +47,27 @@ class _ProfileFormState extends ConsumerState<_ProfileForm> {
     setState(() => _busy = true);
     try {
       final email = _email.text.trim();
-      await ref.read(apiClientProvider).patch<dynamic>('users/me', body: {'name': _name.text.trim(), 'email': ?(email.isEmpty ? null : email)});
+      final res = await ref.read(apiClientProvider).patch<dynamic>('users/me', body: {'name': _name.text.trim(), 'email': ?(email.isEmpty ? null : email)});
       ref.invalidate(profileProvider);
-      if (mounted) showMessage(context, 'Profile saved');
+      // a new email is stored only once the code sent to it is entered
+      final pending = res is Map ? res['emailVerification'] as Map? : null;
+      if (pending == null) {
+        if (mounted) showMessage(context, 'Profile saved');
+      } else if (mounted && await _confirmEmail(pending) == true) {
+        ref.invalidate(profileProvider);
+        if (mounted) showMessage(context, 'Email confirmed');
+      }
     } catch (e) {
       if (mounted) showError(context, e);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
   }
+
+  Future<bool?> _confirmEmail(Map pending) => showDialog<bool>(
+        context: context,
+        builder: (_) => _EmailCodeDialog(email: '${pending['pendingEmail']}', devCode: pending['devCode'] as String?),
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -103,4 +115,57 @@ class _ProfileFormState extends ConsumerState<_ProfileForm> {
       ]),
     );
   }
+}
+
+class _EmailCodeDialog extends ConsumerStatefulWidget {
+  const _EmailCodeDialog({required this.email, this.devCode});
+  final String email;
+  final String? devCode;
+
+  @override
+  ConsumerState<_EmailCodeDialog> createState() => _EmailCodeDialogState();
+}
+
+class _EmailCodeDialogState extends ConsumerState<_EmailCodeDialog> {
+  final _code = TextEditingController();
+  bool _busy = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _code.dispose();
+    super.dispose();
+  }
+
+  Future<void> _verify() async {
+    setState(() => (_busy = true, _error = null));
+    try {
+      await ref.read(apiClientProvider).post<dynamic>('users/me/email/verify', body: {'code': _code.text.trim()});
+      if (mounted) Navigator.of(context).pop(true);
+    } catch (e) {
+      if (mounted) setState(() => (_busy = false, _error = e.toString()));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+        title: const Text('Confirm your email'),
+        content: TextField(
+          controller: _code,
+          autofocus: true,
+          keyboardType: TextInputType.number,
+          maxLength: 6,
+          autofillHints: const [AutofillHints.oneTimeCode],
+          decoration: InputDecoration(
+            labelText: 'Code sent to ${widget.email}',
+            helperText: widget.devCode == null ? null : 'Development code: ${widget.devCode}',
+            errorText: _error,
+          ),
+          onSubmitted: (_) => _verify(),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Later')),
+          FilledButton(onPressed: _busy ? null : _verify, child: const Text('Confirm')),
+        ],
+      );
 }
