@@ -114,6 +114,8 @@ export class AdminPaymentsController {
   }
 
   @Post(':id/refunds')
+  @UseInterceptors(IdempotencyInterceptor)
+  @ApiHeader({ name: 'Idempotency-Key', required: false })
   @ApiOperation({ summary: 'Issue a full or partial refund' })
   refund(@Param('id') id: string, @Body() dto: RefundDto, @CurrentUser('sub') actor: string) {
     return this.payments.refund(id, dto, actor);

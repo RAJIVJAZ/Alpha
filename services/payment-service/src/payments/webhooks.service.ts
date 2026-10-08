@@ -121,7 +121,7 @@ export class WebhooksService {
         const r = body.payload.refund?.entity;
         if (r)
           await this.prisma.refund.updateMany({
-            where: { providerRefundId: r.id },
+            where: { providerRefundId: r.id, status: 'PENDING' },
             data: { status: 'FAILED' },
           });
         return;

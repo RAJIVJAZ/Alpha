@@ -7,6 +7,15 @@ import { OutboxService } from '@foodgrid/utils/server';
 import { AuditService } from '../common/audit.service';
 import { ApprovalDecisionDto, CreateApprovalDto, ListApprovalsDto } from './dto/approval.dto';
 
+/** KYC identifier changes a tenant submitted for review (see TenantsService.submitKyc). */
+interface KycChanges {
+  legalName?: string;
+  gstin?: string;
+  pan?: string;
+  fssaiLicense?: string;
+  stateCode?: string;
+}
+
 /**
  * Central onboarding approval queue. Owning services submit requests
  * (restaurants, riders, products, ad campaigns); admins decide here and the
@@ -86,12 +95,28 @@ export class ApprovalsService {
         },
       });
 
-      if (approval.entityType === 'TENANT' && dto.decision !== 'CHANGES_REQUESTED') {
+      const { changes } = approval.metadata as { changes?: KycChanges };
+      // a rejected identifier change leaves an approved business trading on its verified details
+      const rejectedChangeOnLiveTenant =
+        dto.decision === 'REJECTED' &&
+        !!changes &&
+        (await tx.tenant.findUnique({ where: { id: approval.entityId } }))?.status === 'ACTIVE';
+      if (
+        approval.entityType === 'TENANT' &&
+        dto.decision !== 'CHANGES_REQUESTED' &&
+        !rejectedChangeOnLiveTenant
+      ) {
+        const { legalName, gstin, pan, fssaiLicense, stateCode } = changes ?? {};
         const tenant = await tx.tenant.update({
           where: { id: approval.entityId },
           data:
             dto.decision === 'APPROVED'
               ? {
+                  legalName,
+                  gstin,
+                  pan,
+                  fssaiLicense,
+                  stateCode,
                   status: 'ACTIVE',
                   approvedAt: new Date(),
                   approvedBy: reviewerId,

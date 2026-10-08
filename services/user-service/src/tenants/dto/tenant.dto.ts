@@ -1,4 +1,4 @@
-import { ApiProperty, ApiPropertyOptional, PartialType, OmitType } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional, OmitType, PartialType, PickType } from '@nestjs/swagger';
 import {
   ArrayMaxSize,
   IsArray,
@@ -61,9 +61,15 @@ export class CreateTenantDto {
   kycDocuments?: KycDocumentDto[];
 }
 
-export class UpdateTenantDto extends PartialType(OmitType(CreateTenantDto, ['type'] as const)) {}
+/** Identifiers checked during KYC review: they change only through POST current/kyc and approval. */
+const KYC_IDENTITY_FIELDS = ['legalName', 'gstin', 'pan', 'fssaiLicense', 'stateCode'] as const;
 
-export class SubmitKycDto {
+export class UpdateTenantDto extends PartialType(
+  OmitType(CreateTenantDto, ['type', 'kycDocuments', ...KYC_IDENTITY_FIELDS] as const),
+) {}
+
+/** Identifier changes in a KYC submission are applied only when the review approves them. */
+export class SubmitKycDto extends PartialType(PickType(CreateTenantDto, KYC_IDENTITY_FIELDS)) {
   @ApiProperty({ type: [KycDocumentDto] })
   @IsArray()
   @ArrayMaxSize(20)
@@ -74,7 +80,11 @@ export class SubmitKycDto {
 
 export class InviteMemberDto {
   @ApiProperty({ example: '9876500001' }) @IsString() @MaxLength(20) phone!: string;
-  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(120) name?: string;
+  @ApiPropertyOptional({ description: 'Ignored: invitees set their own name', deprecated: true })
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  name?: string;
   @ApiProperty({ enum: TENANT_ROLES }) @IsIn(TENANT_ROLES) role!: TenantRole;
   @ApiPropertyOptional({ type: [String], description: 'Restrict to these outlets (empty = all)' })
   @IsOptional()

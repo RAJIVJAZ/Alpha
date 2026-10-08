@@ -247,4 +247,120 @@ describe('payment-service (e2e)', () => {
       .send({ amount: 1 })
       .expect(403);
   });
+  describe('concurrent finance actions move money once', () => {
+    const finance = `Bearer ${issueTestToken({ sub: 'fin_1', roles: ['FINANCE'] })}`;
+    const customerWallet = () =>
+      prisma.wallet.findFirst({ where: { ownerType: 'CUSTOMER', ownerId: CUSTOMER } });
+
+    it('refunds a captured payment at most once when admins refund it in parallel', async () => {
+      const payment = await prisma.payment.create({
+        data: {
+          purpose: 'WALLET_TOPUP',
+          referenceId: 'topup_race',
+          userId: CUSTOMER,
+          amount: 100,
+          provider: 'RAZORPAY',
+          state: 'CAPTURED',
+          providerPaymentId: 'pay_race_1',
+        },
+      });
+      const results = await Promise.all(
+        Array.from({ length: 3 }, () =>
+          api()
+            .post(`/api/v1/admin/payments/${payment.id}/refunds`)
+            .set('Authorization', finance)
+            .send({ reason: 'race probe', toWallet: true }),
+        ),
+      );
+      expect(results.map((r) => r.status).sort()).toEqual([201, 409, 409]);
+      for (const r of results.filter((x) => x.status === 409))
+        expect(['REFUND_EXCEEDS', 'NOT_REFUNDABLE']).toContain(r.body.code);
+
+      const after = await prisma.payment.findUniqueOrThrow({ where: { id: payment.id } });
+      expect(after).toMatchObject({ state: 'REFUNDED' });
+      expect(Number(after.refundedAmount)).toBe(100);
+      expect(await prisma.refund.count({ where: { paymentId: payment.id } })).toBe(1);
+      expect(Number((await customerWallet())?.balance)).toBe(100);
+
+      // a partial refund afterwards is still refused
+      const more = await api()
+        .post(`/api/v1/admin/payments/${payment.id}/refunds`)
+        .set('Authorization', finance)
+        .send({ reason: 'again', amount: 1, toWallet: true })
+        .expect(409);
+      expect(more.body.code).toBe('NOT_REFUNDABLE');
+    });
+
+    it('counts gateway refunds still in flight against the refundable amount', async () => {
+      const payment = await prisma.payment.create({
+        data: {
+          purpose: 'ORDER',
+          referenceId: 'ord_inflight',
+          userId: CUSTOMER,
+          amount: 100,
+          provider: 'RAZORPAY',
+          state: 'CAPTURED',
+          providerPaymentId: 'pay_inflight',
+        },
+      });
+      await prisma.refund.create({
+        data: { paymentId: payment.id, amount: 70, reason: 'pending' },
+      });
+      const res = await api()
+        .post(`/api/v1/admin/payments/${payment.id}/refunds`)
+        .set('Authorization', finance)
+        .send({ reason: 'more', amount: 50, toWallet: true })
+        .expect(409);
+      expect(res.body.code).toBe('REFUND_EXCEEDS');
+    });
+
+    it('lets only one of concurrent mark-paid / mark-failed finalise a payout', async () => {
+      const RIDER = 'usr_rider_payout';
+      await prisma.wallet.create({ data: { ownerType: 'RIDER', ownerId: RIDER, balance: 0 } });
+      const wallet = await prisma.wallet.findFirstOrThrow({ where: { ownerId: RIDER } });
+      const payout = await prisma.payout.create({
+        data: {
+          walletId: wallet.id,
+          ownerType: 'RIDER',
+          ownerId: RIDER,
+          amount: 200,
+          destination: {},
+        },
+      });
+      const [paid, failedRes] = await Promise.all([
+        api()
+          .post(`/api/v1/admin/payouts/${payout.id}/mark-paid`)
+          .set('Authorization', finance)
+          .send({ utr: 'UTR1' }),
+        api()
+          .post(`/api/v1/admin/payouts/${payout.id}/mark-failed`)
+          .set('Authorization', finance)
+          .send({ reason: 'bounced' }),
+      ]);
+      expect([paid.status, failedRes.status].sort()).toEqual([201, 409]);
+      const loser = paid.status === 409 ? paid : failedRes;
+      expect(loser.body.code).toBe('PAYOUT_FINAL');
+      const final = await prisma.payout.findUniqueOrThrow({ where: { id: payout.id } });
+      const reversals = await prisma.walletTransaction.count({
+        where: { walletId: wallet.id, reason: 'PAYOUT_REVERSAL' },
+      });
+      expect(reversals).toBe(final.status === 'FAILED' ? 1 : 0);
+    });
+
+    it('never records concurrent cash deposits beyond what the rider owes', async () => {
+      const RIDER = 'usr_rider_cash_race';
+      await prisma.wallet.create({ data: { ownerType: 'RIDER', ownerId: RIDER, balance: -300 } });
+      const results = await Promise.all(
+        Array.from({ length: 3 }, () =>
+          api()
+            .post(`/api/v1/admin/rider-cash/${RIDER}/deposits`)
+            .set('Authorization', finance)
+            .send({ amount: 300 }),
+        ),
+      );
+      expect(results.map((r) => r.status).sort()).toEqual([201, 409, 409]);
+      const wallet = await prisma.wallet.findFirstOrThrow({ where: { ownerId: RIDER } });
+      expect(Number(wallet.balance)).toBe(0);
+    });
+  });
 });

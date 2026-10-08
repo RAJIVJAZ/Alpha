@@ -321,38 +321,46 @@ export class PaymentsService {
    * Wallet-funded payments always refund to the wallet.
    */
   async refund(paymentId: string, dto: RefundDto, initiatedBy: string) {
-    const payment = await this.prisma.payment.findUnique({ where: { id: paymentId } });
-    if (!payment) throw notFound('Payment', paymentId);
-    if (!['CAPTURED', 'PARTIALLY_REFUNDED'].includes(payment.state))
-      throw conflict('Payment is not refundable', 'NOT_REFUNDABLE');
-    const refundable = round2(Number(payment.amount) - Number(payment.refundedAmount));
-    const amount = round2(dto.amount ?? refundable);
-    if (amount <= 0 || amount > refundable)
-      throw conflict(`At most ₹${refundable} can be refunded`, 'REFUND_EXCEEDS');
-    const toWallet = payment.provider === 'WALLET' || !!dto.toWallet;
-
-    const refund = await this.prisma.refund.create({
-      data: { paymentId, amount, reason: dto.reason, toWallet, initiatedBy },
-    });
-    if (toWallet) {
-      if (!payment.userId) throw conflict('Payment has no wallet owner', 'NO_WALLET');
-      return this.prisma.$transaction(async (tx) => {
-        await this.ledger.credit(
-          {
-            ownerType: 'CUSTOMER',
-            ownerId: payment.userId!,
-            amount,
-            reason: 'ORDER_REFUND',
-            idempotencyKey: `refund:${refund.id}`,
-            referenceType: payment.purpose,
-            referenceId: payment.referenceId,
-            description: dto.reason,
-          },
-          tx,
-        );
-        return this.completeRefund(tx, refund.id, null);
+    // The check and the Refund row are written under a row lock on the payment, and refunds
+    // still in flight count against the refundable amount, so concurrent requests cannot
+    // refund the same money twice.
+    const reserved = await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM "payments"."Payment" WHERE id = ${paymentId} FOR UPDATE`;
+      const payment = await tx.payment.findUnique({ where: { id: paymentId } });
+      if (!payment) throw notFound('Payment', paymentId);
+      if (!['CAPTURED', 'PARTIALLY_REFUNDED'].includes(payment.state))
+        throw conflict('Payment is not refundable', 'NOT_REFUNDABLE');
+      const inFlight = await tx.refund.aggregate({
+        where: { paymentId, status: { not: 'FAILED' } },
+        _sum: { amount: true },
       });
-    }
+      const refundable = round2(Number(payment.amount) - Number(inFlight._sum.amount ?? 0));
+      const amount = round2(dto.amount ?? refundable);
+      if (amount <= 0 || amount > refundable)
+        throw conflict(`At most ₹${refundable} can be refunded`, 'REFUND_EXCEEDS');
+      const toWallet = payment.provider === 'WALLET' || !!dto.toWallet;
+      if (toWallet && !payment.userId) throw conflict('Payment has no wallet owner', 'NO_WALLET');
+      const refund = await tx.refund.create({
+        data: { paymentId, amount, reason: dto.reason, toWallet, initiatedBy },
+      });
+      if (!toWallet) return { payment, refund, amount, completed: null };
+      await this.ledger.credit(
+        {
+          ownerType: 'CUSTOMER',
+          ownerId: payment.userId!,
+          amount,
+          reason: 'ORDER_REFUND',
+          idempotencyKey: `refund:${refund.id}`,
+          referenceType: payment.purpose,
+          referenceId: payment.referenceId,
+          description: dto.reason,
+        },
+        tx,
+      );
+      return { payment, refund, amount, completed: await this.completeRefund(tx, refund.id, null) };
+    });
+    if (reserved.completed) return reserved.completed;
+    const { payment, refund, amount } = reserved;
     try {
       const remote = await this.gateway.refund(
         payment.providerPaymentId!,
@@ -370,33 +378,36 @@ export class PaymentsService {
         return this.prisma.$transaction((tx) => this.completeRefund(tx, refund.id, remote.id));
       return this.prisma.refund.findUniqueOrThrow({ where: { id: refund.id } });
     } catch (err) {
+      // FAILED refunds no longer count against the refundable amount
       await this.prisma.refund.update({ where: { id: refund.id }, data: { status: 'FAILED' } });
       this.logger.error(`Refund ${refund.id} failed: ${(err as Error).message}`);
       throw new AppError('REFUND_FAILED', 'The refund could not be initiated', 502);
     }
   }
 
-  /** Marks a refund processed and updates the payment totals (idempotent). */
+  /** Marks a refund processed and updates the payment totals (idempotent, safe to race). */
   async completeRefund(tx: Tx, refundId: string, providerRefundId: string | null) {
-    const refund = await tx.refund.findUniqueOrThrow({
-      where: { id: refundId },
-      include: { payment: true },
-    });
-    if (refund.status === 'PROCESSED') return refund;
-    await tx.refund.update({
-      where: { id: refundId },
+    const transitioned = await tx.refund.updateMany({
+      where: { id: refundId, status: { not: 'PROCESSED' } },
       data: {
         status: 'PROCESSED',
         processedAt: new Date(),
-        providerRefundId: providerRefundId ?? refund.providerRefundId,
+        ...(providerRefundId ? { providerRefundId } : {}),
       },
     });
-    const refundedAmount = round2(Number(refund.payment.refundedAmount) + Number(refund.amount));
+    const refund = await tx.refund.findUniqueOrThrow({ where: { id: refundId } });
+    if (!transitioned.count) return refund;
+    const totals = await tx.payment.update({
+      where: { id: refund.paymentId },
+      data: { refundedAmount: { increment: refund.amount } },
+    });
     const payment = await tx.payment.update({
       where: { id: refund.paymentId },
       data: {
-        refundedAmount,
-        state: refundedAmount >= Number(refund.payment.amount) ? 'REFUNDED' : 'PARTIALLY_REFUNDED',
+        state:
+          Number(totals.refundedAmount) >= Number(totals.amount)
+            ? 'REFUNDED'
+            : 'PARTIALLY_REFUNDED',
       },
     });
     await this.outbox.enqueue<RefundProcessedEvent>(tx, {
@@ -414,7 +425,7 @@ export class PaymentsService {
         toWallet: refund.toWallet,
       },
     });
-    return tx.refund.findUniqueOrThrow({ where: { id: refundId } });
+    return refund;
   }
 
   /** Full refund of every captured payment for a reference (order cancellations). */
@@ -422,7 +433,12 @@ export class PaymentsService {
     const payments = await this.prisma.payment.findMany({
       where: { purpose, referenceId, state: { in: ['CAPTURED', 'PARTIALLY_REFUNDED'] } },
     });
-    for (const p of payments) await this.refund(p.id, { reason }, 'system');
+    for (const p of payments) {
+      // nothing left to refund: a redelivered event, or refunds still in flight at the gateway
+      await this.refund(p.id, { reason }, 'system').catch((err: AppError) => {
+        if (err.code !== 'REFUND_EXCEEDS') throw err;
+      });
+    }
     return payments.length;
   }
 

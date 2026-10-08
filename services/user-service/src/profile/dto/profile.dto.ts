@@ -14,7 +14,12 @@ import {
 
 export class UpdateProfileDto {
   @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(120) name?: string;
-  @ApiPropertyOptional() @IsOptional() @IsEmail() email?: string;
+  @ApiPropertyOptional({
+    description: 'A new email is saved only after the code sent to it is confirmed (email/verify)',
+  })
+  @IsOptional()
+  @IsEmail()
+  email?: string;
   @ApiPropertyOptional() @IsOptional() @IsUrl({ require_tld: false }) avatarUrl?: string;
   @ApiPropertyOptional({
     description: '{ "veg": true, "cuisines": ["South Indian"], "spiceLevel": 2 }',
@@ -22,6 +27,10 @@ export class UpdateProfileDto {
   @IsOptional()
   @IsObject()
   preferences?: Record<string, unknown>;
+}
+
+export class VerifyEmailDto {
+  @ApiProperty({ example: '123456' }) @Matches(/^\d{6}$/) code!: string;
 }
 
 export class AddressDto {

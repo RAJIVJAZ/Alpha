@@ -6,6 +6,8 @@ import { conflict, normalizePage, notFound, paginate, round2 } from '@foodgrid/u
 import { CashDepositDto, MarkPayoutDto, PayoutRequestDto } from './dto/wallet.dto';
 import { WalletLedgerService } from './wallet-ledger.service';
 
+const OPEN_PAYOUT: PayoutStatus[] = ['REQUESTED', 'PROCESSING'];
+
 @Injectable()
 export class WalletsService {
   constructor(
@@ -79,24 +81,26 @@ export class WalletsService {
     return paginate(rows, total, p.page, p.pageSize);
   }
 
+  // Payouts move out of REQUESTED/PROCESSING with a conditional update, so concurrent
+  // mark-paid / mark-failed calls cannot both win (e.g. PAID and also reversed to the wallet).
   async markPaid(id: string, dto: MarkPayoutDto) {
-    const payout = await this.prisma.payout.findUnique({ where: { id } });
-    if (!payout) throw notFound('Payout', id);
-    if (!['REQUESTED', 'PROCESSING'].includes(payout.status))
-      throw conflict('Payout already finalised', 'PAYOUT_FINAL');
-    return this.prisma.payout.update({
-      where: { id },
+    const res = await this.prisma.payout.updateMany({
+      where: { id, status: { in: OPEN_PAYOUT } },
       data: { status: 'PAID', utr: dto.utr, processedAt: new Date() },
     });
+    if (!res.count) throw await this.notOpen(this.prisma, id);
+    return this.prisma.payout.findUniqueOrThrow({ where: { id } });
   }
 
   /** Failed bank transfer: return the held funds to the wallet. */
   async markFailed(id: string, dto: MarkPayoutDto) {
-    const payout = await this.prisma.payout.findUnique({ where: { id } });
-    if (!payout) throw notFound('Payout', id);
-    if (!['REQUESTED', 'PROCESSING'].includes(payout.status))
-      throw conflict('Payout already finalised', 'PAYOUT_FINAL');
     return this.prisma.$transaction(async (tx) => {
+      const res = await tx.payout.updateMany({
+        where: { id, status: { in: OPEN_PAYOUT } },
+        data: { status: 'FAILED', failureReason: dto.reason, processedAt: new Date() },
+      });
+      if (!res.count) throw await this.notOpen(tx, id);
+      const payout = await tx.payout.findUniqueOrThrow({ where: { id } });
       await this.ledger.credit(
         {
           ownerType: payout.ownerType,
@@ -110,11 +114,14 @@ export class WalletsService {
         },
         tx,
       );
-      return tx.payout.update({
-        where: { id },
-        data: { status: 'FAILED', failureReason: dto.reason, processedAt: new Date() },
-      });
+      return payout;
     });
+  }
+
+  private async notOpen(db: Prisma.TransactionClient, id: string) {
+    return (await db.payout.findUnique({ where: { id } }))
+      ? conflict('Payout already finalised', 'PAYOUT_FINAL')
+      : notFound('Payout', id);
   }
 
   /**
@@ -149,27 +156,34 @@ export class WalletsService {
 
   /** Finance records cash a rider handed in at a hub or deposited at the bank. */
   async recordCashDeposit(riderUserId: string, dto: CashDepositDto) {
-    const wallet = await this.prisma.wallet.findUnique({
-      where: { ownerType_ownerId: { ownerType: 'RIDER', ownerId: riderUserId } },
-    });
-    if (!wallet) throw notFound('Rider wallet');
-    const due = round2(-Number(wallet.balance));
-    if (due <= 0) throw conflict('This rider has no cash to hand in', 'NO_CASH_DUE');
-    if (dto.amount > due)
-      throw conflict(
-        `The rider owes ₹${due.toFixed(2)} — record that amount or less`,
-        'DEPOSIT_EXCEEDS_DUE',
+    // Locks the rider wallet so concurrent deposits are checked against what is still owed.
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM "payments"."Wallet" WHERE "ownerType" = 'RIDER' AND "ownerId" = ${riderUserId} FOR UPDATE`;
+      const wallet = await tx.wallet.findUnique({
+        where: { ownerType_ownerId: { ownerType: 'RIDER', ownerId: riderUserId } },
+      });
+      if (!wallet) throw notFound('Rider wallet');
+      const due = round2(-Number(wallet.balance));
+      if (due <= 0) throw conflict('This rider has no cash to hand in', 'NO_CASH_DUE');
+      if (dto.amount > due)
+        throw conflict(
+          `The rider owes ₹${due.toFixed(2)} — record that amount or less`,
+          'DEPOSIT_EXCEEDS_DUE',
+        );
+      const depositId = randomUUID();
+      return this.ledger.credit(
+        {
+          ownerType: 'RIDER',
+          ownerId: riderUserId,
+          amount: dto.amount,
+          reason: 'COD_COLLECTION',
+          idempotencyKey: `cod-deposit:${depositId}`,
+          referenceType: 'CASH_DEPOSIT',
+          referenceId: dto.reference ?? depositId,
+          description: dto.reference ? `Cash deposited · ${dto.reference}` : 'Cash deposited',
+        },
+        tx,
       );
-    const depositId = randomUUID();
-    return this.ledger.credit({
-      ownerType: 'RIDER',
-      ownerId: riderUserId,
-      amount: dto.amount,
-      reason: 'COD_COLLECTION',
-      idempotencyKey: `cod-deposit:${depositId}`,
-      referenceType: 'CASH_DEPOSIT',
-      referenceId: dto.reference ?? depositId,
-      description: dto.reference ? `Cash deposited · ${dto.reference}` : 'Cash deposited',
     });
   }
 }

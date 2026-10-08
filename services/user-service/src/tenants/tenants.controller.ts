@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { Permissions } from '@foodgrid/auth';
+import { Permissions, permissionsFor } from '@foodgrid/auth';
+import type { AccessTokenClaims } from '@foodgrid/types';
 import { CurrentUser, RequirePermissions, RequireTenant, TenantId } from '@foodgrid/auth/nest';
 import {
   CreateTenantDto,
@@ -31,10 +32,26 @@ export class TenantsController {
     return this.tenants.mine(userId);
   }
 
+  @Get('invites')
+  @ApiOperation({ summary: 'Staff invitations waiting for me' })
+  invites(@CurrentUser('sub') userId: string) {
+    return this.tenants.invites(userId);
+  }
+
+  @Post('invites/:memberId/accept')
+  @ApiOperation({ summary: 'Accept a staff invitation' })
+  acceptInvite(@CurrentUser('sub') userId: string, @Param('memberId') memberId: string) {
+    return this.tenants.acceptInvite(userId, memberId);
+  }
+
   @RequireTenant()
   @Get('current')
-  current(@TenantId() tenantId: string) {
-    return this.tenants.get(tenantId);
+  @ApiOperation({ summary: 'My business (PAN, KYC and commission only for settings / finance)' })
+  current(@TenantId() tenantId: string, @CurrentUser() user: AccessTokenClaims) {
+    const perms = permissionsFor(user);
+    return perms.has(Permissions.SettingsManage) || perms.has(Permissions.FinanceRead)
+      ? this.tenants.get(tenantId)
+      : this.tenants.getPublic(tenantId);
   }
 
   @RequireTenant()
@@ -51,7 +68,9 @@ export class TenantsController {
   @RequireTenant()
   @RequirePermissions(Permissions.SettingsManage)
   @Post('current/kyc')
-  @ApiOperation({ summary: 'Submit / resubmit KYC documents for approval' })
+  @ApiOperation({
+    summary: 'Submit / resubmit KYC documents and identifier changes (GSTIN, PAN …) for approval',
+  })
   kyc(@TenantId() tenantId: string, @CurrentUser('sub') userId: string, @Body() dto: SubmitKycDto) {
     return this.tenants.submitKyc(tenantId, userId, dto);
   }
@@ -60,14 +79,14 @@ export class TenantsController {
   @RequirePermissions(Permissions.StaffManage)
   @Get('current/members')
   @ApiOperation({ summary: 'Staff management: list members' })
-  members(@TenantId() tenantId: string) {
-    return this.tenants.members(tenantId);
+  members(@TenantId() tenantId: string, @CurrentUser('sub') userId: string) {
+    return this.tenants.members(tenantId, userId);
   }
 
   @RequireTenant()
   @RequirePermissions(Permissions.StaffManage)
   @Post('current/members')
-  @ApiOperation({ summary: 'Staff management: add a staff member by phone' })
+  @ApiOperation({ summary: 'Staff management: invite a staff member by phone' })
   invite(
     @TenantId() tenantId: string,
     @CurrentUser('sub') userId: string,

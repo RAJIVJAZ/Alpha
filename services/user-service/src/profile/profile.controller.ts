@@ -1,7 +1,7 @@
 import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '@foodgrid/auth/nest';
-import { AddressDto, UpdateAddressDto, UpdateProfileDto } from './dto/profile.dto';
+import { AddressDto, UpdateAddressDto, UpdateProfileDto, VerifyEmailDto } from './dto/profile.dto';
 import { ProfileService } from './profile.service';
 
 @ApiTags('users')
@@ -17,8 +17,16 @@ export class ProfileController {
   }
 
   @Patch()
+  @ApiOperation({ summary: 'Update my profile (a new email waits for email/verify)' })
   update(@CurrentUser('sub') userId: string, @Body() dto: UpdateProfileDto) {
     return this.profile.update(userId, dto);
+  }
+
+  @Post('email/verify')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Confirm a new email with the code sent to it' })
+  verifyEmail(@CurrentUser('sub') userId: string, @Body() dto: VerifyEmailDto) {
+    return this.profile.verifyEmail(userId, dto.code);
   }
 
   @Get('addresses')
