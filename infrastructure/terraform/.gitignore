@@ -1,0 +1,9 @@
+# The repository root ignores *.tfstate, .terraform/ and .terraform.lock.hcl.
+# Root stacks keep their lock files so every machine and CI run uses the same
+# provider builds; modules have none (the calling root pins the providers).
+!.terraform.lock.hcl
+modules/**/.terraform.lock.hcl
+
+# operator-local backend settings and plan files
+backend.hcl
+*.tfplan

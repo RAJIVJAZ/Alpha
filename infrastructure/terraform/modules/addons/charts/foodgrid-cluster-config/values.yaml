@@ -1,0 +1,3 @@
+# set by Terraform (modules/addons/controllers.tf)
+region: ap-south-1
+appNamespace: foodgrid

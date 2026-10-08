@@ -1,0 +1,8 @@
+# Cluster-scoped FoodGrid configuration that needs CRDs from other charts, so it
+# cannot be planned with kubernetes_manifest; installed by helm_release in
+# ../../controllers.tf after the External Secrets chart.
+apiVersion: v2
+name: foodgrid-cluster-config
+description: ClusterSecretStore aws-secrets-manager for the FoodGrid ExternalSecrets
+type: application
+version: 1.0.0
