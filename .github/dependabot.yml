@@ -1,0 +1,55 @@
+version: 2
+
+updates:
+  # the pnpm workspace (apps/*-web, services/*, packages/*) from the root lockfile
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 10
+    groups:
+      npm-minor-and-patch:
+        update-types: [minor, patch]
+
+  # actions are pinned to commit SHAs with a version comment; Dependabot updates both.
+  # "/" covers .github/workflows; composite actions need their own directory
+  - package-ecosystem: github-actions
+    directories:
+      - /
+      - /.github/actions/setup
+    schedule:
+      interval: monthly
+    groups:
+      github-actions:
+        patterns: ['*']
+
+  - package-ecosystem: pub
+    directories:
+      - /packages/flutter_core
+      - /apps/customer-mobile
+      - /apps/rider-mobile
+      - /apps/merchant-mobile
+    schedule:
+      interval: monthly
+    groups:
+      pub-minor-and-patch:
+        update-types: [minor, patch]
+
+  # updates FROM lines that name their image directly; Dependabot does not resolve the
+  # ARG NODE_VERSION the Node base images use today
+  - package-ecosystem: docker
+    directory: /infrastructure/docker
+    schedule:
+      interval: monthly
+
+  - package-ecosystem: terraform
+    directories:
+      - /infrastructure/terraform/bootstrap
+      - /infrastructure/terraform/global
+      - /infrastructure/terraform/envs/staging
+      - /infrastructure/terraform/envs/production
+    schedule:
+      interval: monthly
+    groups:
+      terraform:
+        patterns: ['*']

@@ -1,0 +1,96 @@
+name: Flutter
+
+on:
+  pull_request:
+    paths:
+      - 'packages/flutter_core/**'
+      - 'apps/*-mobile/**'
+      - '.github/workflows/flutter.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'packages/flutter_core/**'
+      - 'apps/*-mobile/**'
+      - '.github/workflows/flutter.yml'
+
+concurrency:
+  group: flutter-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  # the SDK the apps and foodgrid_core are developed against (pubspecs require Dart ^3.13.5)
+  FLUTTER_VERSION: 3.47.6
+
+jobs:
+  check:
+    name: ${{ matrix.package }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # a library: its pubspec.lock is not committed (Dart convention), so it resolves fresh
+          - package: packages/flutter_core
+            pub-get: flutter pub get
+          - package: apps/customer-mobile
+            pub-get: flutter pub get --enforce-lockfile
+          - package: apps/rider-mobile
+            pub-get: flutter pub get --enforce-lockfile
+          - package: apps/merchant-mobile
+            pub-get: flutter pub get --enforce-lockfile
+    defaults:
+      run:
+        working-directory: ${{ matrix.package }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - run: ${{ matrix.pub-get }}
+      # no `dart format --set-exit-if-changed` yet: the code is not dart-formatted today
+      - run: flutter analyze
+      - run: flutter test
+
+  android:
+    name: Android debug build (${{ matrix.app }})
+    # analyze and test do not touch Gradle, the Android Gradle/Kotlin plugins or plugin
+    # minSdk requirements; a debug build on main catches those without slowing pull requests
+    if: github.event_name == 'push'
+    needs: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [customer-mobile, rider-mobile, merchant-mobile]
+    defaults:
+      run:
+        working-directory: apps/${{ matrix.app }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+          cache-dependency-path: |
+            apps/${{ matrix.app }}/android/*.gradle.kts
+            apps/${{ matrix.app }}/android/app/build.gradle.kts
+            apps/${{ matrix.app }}/android/gradle/wrapper/gradle-wrapper.properties
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - run: flutter pub get --enforce-lockfile
+      - run: flutter build apk --debug

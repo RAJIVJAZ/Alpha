@@ -1,0 +1,217 @@
+name: Deploy
+
+# Reusable deployment of an image set that is already in ECR, called by cd.yml for staging
+# (after the images are pushed) and production (promotion). Order: render the overlay with
+# the environment's placeholders filled and images pinned, ensure the namespace and
+# ExternalSecrets exist, run the db-migrate Job to completion, then apply the overlay and
+# wait for every Deployment to roll out.
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: GitHub environment and overlay to deploy (staging or production)
+        required: true
+        type: string
+      sha:
+        description: Full commit SHA; its manifests are applied and its images deployed
+        required: true
+        type: string
+
+permissions: {}
+
+env:
+  # within one minor version of the clusters' kubernetes_version (infrastructure/terraform/envs)
+  KUBECTL_VERSION: v1.35.9
+  KUSTOMIZE_VERSION: 5.8.1
+  KUSTOMIZE_SHA256: 029a7f0f4e1932c52a0476cf02a0fd855c0bb85694b82c338fc648dcb53a819d
+  NAMESPACE: foodgrid
+
+jobs:
+  images:
+    name: Images exist in ECR
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # the CI role (allowed from main and v* tags) can read ECR; the deploy roles only reach EKS
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Check the inputs
+        env:
+          SHA: ${{ inputs.sha }}
+          DEPLOY_ENV: ${{ inputs.environment }}
+        run: |
+          [[ $DEPLOY_ENV == staging || $DEPLOY_ENV == production ]] || {
+            echo "::error::environment must be staging or production, got '$DEPLOY_ENV'"
+            exit 1
+          }
+          [[ $SHA =~ ^[0-9a-f]{40}$ ]] || {
+            echo "::error::sha must be a full 40-character commit SHA, got '$SHA'"
+            exit 1
+          }
+          # the CI role's OIDC trust admits only these refs; say so instead of failing in AWS
+          [[ $GITHUB_REF == refs/heads/main || $GITHUB_REF == refs/tags/v* ]] || {
+            echo "::error::deploy from main (or a v* release tag), not $GITHUB_REF"
+            exit 1
+          }
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.sha }}
+          persist-credentials: false
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ vars.AWS_CI_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - name: Look up foodgrid/*:${{ inputs.sha }}
+        env:
+          SHA: ${{ inputs.sha }}
+        run: |
+          # the overlays add no images, so base (workloads + migrate Job) lists every one
+          repositories=$(grep -rhoE 'image: foodgrid/[a-z0-9-]+' infrastructure/kubernetes/base |
+            cut -d' ' -f2 | sort -u)
+          [[ -n $repositories ]] || {
+            echo "::error::no foodgrid/* images found under infrastructure/kubernetes/base"
+            exit 1
+          }
+          echo "Checking $(wc -l <<< "$repositories") repositories for tag $SHA"
+          missing=0
+          for repository in $repositories; do
+            if ! aws ecr describe-images --repository-name "$repository" --image-ids "imageTag=$SHA" \
+              --query 'imageDetails[0].imageDigest' --output text; then
+              echo "::error::$repository:$SHA is not in ECR; only commits CD built on main can be deployed"
+              missing=1
+            fi
+          done
+          exit "$missing"
+
+  deploy:
+    name: Deploy to ${{ inputs.environment }}
+    needs: images
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment:
+      name: ${{ inputs.environment }}
+      url: ${{ inputs.environment == 'production' && 'https://foodgrid.in' || 'https://staging.foodgrid.in' }}
+    # never two rollouts (or migrations) against one cluster at a time; queued, not cancelled
+    concurrency:
+      group: deploy-${{ inputs.environment }}
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      DEPLOY_ENV: ${{ inputs.environment }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.sha }}
+          persist-credentials: false
+
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - uses: azure/setup-kubectl@bda439f5f36b99b262ebdcd3613869bddb064c8e # v5.2.0
+        with:
+          version: ${{ env.KUBECTL_VERSION }}
+
+      - name: Install kustomize
+        run: |
+          archive="kustomize_v${KUSTOMIZE_VERSION}_linux_amd64.tar.gz"
+          curl -fsSLo "$RUNNER_TEMP/$archive" \
+            "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv${KUSTOMIZE_VERSION}/$archive"
+          echo "$KUSTOMIZE_SHA256  $RUNNER_TEMP/$archive" | sha256sum --check --strict
+          mkdir -p "$RUNNER_TEMP/bin"
+          tar -xzf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP/bin" kustomize
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+
+      - name: Render manifests
+        env:
+          ECR_REGISTRY: ${{ vars.ECR_REGISTRY }}
+          IMAGE_TAG: ${{ inputs.sha }}
+          AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
+          ACM_CERTIFICATE_ID: ${{ vars.ACM_CERTIFICATE_ID }}
+          WAF_WEB_ACL_ID: ${{ vars.WAF_WEB_ACL_ID }}
+        run: |
+          echo "MANIFESTS=$RUNNER_TEMP/manifests" >> "$GITHUB_ENV"
+          bash .github/scripts/render-overlay.sh "$DEPLOY_ENV" "$RUNNER_TEMP/manifests"
+          {
+            echo "### ${DEPLOY_ENV} @ \`${IMAGE_TAG}\`"
+            echo
+            while read -r image; do echo "- \`$image\`"; done < "$RUNNER_TEMP/manifests/images.txt"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: manifests-${{ inputs.environment }}-${{ inputs.sha }}
+          path: |
+            ${{ runner.temp }}/manifests/*.yaml
+            ${{ runner.temp }}/manifests/images.txt
+          retention-days: 30
+          overwrite: true
+
+      - name: Connect to ${{ vars.EKS_CLUSTER_NAME }}
+        env:
+          EKS_CLUSTER_NAME: ${{ vars.EKS_CLUSTER_NAME }}
+        run: |
+          aws eks update-kubeconfig --name "$EKS_CLUSTER_NAME" --region "$AWS_REGION"
+          kubectl version
+
+      # on a fresh cluster the namespace and the Secrets synced by External Secrets do not
+      # exist yet, and the migration Job reads foodgrid-secrets
+      - name: Namespace and secrets
+        run: |
+          kubectl apply -f "$MANIFESTS/prereqs.yaml"
+          kubectl -n "$NAMESPACE" wait externalsecret --all --for=condition=Ready --timeout=3m
+
+      - name: Database migrations
+        run: |
+          # foreground: the previous run's pods are gone too, so the logs below are this run's
+          kubectl -n "$NAMESPACE" delete job db-migrate --ignore-not-found --cascade=foreground --wait=true
+          kubectl apply -f "$MANIFESTS/migrate.yaml"
+
+          # whichever terminal condition the Job reaches first (activeDeadlineSeconds is 900)
+          kubectl -n "$NAMESPACE" wait job/db-migrate --for=condition=Complete --timeout=16m &
+          complete=$!
+          kubectl -n "$NAMESPACE" wait job/db-migrate --for=condition=Failed --timeout=16m >/dev/null &
+          failed=$!
+          status=0
+          wait -n -p finished "$complete" "$failed" || status=$?
+          kill "$complete" "$failed" 2>/dev/null || true
+
+          echo "::group::db-migrate logs"
+          kubectl -n "$NAMESPACE" logs -l batch.kubernetes.io/job-name=db-migrate \
+            --all-containers --prefix --tail=-1 || true
+          echo "::endgroup::"
+
+          if [[ $status -ne 0 || ${finished:-} != "$complete" ]]; then
+            kubectl -n "$NAMESPACE" describe job db-migrate || true
+            echo "::error::db-migrate did not complete; nothing was rolled out"
+            exit 1
+          fi
+
+      - name: Apply ${{ inputs.environment }}
+        run: kubectl apply -f "$MANIFESTS/app.yaml"
+
+      - name: Wait for rollouts
+        run: |
+          # a plain assignment, so a failing kubectl fails the step (errexit)
+          deployments=$(kubectl -n "$NAMESPACE" get deployments \
+            -l app.kubernetes.io/part-of=foodgrid -o name)
+          [[ -n $deployments ]] || {
+            echo "::error::no foodgrid Deployments in namespace $NAMESPACE"
+            exit 1
+          }
+          for deployment in $deployments; do
+            kubectl -n "$NAMESPACE" rollout status "$deployment" --timeout=10m
+          done
+
+      - name: Cluster state on failure
+        if: ${{ failure() }}
+        run: |
+          kubectl -n "$NAMESPACE" get deployments,pods,jobs,externalsecrets -o wide || true
+          kubectl -n "$NAMESPACE" get events --sort-by=.lastTimestamp | tail -n 60 || true

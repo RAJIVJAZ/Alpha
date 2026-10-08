@@ -1,0 +1,205 @@
+name: CD
+
+# staging:    every commit on main whose CI run passed: build and push the 19 images
+#             (tagged with the commit SHA) to ECR, then deploy them to staging
+# production: promote an image set that is already in ECR (no rebuild), either by hand
+#             with its commit SHA or by publishing a release; the production environment's
+#             required reviewers approve the rollout
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: Full commit SHA to promote to production (built by CD on main, normally already on staging)
+        required: true
+        type: string
+  release:
+    types: [published]
+
+# One CD run at a time per track, in commit order; a newer queued run replaces an older queued
+# one (staging then gets the newer commit). Runs with nothing to do (CI failed, or it was not a
+# push to main) get a group of their own, or they would displace a queued deployment.
+concurrency:
+  group: >-
+    cd-${{ github.event_name != 'workflow_run' && 'production' ||
+    (github.event.workflow_run.conclusion == 'success' &&
+    github.event.workflow_run.event == 'push' &&
+    github.event.workflow_run.head_repository.full_name == github.repository) && 'staging' ||
+    format('noop-{0}', github.run_id) }}
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  images:
+    name: Push ${{ matrix.image }}
+    # CI pushes to main only; never pull requests (also not ones from a fork's "main")
+    if: >-
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      SHA: ${{ github.event.workflow_run.head_sha }}
+      REPOSITORY: foodgrid/${{ matrix.image }}
+    strategy:
+      fail-fast: false
+      # must cover every image in scripts/generate-k8s.ts (WORKLOADS) plus migrate; deploy.yml
+      # refuses to roll out a commit with any of them missing from ECR
+      matrix:
+        include:
+          - image: auth-service
+            dockerfile: service.Dockerfile
+            build-args: |
+              SERVICE=auth-service
+              PORT=4001
+          - image: user-service
+            dockerfile: service.Dockerfile
+            build-args: |
+              SERVICE=user-service
+              PORT=4002
+          - image: order-service
+            dockerfile: service.Dockerfile
+            build-args: |
+              SERVICE=order-service
+              PORT=4003
+          - image: payment-service
+            dockerfile: service.Dockerfile
+            build-args: |
+              SERVICE=payment-service
+              PORT=4004
+          - image: inventory-service
+            dockerfile: service.Dockerfile
+            build-args: |
+              SERVICE=inventory-service
+              PORT=4005
+          - image: procurement-service
+            dockerfile: service.Dockerfile
+            build-args: |
+              SERVICE=procurement-service
+              PORT=4006
+          - image: delivery-service
+            dockerfile: service.Dockerfile
+            build-args: |
+              SERVICE=delivery-service
+              PORT=4007
+          - image: supplier-service
+            dockerfile: service.Dockerfile
+            build-args: |
+              SERVICE=supplier-service
+              PORT=4008
+          - image: analytics-service
+            dockerfile: service.Dockerfile
+            build-args: |
+              SERVICE=analytics-service
+              PORT=4009
+          - image: ads-service
+            dockerfile: service.Dockerfile
+            build-args: |
+              SERVICE=ads-service
+              PORT=4010
+          - image: notification-service
+            dockerfile: service.Dockerfile
+            build-args: |
+              SERVICE=notification-service
+              PORT=4011
+          - image: ai-service
+            dockerfile: service.Dockerfile
+            build-args: |
+              SERVICE=ai-service
+              PORT=4012
+          - image: customer-web
+            dockerfile: web.Dockerfile
+            build-args: APP=customer-web
+          - image: admin-web
+            dockerfile: web.Dockerfile
+            build-args: APP=admin-web
+          - image: restaurant-web
+            dockerfile: web.Dockerfile
+            build-args: APP=restaurant-web
+          - image: supplier-web
+            dockerfile: web.Dockerfile
+            build-args: APP=supplier-web
+          - image: rider-web
+            dockerfile: web.Dockerfile
+            build-args: APP=rider-web
+          - image: vendor-web
+            dockerfile: web.Dockerfile
+            build-args: APP=vendor-web
+          - image: migrate
+            dockerfile: migrate.Dockerfile
+            build-args: ''
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.SHA }}
+          persist-credentials: false
+
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ vars.AWS_CI_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - uses: aws-actions/amazon-ecr-login@03f1aad4c6c7ffd436567f42f9384779290529bd # v2.1.7
+
+      # re-running CD for a commit must not push the tag twice (ECR tags may be immutable)
+      - name: Already in ECR?
+        id: ecr
+        run: |
+          if aws ecr describe-images --repository-name "$REPOSITORY" --image-ids "imageTag=$SHA" \
+            > /dev/null 2>&1; then
+            echo "$REPOSITORY:$SHA is already pushed; skipping the build"
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "$REPOSITORY:$SHA is not in ECR yet; building it"
+          fi
+
+      - if: steps.ecr.outputs.exists != 'true'
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - if: steps.ecr.outputs.exists != 'true'
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: infrastructure/docker/${{ matrix.dockerfile }}
+          build-args: ${{ matrix.build-args }}
+          push: true
+          tags: ${{ vars.ECR_REGISTRY }}/${{ env.REPOSITORY }}:${{ env.SHA }}
+          labels: |
+            org.opencontainers.image.revision=${{ env.SHA }}
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+          # mode=min: the Dockerfiles copy the whole repository before installing, so the
+          # intermediate layers change with every commit and are not worth the cache space
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,mode=min,scope=${{ matrix.image }}
+
+  staging:
+    needs: images
+    uses: ./.github/workflows/deploy.yml
+    permissions:
+      contents: read
+      id-token: write
+    with:
+      environment: staging
+      sha: ${{ github.event.workflow_run.head_sha }}
+
+  production:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'release' && !github.event.release.prerelease)
+    uses: ./.github/workflows/deploy.yml
+    permissions:
+      contents: read
+      id-token: write
+    with:
+      environment: production
+      # a release deploys the commit its tag points at
+      sha: ${{ github.event_name == 'workflow_dispatch' && inputs.sha || github.sha }}
