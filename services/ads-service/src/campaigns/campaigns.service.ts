@@ -1,8 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@foodgrid/database/nest';
-import type { CampaignStatus, Prisma } from '@foodgrid/database';
+import type { AdCampaign, CampaignStatus, Prisma } from '@foodgrid/database';
 import type { AccessTokenClaims } from '@foodgrid/types';
 import {
+  AppError,
   badRequest,
   conflict,
   dateOnly,
@@ -28,12 +29,41 @@ export class CampaignsService {
       throw badRequest('End must be after start', 'INVALID_DATES');
   }
 
+  /** The sponsored outlet or product must belong to the advertiser (404 otherwise, like a missing one). */
+  private async assertTargetOwned(tenantId: string, targetType: string, targetId: string) {
+    // ponytail: order-service has no menu-item lookup yet; add internal/menu-items/:id, then check it here
+    if (targetType === 'MENU_ITEM')
+      throw badRequest('Menu item campaigns are not supported yet', 'TARGET_UNSUPPORTED');
+    const id = encodeURIComponent(targetId);
+    const target = await (
+      targetType === 'OUTLET'
+        ? this.internal.get<{ tenantId: string }>('order', `internal/outlets/${id}`)
+        : this.internal.get<{ tenantId: string }>('supplier', `internal/marketplace/products/${id}`)
+    ).catch((err: unknown) => {
+      if (err instanceof AppError && err.status === 404) return null;
+      throw err;
+    });
+    if (target?.tenantId !== tenantId) throw notFound(enumLabel(targetType), targetId);
+  }
+
+  /** Whether an edit changes what the reviewer approved or raises spend, so it needs a new review. */
+  private needsReview(c: AdCampaign, dto: UpdateCampaignDto) {
+    const changed = (
+      ['placement', 'targetType', 'targetId', 'bidType', 'keywords', 'cities', 'creative'] as const
+    ).some((k) => dto[k] !== undefined && JSON.stringify(dto[k]) !== JSON.stringify(c[k]));
+    const raised = (['bidAmount', 'dailyBudget', 'totalBudget'] as const).some(
+      (k) => dto[k] !== undefined && dto[k] > Number(c[k]),
+    );
+    return changed || raised;
+  }
+
   list(tenantId: string) {
     return this.prisma.forTenant(tenantId).adCampaign.findMany({ orderBy: { createdAt: 'desc' } });
   }
 
-  create(user: AccessTokenClaims, dto: CampaignDto) {
+  async create(user: AccessTokenClaims, dto: CampaignDto) {
     this.validate(dto);
+    await this.assertTargetOwned(user.tenantId!, dto.targetType, dto.targetId);
     return this.prisma.forTenant(user.tenantId!).adCampaign.create({
       data: {
         ...dto,
@@ -54,6 +84,14 @@ export class CampaignsService {
       totalBudget: dto.totalBudget ?? Number(c.totalBudget),
       dailyBudget: dto.dailyBudget ?? Number(c.dailyBudget),
     });
+    if (dto.targetType !== undefined || dto.targetId !== undefined)
+      await this.assertTargetOwned(
+        c.tenantId,
+        dto.targetType ?? c.targetType,
+        dto.targetId ?? c.targetId,
+      );
+    // PAUSED means approved earlier: changed content goes back to draft and must be submitted again
+    const reReview = c.status === 'PAUSED' && this.needsReview(c, dto);
     return this.prisma.adCampaign.update({
       where: { id },
       data: {
@@ -62,6 +100,7 @@ export class CampaignsService {
         endsAt: dto.endsAt ? new Date(dto.endsAt) : undefined,
         creative: dto.creative as Prisma.InputJsonValue | undefined,
         ...(c.status === 'REJECTED' ? { status: 'DRAFT' } : {}),
+        ...(reReview ? { status: 'DRAFT', reviewedBy: null, reviewNotes: null } : {}),
       },
     });
   }

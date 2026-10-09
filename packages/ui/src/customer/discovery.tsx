@@ -320,7 +320,9 @@ export function SearchView() {
                     <Link
                       href={`/r/${d.outlet.slug}#item-${d.id}`}
                       onClick={() =>
-                        d.outlet.sponsored ? reportAdClick(d.outlet.adCampaignId) : undefined
+                        d.outlet.sponsored
+                          ? reportAdClick(d.outlet.adCampaignId, d.outlet.adClickToken)
+                          : undefined
                       }
                       className={cn(
                         'flex gap-3 rounded-xl border bg-card p-3 hover:bg-muted/50',

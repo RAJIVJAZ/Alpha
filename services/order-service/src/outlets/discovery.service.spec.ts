@@ -38,13 +38,17 @@ describe('outlet cards', () => {
   });
 
   it('sends cost for two as a two-decimal string and rounds display figures', () => {
-    const card = toCard({ outlet, distanceKm: 1.26, etaMins: 30, openNow: true }, 'cmp_1');
+    const card = toCard(
+      { outlet, distanceKm: 1.26, etaMins: 30, openNow: true },
+      { campaignId: 'cmp_1', clickToken: 'tok' },
+    );
     expect(card).toMatchObject({
       costForTwo: '700.00',
       ratingAvg: 4.3,
       distanceKm: 1.3,
       sponsored: true,
       adCampaignId: 'cmp_1',
+      adClickToken: 'tok',
     });
   });
 });

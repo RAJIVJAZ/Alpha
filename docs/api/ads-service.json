@@ -516,6 +516,10 @@
           "campaignId": {
             "type": "string"
           },
+          "clickToken": {
+            "type": "string",
+            "description": "clickToken of the served ad; clicks without one are not charged"
+          },
           "sessionId": {
             "type": "string"
           }

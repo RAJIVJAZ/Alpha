@@ -57,5 +57,12 @@ export class ServeDto {
 
 export class ClickDto {
   @ApiProperty() @IsString() campaignId!: string;
+  @ApiPropertyOptional({
+    description: 'clickToken of the served ad; clicks without one are not charged',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  clickToken?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() sessionId?: string;
 }

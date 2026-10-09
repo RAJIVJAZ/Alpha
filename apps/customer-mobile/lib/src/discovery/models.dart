@@ -21,6 +21,7 @@ class OutletSummary {
     this.etaMins = 0,
     this.sponsored = false,
     this.adCampaignId,
+    this.adClickToken,
     this.reasons = const [],
   });
 
@@ -45,6 +46,7 @@ class OutletSummary {
   final int etaMins;
   final bool sponsored;
   final String? adCampaignId;
+  final String? adClickToken;
   final List<String> reasons;
 
   bool get isFoodCart => type == 'FOOD_CART';
@@ -70,6 +72,7 @@ class OutletSummary {
         etaMins: toInt(j['etaMins']),
         sponsored: toBool(j['sponsored']),
         adCampaignId: optStr(j['adCampaignId']),
+        adClickToken: optStr(j['adClickToken']),
         reasons: strings(j['reasons']),
       );
 }

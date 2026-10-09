@@ -398,14 +398,25 @@ describe('order-service checkout & lifecycle (e2e)', () => {
       },
     });
     http.on('POST', 'ads', 'internal/ads/serve', [
-      { campaignId: 'cmp_1', targetType: 'OUTLET', targetId: 'outlet_2', rank: 1, sponsored: true },
+      {
+        campaignId: 'cmp_1',
+        targetType: 'OUTLET',
+        targetId: 'outlet_2',
+        rank: 1,
+        sponsored: true,
+        clickToken: 'tok_1',
+      },
     ]);
     const { body } = await api()
       .get('/api/v1/outlets/nearby')
       .query({ lat: 12.9352, lng: 77.6245 })
       .expect(200);
     expect(body.data.map((o: { id: string }) => o.id)).toEqual(['outlet_2', 'outlet_1']);
-    expect(body.data[0]).toMatchObject({ sponsored: true, adCampaignId: 'cmp_1' });
+    expect(body.data[0]).toMatchObject({
+      sponsored: true,
+      adCampaignId: 'cmp_1',
+      adClickToken: 'tok_1',
+    });
     expect(body.data[1]).toMatchObject({ sponsored: false, adCampaignId: null });
   });
 

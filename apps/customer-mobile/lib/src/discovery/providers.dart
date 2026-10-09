@@ -144,7 +144,9 @@ final searchProvider = FutureProvider.autoDispose.family<SearchResult, String>((
 });
 
 /// Reports a click on a sponsored placement (fire-and-forget).
-void reportAdClick(ApiClient api, String? campaignId) {
-  if (campaignId == null || campaignId.isEmpty) return;
-  api.post<dynamic>('ads/events/click', body: {'campaignId': campaignId}).then((_) {}, onError: (Object _) {});
+void reportAdClick(ApiClient api, OutletSummary outlet) {
+  final campaignId = outlet.adCampaignId;
+  if (!outlet.sponsored || campaignId == null || campaignId.isEmpty) return;
+  api.post<dynamic>('ads/events/click', body: {'campaignId': campaignId, if (outlet.adClickToken != null) 'clickToken': outlet.adClickToken})
+      .then((_) {}, onError: (Object _) {});
 }

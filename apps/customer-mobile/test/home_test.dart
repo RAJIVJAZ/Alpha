@@ -74,7 +74,7 @@ void main() {
 
     await tester.tapAndSettle(find.byKey(const Key('outlet-dosa-corner')));
 
-    expect(api.lastBody('POST /ads/events/click'), {'campaignId': 'camp-9'});
+    expect(api.lastBody('POST /ads/events/click'), {'campaignId': 'camp-9', 'clickToken': 'tok-camp-9'});
     expect(api.log, contains('GET /outlets/dosa-corner/menu'));
   });
 

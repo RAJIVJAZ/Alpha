@@ -192,12 +192,15 @@ export function webLink(url: string | null | undefined): string | null {
 }
 
 /** Reports a click on a sponsored placement (fire-and-forget). */
-export function reportAdClick(campaignId: string | null | undefined) {
+export function reportAdClick(
+  campaignId: string | null | undefined,
+  clickToken: string | null | undefined,
+) {
   if (!campaignId) return;
   void fetch('/api/proxy/ads/events/click', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ campaignId }),
+    body: JSON.stringify({ campaignId, clickToken: clickToken ?? undefined }),
     keepalive: true,
   }).catch(() => undefined);
 }
@@ -208,7 +211,7 @@ export function OutletCard({ outlet: o, compact }: { outlet: OutletSummary; comp
   return (
     <a
       href={`/r/${o.slug}`}
-      onClick={() => (o.sponsored ? reportAdClick(o.adCampaignId) : undefined)}
+      onClick={() => (o.sponsored ? reportAdClick(o.adCampaignId, o.adClickToken) : undefined)}
       className={cn(
         'group grid gap-2 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring',
         !o.isOpenNow && 'opacity-60',

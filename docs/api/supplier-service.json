@@ -1541,6 +1541,22 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "buyerTenantId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "quantity",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {

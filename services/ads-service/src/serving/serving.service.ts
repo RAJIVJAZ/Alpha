@@ -1,10 +1,17 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { createHmac, timingSafeEqual } from 'node:crypto';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '@foodgrid/database/nest';
 import type { AdCampaign } from '@foodgrid/database';
 import { dateOnly, istDate, round2 } from '@foodgrid/utils';
-import { businessCounter } from '@foodgrid/utils/server';
+import {
+  businessCounter,
+  CORE_MODULE_OPTIONS,
+  type CoreModuleOptions,
+} from '@foodgrid/utils/server';
 import { hasBudget, runAuction } from '../domain/auction';
 import { ClickDto, ServeDto } from '../campaigns/dto/campaign.dto';
+
+const CLICK_TOKEN_TTL_MS = 30 * 60_000;
 
 const adEvents = businessCounter('ad_events_total', 'Ad impressions / clicks / conversions', [
   'type',
@@ -12,14 +19,19 @@ const adEvents = businessCounter('ad_events_total', 'Ad impressions / clicks / c
 
 /**
  * Ad serving: eligibility (dates, geo, keywords, budget) → GSP auction →
- * impression logging (CPM charging). Clicks are charged per click with
- * atomic budget checks; conversions are attributed from orders.
+ * impression logging (CPM charging). Each served ad carries a signed,
+ * single-use click token; a click is charged only with a valid token (one
+ * charge per impression, atomic budget checks). Conversions are attributed
+ * from orders.
  */
 @Injectable()
 export class ServingService {
   private readonly logger = new Logger(ServingService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Inject(CORE_MODULE_OPTIONS) private readonly core: CoreModuleOptions,
+  ) {}
 
   async serve(dto: ServeDto) {
     const now = new Date();
@@ -55,13 +67,15 @@ export class ServingService {
       dto.limit ?? 3,
     );
     const byId = new Map(campaigns.map((c) => [c.id, c]));
+    const clickTokens = new Map<string, string | null>();
     for (const w of winners) {
       const cost = w.bidType === 'CPM' ? round2(w.price / 1000) : 0;
-      await this.record(w.campaignId, 'IMPRESSION', cost, {
+      const impressionId = await this.record(w.campaignId, 'IMPRESSION', cost, {
         userId: dto.userId,
         sessionId: dto.sessionId,
         context: { placement: dto.placement, rank: w.rank, price: w.price },
       });
+      clickTokens.set(w.campaignId, impressionId && this.clickToken(w.campaignId, impressionId));
     }
     return winners.map((w) => {
       const c = byId.get(w.campaignId)!;
@@ -72,26 +86,70 @@ export class ServingService {
         creative: c.creative,
         rank: w.rank,
         sponsored: true,
+        clickToken: clickTokens.get(c.id) ?? null,
       };
     });
   }
 
+  /** Records a click only against an impression this service served (see clickToken). */
   async click(dto: ClickDto, userId?: string) {
     const c = await this.prisma.adCampaign.findUnique({ where: { id: dto.campaignId } });
     if (!c || c.status !== 'ACTIVE') return { charged: false };
-    // de-duplicate rapid repeated clicks from the same user/session (click fraud)
-    const recent = await this.prisma.adEvent.count({
-      where: {
-        campaignId: c.id,
-        type: 'CLICK',
-        createdAt: { gte: new Date(Date.now() - 60_000) },
-        OR: [{ userId: userId ?? '__none__' }, { sessionId: dto.sessionId ?? '__none__' }],
-      },
-    });
+    const impressionId = this.verifyClickToken(c.id, dto.clickToken);
+    if (!impressionId) return { charged: false, reason: 'unverified' };
+    // one click per impression: the first request claims it, replays and concurrent copies update nothing
+    const claimed = await this.prisma.$executeRaw`
+      UPDATE "ads"."AdEvent"
+      SET context = COALESCE(context, '{}'::jsonb) || jsonb_build_object('clickedAt', now())
+      WHERE id = ${impressionId} AND "campaignId" = ${c.id} AND type = 'IMPRESSION'
+        AND context->>'clickedAt' IS NULL`;
+    if (!claimed) return { charged: false, reason: 'duplicate' };
+    // and one click a minute per known user/session across fresh impressions (click fraud)
+    const who = [
+      ...(userId ? [{ userId }] : []),
+      ...(dto.sessionId ? [{ sessionId: dto.sessionId }] : []),
+    ];
+    const recent =
+      who.length &&
+      (await this.prisma.adEvent.count({
+        where: {
+          campaignId: c.id,
+          type: 'CLICK',
+          createdAt: { gte: new Date(Date.now() - 60_000) },
+          OR: who,
+        },
+      }));
     if (recent) return { charged: false, reason: 'duplicate' };
     const cost = c.bidType === 'CPC' ? Number(c.bidAmount) : 0;
-    const charged = await this.record(c.id, 'CLICK', cost, { userId, sessionId: dto.sessionId });
-    return { charged, targetType: c.targetType, targetId: c.targetId };
+    const clickId = await this.record(c.id, 'CLICK', cost, {
+      userId,
+      sessionId: dto.sessionId,
+      context: { impressionId },
+    });
+    return { charged: !!clickId, targetType: c.targetType, targetId: c.targetId };
+  }
+
+  private signClick(campaignId: string, impressionId: string, exp: number) {
+    return createHmac('sha256', this.core.internalSecret)
+      .update(`ad-click|${campaignId}|${impressionId}|${exp}`)
+      .digest('base64url');
+  }
+
+  /** `<impressionId>.<expiry ms>.<hmac>`: proves the campaign was served, valid for 30 minutes. */
+  private clickToken(campaignId: string, impressionId: string) {
+    const exp = Date.now() + CLICK_TOKEN_TTL_MS;
+    return `${impressionId}.${exp}.${this.signClick(campaignId, impressionId, exp)}`;
+  }
+
+  /** Impression id behind a click token, or null when it is forged, expired or for another campaign. */
+  private verifyClickToken(campaignId: string, token?: string) {
+    const [impressionId, exp, sig] = token?.split('.') ?? [];
+    if (!impressionId || !sig || !(Number(exp) > Date.now())) return null;
+    const expected = Buffer.from(this.signClick(campaignId, impressionId, Number(exp)));
+    const given = Buffer.from(sig);
+    return given.length === expected.length && timingSafeEqual(given, expected)
+      ? impressionId
+      : null;
   }
 
   /** Attributes an order to a click on the same outlet by the same user within 24h. */
@@ -122,7 +180,10 @@ export class ServingService {
     };
   }
 
-  /** Records an event and charges the campaign atomically (no overspend under concurrency). */
+  /**
+   * Records an event and charges the campaign atomically (no overspend under concurrency).
+   * Returns the event id, or null when the budget could not cover the cost.
+   */
   private async record(
     campaignId: string,
     type: 'IMPRESSION' | 'CLICK' | 'CONVERSION',
@@ -134,7 +195,7 @@ export class ServingService {
       revenue?: number;
       context?: Record<string, unknown>;
     },
-  ): Promise<boolean> {
+  ): Promise<string | null> {
     const today = dateOnly(istDate());
     return this.prisma.$transaction(async (tx) => {
       if (cost > 0) {
@@ -152,10 +213,10 @@ export class ServingService {
               where: { id: campaignId },
               data: { status: 'EXHAUSTED' },
             });
-          return false;
+          return null;
         }
       }
-      await tx.adEvent.create({
+      const event = await tx.adEvent.create({
         data: {
           campaignId,
           type,
@@ -186,7 +247,7 @@ export class ServingService {
         },
       });
       adEvents.inc({ type });
-      return true;
+      return event.id;
     });
   }
 }

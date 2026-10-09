@@ -18,7 +18,7 @@ All routes are prefixed with `/api/v1`. Routes under `/api/v1/internal/*` are se
 | payment-service | 31 | 2 | [payment-service.json](./payment-service.json) |
 | procurement-service | 18 | 0 | [procurement-service.json](./procurement-service.json) |
 | supplier-service | 38 | 4 | [supplier-service.json](./supplier-service.json) |
-| user-service | 38 | 7 | [user-service.json](./user-service.json) |
+| user-service | 41 | 7 | [user-service.json](./user-service.json) |
 
 ## FoodGrid Ads Service
 
@@ -461,16 +461,19 @@ Profiles, addresses, business tenants & staff, admin user management, approvals,
 | POST | `/api/v1/internal/users/batch` | service token |  |
 | POST | `/api/v1/media/presign` | bearer | Get a presigned S3 URL to upload an image / KYC document / delivery proof |
 | POST | `/api/v1/tenants` | bearer | Onboard a new business (restaurant, food cart, supplier, wholesaler, retailer) |
-| GET | `/api/v1/tenants/current` | bearer |  |
+| GET | `/api/v1/tenants/current` | bearer | My business (PAN, KYC and commission only for settings / finance) |
 | PATCH | `/api/v1/tenants/current` | bearer |  |
-| POST | `/api/v1/tenants/current/kyc` | bearer | Submit / resubmit KYC documents for approval |
+| POST | `/api/v1/tenants/current/kyc` | bearer | Submit / resubmit KYC documents and identifier changes (GSTIN, PAN …) for approval |
 | GET | `/api/v1/tenants/current/members` | bearer | Staff management: list members |
-| POST | `/api/v1/tenants/current/members` | bearer | Staff management: add a staff member by phone |
+| POST | `/api/v1/tenants/current/members` | bearer | Staff management: invite a staff member by phone |
 | PATCH | `/api/v1/tenants/current/members/{memberId}` | bearer |  |
+| GET | `/api/v1/tenants/invites` | bearer | Staff invitations waiting for me |
+| POST | `/api/v1/tenants/invites/{memberId}/accept` | bearer | Accept a staff invitation |
 | GET | `/api/v1/tenants/mine` | bearer | Businesses I belong to |
 | GET | `/api/v1/users/me` | bearer | My profile |
-| PATCH | `/api/v1/users/me` | bearer |  |
+| PATCH | `/api/v1/users/me` | bearer | Update my profile (a new email waits for email/verify) |
 | GET | `/api/v1/users/me/addresses` | bearer |  |
 | POST | `/api/v1/users/me/addresses` | bearer |  |
 | DELETE | `/api/v1/users/me/addresses/{id}` | bearer |  |
 | PATCH | `/api/v1/users/me/addresses/{id}` | bearer |  |
+| POST | `/api/v1/users/me/email/verify` | bearer | Confirm a new email with the code sent to it |

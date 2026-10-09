@@ -43,6 +43,37 @@
             "bearer": []
           }
         ],
+        "summary": "Update my profile (a new email waits for email/verify)",
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/api/v1/users/me/email/verify": {
+      "post": {
+        "operationId": "Profile_verifyEmail",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyEmailDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Confirm a new email with the code sent to it",
         "tags": [
           "users"
         ]
@@ -208,6 +239,55 @@
         ]
       }
     },
+    "/api/v1/tenants/invites": {
+      "get": {
+        "operationId": "Tenants_invites",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Staff invitations waiting for me",
+        "tags": [
+          "tenants"
+        ]
+      }
+    },
+    "/api/v1/tenants/invites/{memberId}/accept": {
+      "post": {
+        "operationId": "Tenants_acceptInvite",
+        "parameters": [
+          {
+            "name": "memberId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Accept a staff invitation",
+        "tags": [
+          "tenants"
+        ]
+      }
+    },
     "/api/v1/tenants/current": {
       "get": {
         "operationId": "Tenants_current",
@@ -222,6 +302,7 @@
             "bearer": []
           }
         ],
+        "summary": "My business (PAN, KYC and commission only for settings / finance)",
         "tags": [
           "tenants"
         ]
@@ -278,7 +359,7 @@
             "bearer": []
           }
         ],
-        "summary": "Submit / resubmit KYC documents for approval",
+        "summary": "Submit / resubmit KYC documents and identifier changes (GSTIN, PAN …) for approval",
         "tags": [
           "tenants"
         ]
@@ -326,7 +407,7 @@
             "bearer": []
           }
         ],
-        "summary": "Staff management: add a staff member by phone",
+        "summary": "Staff management: invite a staff member by phone",
         "tags": [
           "tenants"
         ]
@@ -1539,7 +1620,8 @@
             "type": "string"
           },
           "email": {
-            "type": "string"
+            "type": "string",
+            "description": "A new email is saved only after the code sent to it is confirmed (email/verify)"
           },
           "avatarUrl": {
             "type": "string"
@@ -1549,6 +1631,18 @@
             "description": "{ \"veg\": true, \"cuisines\": [\"South Indian\"], \"spiceLevel\": 2 }"
           }
         }
+      },
+      "VerifyEmailDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "123456"
+          }
+        },
+        "required": [
+          "code"
+        ]
       },
       "AddressDto": {
         "type": "object",
@@ -1758,19 +1852,6 @@
             "type": "string",
             "example": "Spice Route Kitchens"
           },
-          "legalName": {
-            "type": "string"
-          },
-          "gstin": {
-            "type": "string",
-            "example": "29AABCS1234K1ZC"
-          },
-          "pan": {
-            "type": "string"
-          },
-          "fssaiLicense": {
-            "type": "string"
-          },
           "email": {
             "type": "string"
           },
@@ -1786,10 +1867,6 @@
           "state": {
             "type": "string"
           },
-          "stateCode": {
-            "type": "string",
-            "example": "29"
-          },
           "pincode": {
             "type": "string"
           },
@@ -1801,18 +1878,29 @@
           },
           "logoUrl": {
             "type": "string"
-          },
-          "kycDocuments": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/KycDocumentDto"
-            }
           }
         }
       },
       "SubmitKycDto": {
         "type": "object",
         "properties": {
+          "legalName": {
+            "type": "string"
+          },
+          "gstin": {
+            "type": "string",
+            "example": "29AABCS1234K1ZC"
+          },
+          "pan": {
+            "type": "string"
+          },
+          "fssaiLicense": {
+            "type": "string"
+          },
+          "stateCode": {
+            "type": "string",
+            "example": "29"
+          },
           "documents": {
             "type": "array",
             "items": {
@@ -1832,7 +1920,9 @@
             "example": "9876500001"
           },
           "name": {
-            "type": "string"
+            "type": "string",
+            "description": "Ignored: invitees set their own name",
+            "deprecated": true
           },
           "role": {
             "type": "string",

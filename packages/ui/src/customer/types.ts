@@ -25,6 +25,7 @@ export interface OutletSummary {
   sponsored: boolean;
   /** campaign behind a sponsored placement; reported on click */
   adCampaignId?: string | null;
+  adClickToken?: string | null;
   reasons?: string[];
 }
 

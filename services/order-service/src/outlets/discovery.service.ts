@@ -123,12 +123,12 @@ export class DiscoveryService {
     }
   }
 
-  /** Sponsored placements from ads-service (outlet id → campaign id); discovery never fails because of ads. */
-  private async sponsoredOutlets(city?: string): Promise<Map<string, string>> {
+  /** Sponsored placements from ads-service by outlet id; discovery never fails because of ads. */
+  private async sponsoredOutlets(city?: string): Promise<Map<string, SponsoredAd>> {
     if (!city) return new Map();
     try {
       const ads = await this.internal.post<
-        { campaignId: string; targetType: string; targetId: string }[]
+        { campaignId: string; targetType: string; targetId: string; clickToken: string | null }[]
       >(
         'ads',
         'internal/ads/serve',
@@ -136,7 +136,9 @@ export class DiscoveryService {
         { timeoutMs: 300 },
       );
       return new Map(
-        ads.filter((a) => a.targetType === 'OUTLET').map((a) => [a.targetId, a.campaignId]),
+        ads
+          .filter((a) => a.targetType === 'OUTLET')
+          .map((a) => [a.targetId, { campaignId: a.campaignId, clickToken: a.clickToken }]),
       );
     } catch (err) {
       this.logger.debug(`ads unavailable: ${(err as Error).message}`);
@@ -145,14 +147,16 @@ export class DiscoveryService {
   }
 }
 
+type SponsoredAd = { campaignId: string; clickToken: string | null };
+
 /**
  * Outlet summary for discovery, search and home rails. `isOpen` is the
  * merchant's "accepting orders" switch and `isOpenNow` whether it can take an
  * order right now (switch on and inside opening hours), as on the outlet page.
- * `adCampaignId` marks a sponsored placement; clients report clicks with it
- * (POST ads/events/click).
+ * `adCampaignId` marks a sponsored placement; clients report clicks with it and
+ * `adClickToken` (POST ads/events/click), and only token-carrying clicks are charged.
  */
-export function toCard(r: ScoredOutlet, adCampaignId?: string): OutletCard {
+export function toCard(r: ScoredOutlet, ad?: SponsoredAd): OutletCard {
   const o = r.outlet;
   return {
     id: o.id,
@@ -173,7 +177,8 @@ export function toCard(r: ScoredOutlet, adCampaignId?: string): OutletCard {
     coverImageUrl: o.coverImageUrl,
     distanceKm: Math.round(r.distanceKm * 10) / 10,
     etaMins: r.etaMins,
-    sponsored: !!adCampaignId,
-    adCampaignId: adCampaignId ?? null,
+    sponsored: !!ad,
+    adCampaignId: ad?.campaignId ?? null,
+    adClickToken: ad?.clickToken ?? null,
   };
 }

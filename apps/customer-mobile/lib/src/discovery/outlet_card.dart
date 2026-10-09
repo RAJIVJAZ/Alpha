@@ -16,7 +16,7 @@ class OutletCard extends ConsumerWidget {
   final bool compact;
 
   void _open(BuildContext context, WidgetRef ref) {
-    if (outlet.sponsored) reportAdClick(ref.read(apiClientProvider), outlet.adCampaignId);
+    reportAdClick(ref.read(apiClientProvider), outlet);
     context.push('/outlets/${outlet.slug}');
   }
 

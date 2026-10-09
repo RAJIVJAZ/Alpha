@@ -155,10 +155,14 @@ export class ReportsService {
   }
 
   /** Restaurant profitability: net sales − commission − food cost. */
-  async profitability(q: Range & { outletId?: string; tenantId?: string }) {
+  async profitability(q: Range & { outletIds?: string[]; tenantId?: string }) {
     const { from, to } = resolveRange(q, 30);
     const days = await this.prisma.dailyOutletStats.findMany({
-      where: { date: { gte: from, lte: to }, outletId: q.outletId, tenantId: q.tenantId },
+      where: {
+        date: { gte: from, lte: to },
+        outletId: q.outletIds && { in: q.outletIds },
+        tenantId: q.tenantId,
+      },
       orderBy: { date: 'asc' },
     });
     const totals = days.reduce(
@@ -234,10 +238,15 @@ export class ReportsService {
     };
   }
 
-  /** Daily sales report for a merchant outlet. */
-  async outletSales(q: Range & { outletId?: string; tenantId: string }) {
+  /** Daily sales report for a merchant's outlets (`outletIds` unset = every outlet). */
+  async outletSales(q: Range & { outletIds?: string[]; tenantId: string }) {
     const { from, to } = resolveRange(q, 30);
-    const where = { tenantId: q.tenantId, outletId: q.outletId, date: { gte: from, lte: to } };
+    const outletIds = q.outletIds ?? null;
+    const where = {
+      tenantId: q.tenantId,
+      outletId: q.outletIds && { in: q.outletIds },
+      date: { gte: from, lte: to },
+    };
     const [days, byChannel, byPayment, hourly] = await Promise.all([
       this.prisma.dailyOutletStats.findMany({ where, orderBy: { date: 'asc' } }),
       this.prisma.orderFact.groupBy({
@@ -255,7 +264,7 @@ export class ReportsService {
       this.prisma.$queryRaw<{ dow: number; hour: number; orders: bigint }[]>`
         SELECT EXTRACT(dow FROM date)::int AS dow, hour, COUNT(*) AS orders
         FROM "analytics"."OrderFact"
-        WHERE "tenantId" = ${q.tenantId} AND (${q.outletId ?? null}::text IS NULL OR "outletId" = ${q.outletId ?? null})
+        WHERE "tenantId" = ${q.tenantId} AND (${outletIds}::text[] IS NULL OR "outletId" = ANY(${outletIds}::text[]))
           AND date BETWEEN ${from}::date AND ${to}::date AND status IN ('DELIVERED','COMPLETED')
         GROUP BY 1, 2`,
     ]);

@@ -1,6 +1,6 @@
 import { Controller, Get, HttpCode, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { Permissions } from '@foodgrid/auth';
+import { canAccessOutlet, Permissions } from '@foodgrid/auth';
 import {
   CurrentUser,
   RequirePermissions,
@@ -8,9 +8,24 @@ import {
   Roles,
   TenantId,
 } from '@foodgrid/auth/nest';
+import type { AccessTokenClaims } from '@foodgrid/types';
+import { forbidden } from '@foodgrid/utils';
 import { DateRangeQueryDto, DirectoryService, InternalHttpService } from '@foodgrid/utils/server';
 import { AnalyticsJobsService } from '../jobs/analytics-jobs.service';
 import { ReportsService } from './reports.service';
+
+/**
+ * Outlets an outlet-scoped member may report on (undefined = every outlet of the tenant).
+ * Same rule as order-service outletScope(); ponytail: move both into @foodgrid/auth.
+ */
+export function outletScope(user: AccessTokenClaims, outletId?: string): string[] | undefined {
+  if (outletId) {
+    if (!canAccessOutlet(user, outletId))
+      throw forbidden('You do not have access to this outlet', 'OUTLET_FORBIDDEN');
+    return [outletId];
+  }
+  return user.outletIds?.length ? user.outletIds : undefined;
+}
 
 @ApiTags('analytics')
 @ApiBearerAuth()
@@ -82,7 +97,10 @@ export class ReportsController {
   async platformProfitability(
     @Query() q: DateRangeQueryDto & { outletId?: string; tenantId?: string },
   ) {
-    const report = await this.reports.profitability(q);
+    const report = await this.reports.profitability({
+      ...q,
+      outletIds: q.outletId ? [q.outletId] : undefined,
+    });
     const outlets = await this.directory.lookup(
       'outlets',
       report.byOutlet.map((r) => r.outletId),
@@ -133,8 +151,12 @@ export class ReportsController {
   @ApiOperation({
     summary: 'Daily sales report (channels, payment methods, hour × weekday heat map)',
   })
-  outletSales(@TenantId() tenantId: string, @Query() q: DateRangeQueryDto & { outletId?: string }) {
-    return this.reports.outletSales({ ...q, tenantId });
+  outletSales(
+    @CurrentUser() user: AccessTokenClaims,
+    @TenantId() tenantId: string,
+    @Query() q: DateRangeQueryDto & { outletId?: string },
+  ) {
+    return this.reports.outletSales({ ...q, tenantId, outletIds: outletScope(user, q.outletId) });
   }
 
   @RequireTenant('RESTAURANT', 'FOOD_CART')
@@ -142,10 +164,11 @@ export class ReportsController {
   @Get('outlet/profitability')
   @ApiOperation({ summary: 'Restaurant profitability: net sales − commission − food cost' })
   outletProfitability(
+    @CurrentUser() user: AccessTokenClaims,
     @TenantId() tenantId: string,
     @Query() q: DateRangeQueryDto & { outletId?: string },
   ) {
-    return this.reports.profitability({ ...q, tenantId });
+    return this.reports.profitability({ ...q, tenantId, outletIds: outletScope(user, q.outletId) });
   }
 
   @RequireTenant('SUPPLIER', 'WHOLESALER', 'RETAILER')

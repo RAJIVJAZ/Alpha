@@ -135,6 +135,7 @@ Map<String, dynamic> outletJson({String id = 'o-1', String slug = 'spice-garden'
       'etaMins': 28,
       'sponsored': sponsored,
       'adCampaignId': campaign,
+      'adClickToken': campaign == null ? null : 'tok-$campaign',
     };
 
 Map<String, dynamic> outletDetailJson({String id = 'o-1', String slug = 'pizza-republic', bool open = true}) => {

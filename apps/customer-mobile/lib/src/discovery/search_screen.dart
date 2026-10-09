@@ -176,7 +176,7 @@ class _Results extends ConsumerWidget {
                   title: Row(children: [VegMark(veg: d.isVeg, size: 14), const SizedBox(width: 6), Expanded(child: Text(d.name, overflow: TextOverflow.ellipsis))]),
                   subtitle: Text('${money(d.price, whole: true)} · ${d.outlet.name} · ${d.outlet.etaMins} min${d.outlet.isOpenNow ? '' : ' · closed now'}', style: text.bodySmall),
                   onTap: () {
-                    if (d.outlet.sponsored) reportAdClick(ref.read(apiClientProvider), d.outlet.adCampaignId);
+                    reportAdClick(ref.read(apiClientProvider), d.outlet);
                     context.push('/outlets/${d.outlet.slug}');
                   },
                 ),

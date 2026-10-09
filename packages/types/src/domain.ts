@@ -39,6 +39,8 @@ export interface OutletCard {
   sponsored?: boolean;
   /** campaign behind a sponsored placement, for click attribution */
   adCampaignId?: string | null;
+  /** signed token from the ad serve, sent back with the click */
+  adClickToken?: string | null;
   offer?: string | null;
 }
 
