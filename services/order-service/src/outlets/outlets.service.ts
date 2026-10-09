@@ -60,7 +60,7 @@ export class OutletsService {
   listMine(user: AccessTokenClaims) {
     return this.prisma.forTenant(user.tenantId!).outlet.findMany({
       where: user.outletIds?.length ? { id: { in: user.outletIds } } : {},
-      orderBy: { createdAt: 'asc' },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], // id breaks ties so the default outlet is stable
       include: { _count: { select: { items: true, tables: true } } },
     });
   }
