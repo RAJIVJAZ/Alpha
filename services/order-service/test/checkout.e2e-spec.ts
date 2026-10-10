@@ -361,6 +361,36 @@ describe('order-service checkout & lifecycle (e2e)', () => {
     expect(accepted.payload).toMatchObject({ commissionRate: '12.00', commissionAmount: '64.68' });
   });
 
+  it('keeps the delivery code from restaurant staff, but in the events delivery-service reads', async () => {
+    const token = customer();
+    await fillCart(token);
+    const { body } = await api()
+      .post('/api/v1/orders')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ orderType: 'DELIVERY', paymentMethod: 'COD', deliveryAddress: HOME })
+      .expect(201);
+    const id = body.order.id as string;
+    const staff = { Authorization: `Bearer ${merchant()}` };
+
+    const list = await api().get('/api/v1/merchant/orders').set(staff).expect(200);
+    expect(list.body.data[0]).toMatchObject({ id });
+    expect(list.body.data[0]).not.toHaveProperty('deliveryOtp');
+    const seen = await api().get(`/api/v1/merchant/orders/${id}`).set(staff).expect(200);
+    expect(seen.body).not.toHaveProperty('deliveryOtp');
+    const accepted = await api()
+      .post(`/api/v1/merchant/orders/${id}/accept`)
+      .set(staff)
+      .send({})
+      .expect(200);
+    expect(accepted.body).toMatchObject({ status: 'ACCEPTED' });
+    expect(accepted.body).not.toHaveProperty('deliveryOtp');
+
+    const event = await prisma.outboxEvent.findFirstOrThrow({
+      where: { aggregateId: id, type: 'order.accepted' },
+    });
+    expect(event.payload).toMatchObject({ deliveryOtp: expect.stringMatching(/^\d{4}$/) });
+  });
+
   it('isolates orders between tenants and between customers', async () => {
     const token = customer('cust_A');
     await fillCart(token);
