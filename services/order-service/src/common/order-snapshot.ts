@@ -48,6 +48,7 @@ export function toOrderSnapshot(
     couponFundedBy: order.couponFundedBy,
     merchantDiscount: toMoney(merchantDiscount),
     commissionRate: order.commissionRate ? s(order.commissionRate) : null,
+    commissionAmount: order.commissionAmount ? s(order.commissionAmount) : null,
     deliveryAddress: (order.deliveryAddress as AddressSnapshot | null) ?? null,
     distanceKm: order.distanceKm,
     items: order.items.map((i) => ({

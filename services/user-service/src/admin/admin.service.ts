@@ -189,7 +189,7 @@ export class AdminService {
     const tenant = await this.prisma.$transaction(async (tx) => {
       const updated = await tx.tenant.update({
         where: { id },
-        data: { status: dto.status, commissionRate: dto.commissionRate },
+        data: { status: dto.status },
       });
       if (dto.status) {
         await this.outbox.enqueue<TenantStatusChangedEvent>(tx, {

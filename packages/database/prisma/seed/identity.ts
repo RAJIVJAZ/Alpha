@@ -133,7 +133,6 @@ export async function seedIdentity(ctx: SeedContext) {
         pincode: loc.pincode,
         lat: loc.lat,
         lng: loc.lng,
-        commissionRate: m.commissionRate ?? null,
         approvedAt,
         approvedBy: ctx.adminUserId,
         kycDocuments: [

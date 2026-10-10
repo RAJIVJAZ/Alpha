@@ -48,6 +48,36 @@ describe('commission rules', () => {
         ?.id,
     ).toBe('default');
   });
+  it("applies a business override to all of that business's outlets, not to others", () => {
+    const withOverride = [
+      rule({ id: 'default', ratePct: 20 }),
+      rule({ id: 'restaurants', tenantType: 'RESTAURANT', ratePct: 18 }),
+      rule({ id: 'override', tenantId: 'biz', ratePct: 12 }),
+      rule({ id: 'stale', tenantId: 'biz', ratePct: 5, isActive: false }),
+      rule({ id: 'later', tenantId: 'biz', ratePct: 6, effectiveFrom: new Date('2027-01-01') }),
+    ];
+    const ctx = { tenantType: 'RESTAURANT', at };
+    for (const outletId of ['o1', 'o2'])
+      expect(resolveCommissionRule(withOverride, { ...ctx, tenantId: 'biz', outletId })?.id).toBe(
+        'override',
+      );
+    expect(
+      resolveCommissionRule(withOverride, { ...ctx, tenantId: 'other', outletId: 'o3' })?.id,
+    ).toBe('restaurants');
+    // the override drives the commission, the 18% GST on it and the payout
+    const line = computeSettlementLine(
+      {
+        subtotal: 1000,
+        packagingCharge: 0,
+        merchantDiscount: 0,
+        deliveryFee: 0,
+        platformFee: 0,
+        taxTotal: 50,
+      },
+      resolveCommissionRule(withOverride, { ...ctx, tenantId: 'biz', outletId: 'o1' })!,
+    );
+    expect(line).toMatchObject({ commission: 120, commissionGst: 21.6, tds: 1, netAmount: 857.4 });
+  });
   it('clamps commission to min/max', () => {
     expect(computeCommission({ ratePct: 10, fixedFee: 5, minFee: 20, maxFee: 100 }, 100)).toBe(20);
     expect(computeCommission({ ratePct: 10, fixedFee: 5, minFee: 20, maxFee: 100 }, 5000)).toBe(

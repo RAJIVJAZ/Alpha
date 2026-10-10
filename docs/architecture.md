@@ -125,20 +125,20 @@ from `packages/database/prisma/schema` by `pnpm docs:erd`.
 
 ## Services
 
-| Service              | Port | Responsibilities                                                                                                                                                          | Consumes streams                                  |
-| -------------------- | ---: | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
-| auth-service         | 4001 | OTP, Google and password login; access and refresh tokens; tenant switching; sessions; JWKS                                                                               | —                                                 |
-| user-service         | 4002 | profiles and addresses, business onboarding and staff, approvals, admin user management, audit log, CMS, media upload URLs                                                | —                                                 |
-| order-service        | 4003 | outlets, menus, discovery and search, cart and checkout, order lifecycle, KDS, POS, QR table ordering, coupons, reviews, memberships, meal subscriptions, recommendations | payment, delivery, identity                       |
-| payment-service      | 4004 | Razorpay (UPI, cards, net banking) and wallet payments, refunds, wallet ledger, commissions and settlements, payouts, rider cash, GST invoices                            | order, delivery, marketplace                      |
-| inventory-service    | 4005 | ingredients, stock batches and ledger, recipe-based consumption, recipes and costing, production planning                                                                 | order, procurement                                |
-| procurement-service  | 4006 | demand forecasts, depletion prediction, reorder alerts, supplier comparison, automatic and manual purchase orders, approvals, PO tracking                                 | inventory, marketplace                            |
-| delivery-service     | 4007 | riders, dispatch and offers, live tracking (Socket.IO), proof of delivery, attendance, earnings, incentives, zones and surge, heat maps                                   | order, identity                                   |
-| supplier-service     | 4008 | B2B catalog, bulk pricing and MOQ, seller zones and slots, territories, dealers, B2B orders, seller analytics                                                             | procurement, identity                             |
-| analytics-service    | 4009 | GMV, revenue, retention, outlet profitability, supplier and rider reports from event-fed read models; weekly outlet scores                                                | order, delivery, marketplace, inventory, identity |
-| ads-service          | 4010 | sponsored listing campaigns, auction, budget pacing, impressions, clicks, conversions                                                                                     | order, identity                                   |
-| notification-service | 4011 | push (FCM), SMS (MSG91 or SNS), email (SES) and in-app notifications, templates, device tokens, push campaigns                                                            | all seven used streams                            |
-| ai-service           | 4012 | demand forecasting, dynamic pricing, inventory optimisation, supplier ranking, fraud scoring, route optimisation, recommendations, outlet scoring                         | —                                                 |
+| Service              | Port | Responsibilities                                                                                                                                                          | Consumes streams                                           |
+| -------------------- | ---: | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| auth-service         | 4001 | OTP, Google and password login; access and refresh tokens; tenant switching; sessions; JWKS                                                                               | —                                                          |
+| user-service         | 4002 | profiles and addresses, business onboarding and staff, approvals, admin user management, audit log, CMS, media upload URLs                                                | —                                                          |
+| order-service        | 4003 | outlets, menus, discovery and search, cart and checkout, order lifecycle, KDS, POS, QR table ordering, coupons, reviews, memberships, meal subscriptions, recommendations | payment, delivery, identity                                |
+| payment-service      | 4004 | Razorpay (UPI, cards, net banking) and wallet payments, refunds, wallet ledger, commissions and settlements, payouts, rider cash, GST invoices                            | order, delivery, marketplace                               |
+| inventory-service    | 4005 | ingredients, stock batches and ledger, recipe-based consumption, recipes and costing, production planning                                                                 | order, procurement                                         |
+| procurement-service  | 4006 | demand forecasts, depletion prediction, reorder alerts, supplier comparison, automatic and manual purchase orders, approvals, PO tracking                                 | inventory, marketplace                                     |
+| delivery-service     | 4007 | riders, dispatch and offers, live tracking (Socket.IO), proof of delivery, attendance, earnings, incentives, zones and surge, heat maps                                   | order, identity                                            |
+| supplier-service     | 4008 | B2B catalog, bulk pricing and MOQ, seller zones and slots, territories, dealers, B2B orders, seller analytics                                                             | procurement, identity                                      |
+| analytics-service    | 4009 | GMV, revenue, retention, outlet profitability, supplier and rider reports from event-fed read models; weekly outlet scores                                                | order, payment, delivery, marketplace, inventory, identity |
+| ads-service          | 4010 | sponsored listing campaigns, auction, budget pacing, impressions, clicks, conversions                                                                                     | order, identity                                            |
+| notification-service | 4011 | push (FCM), SMS (MSG91 or SNS), email (SES) and in-app notifications, templates, device tokens, push campaigns                                                            | all seven used streams                                     |
+| ai-service           | 4012 | demand forecasting, dynamic pricing, inventory optimisation, supplier ranking, fraud scoring, route optimisation, recommendations, outlet scoring                         | —                                                          |
 
 The HTTP routes of each service are in [docs/api](./api/README.md). Every service
 exposes `GET /health/live`, `GET /health/ready` (database and Redis) and
@@ -372,7 +372,11 @@ sequenceDiagram
   wallet, others to the instrument (or to the wallet on request).
 - **Settlements.** Delivered and completed orders accrue a settlement line and the
   customer's GST invoice, using the most specific active commission rule (outlet, then
-  tenant, then tenant type, then priority). A weekly job (Monday 03:00 IST) groups
+  tenant, then tenant type, then priority). A business's commission override (admin
+  Businesses screen) is a tenant-wide rule like any other. The commission charged
+  (`0.00` for counter sales) is published once as `payment.commission.accrued`; the
+  order and analytics take it from there, so revenue reports, merchant profitability
+  and settlements show the same figure. A weekly job (Monday 03:00 IST) groups
   unsettled lines into settlements and issues the commission invoices. Riders cash out
   through payouts that finance marks paid or failed.
 - **Idempotency.** `IdempotencyInterceptor` on checkout (`POST /api/v1/orders`),
@@ -396,13 +400,22 @@ sequenceDiagram
   a sweep every 10 s expires offers and re-dispatches. After 8 attempts the delivery is
   `UNASSIGNED` and the ops room gets `delivery:unassigned`; ops can force-assign with
   `POST /api/v1/admin/deliveries/{id}/reassign`.
-- **Geofence and proof.** Completing needs the customer's OTP or a proof photo, the
-  cash for COD orders, and a rider position no older than 5 minutes within 0.5 km of
-  the drop point (`TOO_FAR_FROM_DROP`, `LOCATION_REQUIRED` otherwise). Riders that are
-  not on a delivery and stop sending positions for 10 minutes are taken offline.
+- **Geofence and proof.** Completing always needs the customer's OTP (`OTP_REQUIRED`,
+  `OTP_MISMATCH`; five tries per delivery per 15 minutes, then `OTP_LOCKED`), the cash
+  for COD orders, and a rider position no older than 5 minutes within 0.5 km of the drop
+  point (`TOO_FAR_FROM_DROP`, `LOCATION_REQUIRED` otherwise). An optional handover photo
+  must be the rider's own `delivery-proof` upload from `POST /api/v1/media/presign`
+  (`INVALID_PROOF_PHOTO` otherwise). Riders that are not on a delivery and stop sending
+  positions for 10 minutes are taken offline; their shift ends at their last position.
+- **Attendance.** Going offline (or being taken offline) credits the online session to
+  the rider's attendance days, split at IST midnight.
 - **Earnings and incentives.** Completion writes earnings lines (base, distance,
-  surge, tip), attendance and incentive progress in the same transaction; a reached
-  target publishes `delivery.incentive.achieved`.
+  surge, tip), attendance and incentive progress in the same transaction. `ORDER_COUNT`,
+  `PEAK_HOURS` (inside the peak windows) and `RATING` (while the rider's rating is at
+  least `minRating`) count deliveries; `STREAK` is the longest run of consecutive days
+  with a delivery inside the scheme window; `LOGIN_HOURS` is whole hours online in the
+  window, re-totalled when a session is credited. A reached target writes an
+  `INCENTIVE` earning and publishes `delivery.incentive.achieved`.
 - **COD netting.** On `delivery.delivered` payment-service credits the rider wallet
   with the earning and the tip and debits the cash collected for COD orders. A negative
   rider balance is cash the rider holds beyond what they earned; finance sees it in

@@ -55,12 +55,29 @@ export interface AdminTenant {
   city: string | null;
   state: string | null;
   pincode: string | null;
-  commissionRate: Dec | null;
   kycDocuments: { type: string; url?: string; number?: string; verified?: boolean }[] | null;
   approvedAt: string | null;
   rejectionReason: string | null;
   createdAt: string;
   _count?: { members?: number };
+}
+
+/** payment-service commission rule; a business-wide one is that business's override. */
+export interface CommissionRule {
+  id: string;
+  name: string;
+  tenantType: string | null;
+  tenantId: string | null;
+  tenantName: string | null;
+  outletId: string | null;
+  ratePct: Dec;
+  fixedFee: Dec;
+  minFee: Dec | null;
+  maxFee: Dec | null;
+  priority: number;
+  effectiveFrom: string;
+  effectiveTo: string | null;
+  isActive: boolean;
 }
 
 export interface Approval {

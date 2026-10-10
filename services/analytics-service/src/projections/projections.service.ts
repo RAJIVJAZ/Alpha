@@ -1,9 +1,8 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '@foodgrid/database';
 import { PrismaService } from '@foodgrid/database/nest';
 import type { OrderStatusChangedEvent } from '@foodgrid/types';
 import { dateOnly, istDate, istParts, round2 } from '@foodgrid/utils';
-
-const DEFAULT_COMMISSION_PCT = 18;
 
 /**
  * Maintains the analytics read models. Facts are upserted idempotently and
@@ -18,13 +17,6 @@ export class ProjectionsService {
     const placedAt = o.placedAt ? new Date(o.placedAt) : new Date();
     const date = dateOnly(istDate(placedAt));
     const discount = Number(o.discount);
-    const merchantGross =
-      Number(o.subtotal) + Number(o.packagingCharge) - Number(o.merchantDiscount);
-    const commission = round2(
-      (merchantGross * Number(o.commissionRate ?? DEFAULT_COMMISSION_PCT)) / 100,
-    );
-    const channelRevenue =
-      o.channel === 'POS' ? 0 : commission + Number(o.deliveryFee) + Number(o.platformFee);
     const data = {
       orderNumber: o.orderNumber,
       date,
@@ -44,8 +36,6 @@ export class ProjectionsService {
       discount,
       deliveryFee: Number(o.deliveryFee),
       tax: Number(o.taxTotal),
-      commission: o.channel === 'POS' ? 0 : commission,
-      platformRevenue: round2(channelRevenue),
       prepMins: o.prepMins ?? undefined,
       deliveryMins: o.deliveryMins ?? undefined,
       promisedMins: o.promisedMins ?? undefined,
@@ -62,13 +52,35 @@ export class ProjectionsService {
             where: { customerId: o.customerId, orderId: { not: o.orderId } },
           })) === 0
         : false);
+    // Commission is decided by payment-service when the order settles (setCommission), so
+    // later status events never overwrite it; a new fact starts with what the order carries.
+    const commission = Number(o.commissionAmount ?? 0);
+    const platformRevenue =
+      o.channel === 'POS' ? 0 : round2(commission + Number(o.deliveryFee) + Number(o.platformFee));
     await this.prisma.orderFact.upsert({
       where: { orderId: o.orderId },
-      create: { orderId: o.orderId, ...data, isFirstOrder },
+      create: { orderId: o.orderId, ...data, isFirstOrder, commission, platformRevenue },
       update: data,
     });
     await this.recomputeOutletDay(o.outletId, date);
     await this.recomputePlatformDay(date);
+  }
+
+  /** The commission payment-service charged (payment.commission.accrued) replaces the placeholder. */
+  async setCommission(orderId: string, amount: string) {
+    const fact = await this.prisma.orderFact.findUnique({ where: { orderId } });
+    // the order stream normally lands first; failing makes the consumer redeliver later
+    if (!fact) throw new Error(`No order fact for ${orderId} yet`);
+    const commission = new Prisma.Decimal(amount);
+    await this.prisma.orderFact.update({
+      where: { orderId },
+      data: {
+        commission,
+        platformRevenue: fact.platformRevenue.minus(fact.commission).plus(commission),
+      },
+    });
+    await this.recomputeOutletDay(fact.outletId, fact.date);
+    await this.recomputePlatformDay(fact.date);
   }
 
   async setFoodCost(orderId: string, foodCost: number) {

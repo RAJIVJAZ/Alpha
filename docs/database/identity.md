@@ -245,7 +245,6 @@ Table `identity."Tenant"`
 | `lat` | Float | ✓ |  |  |
 | `lng` | Float | ✓ |  |  |
 | `logoUrl` | String | ✓ |  |  |
-| `commissionRate` | Decimal | ✓ |  | Overrides the default commission rule for this tenant (percent). |
 | `settings` | Json |  | {} |  |
 | `kycDocuments` | Json |  | [] |  |
 | `approvedAt` | DateTime | ✓ |  |  |

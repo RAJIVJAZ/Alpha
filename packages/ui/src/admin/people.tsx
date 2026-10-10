@@ -31,7 +31,7 @@ import { Badge } from '../components/badge';
 import { api, type Paged } from '../lib/api';
 import { formatDate, formatDateTime, formatRelative, humanize } from '../lib/format';
 import { useApi, useApiMutation } from '../lib/hooks';
-import type { AdminTenant, AdminUser, Approval } from './types';
+import type { AdminTenant, AdminUser, Approval, CommissionRule } from './types';
 
 const PLATFORM_ROLES = ['CUSTOMER', 'RIDER', 'ADMIN', 'SUPPORT', 'FINANCE', 'OPS'] as const;
 const STAFF_ROLES = ['ADMIN', 'SUPPORT', 'FINANCE', 'OPS'] as const;
@@ -352,8 +352,11 @@ function StaffDialog({ onClose }: { onClose: () => void }) {
 
 // ─── businesses ──────────────────────────────────────────────────────────────
 
-/** Restaurants, food carts, suppliers, wholesalers and retailers. */
-export function TenantsAdmin() {
+/**
+ * Restaurants, food carts, suppliers, wholesalers and retailers. `commission` shows and
+ * edits each business's commission rule (finance staff only).
+ */
+export function TenantsAdmin({ commission = false }: { commission?: boolean }) {
   const [type, setType] = React.useState('');
   const [status, setStatus] = React.useState('');
   const [q, setQ] = React.useState('');
@@ -366,6 +369,7 @@ export function TenantsAdmin() {
     page,
     pageSize: 25,
   });
+  const rules = useApi<CommissionRule[]>(commission ? 'admin/commission-rules' : null);
   const columns: Column<AdminTenant>[] = [
     {
       key: 'name',
@@ -388,7 +392,10 @@ export function TenantsAdmin() {
       key: 'comm',
       header: 'Commission',
       align: 'right',
-      cell: (t) => (t.commissionRate ? `${Number(t.commissionRate)}%` : 'Default'),
+      cell: (t) => {
+        const rule = businessRule(rules.data, t.id);
+        return rule ? `${Number(rule.ratePct)}%` : 'Default';
+      },
     },
     { key: 'since', header: 'Joined', cell: (t) => formatDate(t.createdAt) },
     {
@@ -442,7 +449,7 @@ export function TenantsAdmin() {
         </Select>
       </FilterBar>
       <DataTable
-        columns={columns}
+        columns={commission ? columns : columns.filter((c) => c.key !== 'comm')}
         rows={list.data?.data}
         getRowId={(t) => t.id}
         loading={list.isLoading}
@@ -461,15 +468,90 @@ export function TenantsAdmin() {
       />
       <Dialog open={!!open} onOpenChange={(o) => (!o ? setOpen(null) : undefined)}>
         <SheetContent side="right" className="w-full max-w-lg" aria-describedby={undefined}>
-          {open ? <TenantPanel tenant={open} onDone={() => setOpen(null)} /> : null}
+          {open ? (
+            <TenantPanel tenant={open} rules={rules.data} onDone={() => setOpen(null)} />
+          ) : null}
         </SheetContent>
       </Dialog>
     </>
   );
 }
 
-function TenantPanel({ tenant: t, onDone }: { tenant: AdminTenant; onDone: () => void }) {
-  const [rate, setRate] = React.useState(t.commissionRate ? String(Number(t.commissionRate)) : '');
+/**
+ * The business-wide commission rule settlements apply to this business (an outlet rule
+ * still wins for its outlet), mirroring payment-service's resolveCommissionRule.
+ */
+function businessRule(rules: CommissionRule[] | undefined, tenantId: string) {
+  const now = Date.now();
+  return rules
+    ?.filter(
+      (r) =>
+        r.isActive &&
+        r.tenantId === tenantId &&
+        !r.outletId &&
+        Date.parse(r.effectiveFrom) <= now &&
+        (!r.effectiveTo || Date.parse(r.effectiveTo) > now),
+    )
+    .sort((a, b) => b.priority - a.priority)[0];
+}
+
+/** Saves the override as that business's commission rule in payment-service. */
+function CommissionForm({
+  tenant: t,
+  rules,
+  onDone,
+}: {
+  tenant: AdminTenant;
+  rules: CommissionRule[];
+  onDone: () => void;
+}) {
+  const rule = businessRule(rules, t.id);
+  const [rate, setRate] = React.useState(rule ? String(Number(rule.ratePct)) : '');
+  const save = useApiMutation(
+    () => {
+      const ratePct = Number(rate);
+      return rule
+        ? api.patch(`admin/commission-rules/${rule.id}`, { ratePct })
+        : api.post('admin/commission-rules', {
+            name: 'Business override',
+            tenantId: t.id,
+            ratePct,
+          });
+    },
+    {
+      invalidate: ['admin/commission-rules'],
+      success: `${t.name} commission saved`,
+      onSuccess: onDone,
+    },
+  );
+  return (
+    <form
+      className="grid gap-3 border-t pt-4"
+      onSubmit={(e) => (e.preventDefault(), save.mutate())}
+    >
+      <Field
+        label="Commission (%)"
+        hint="Overrides the default rule for this business; applies to orders settled from now on"
+      >
+        <Input inputMode="decimal" value={rate} onChange={(e) => setRate(e.target.value)} />
+      </Field>
+      <Button type="submit" variant="outline" loading={save.isPending} disabled={!rate}>
+        Save commission
+      </Button>
+    </form>
+  );
+}
+
+function TenantPanel({
+  tenant: t,
+  rules,
+  onDone,
+}: {
+  tenant: AdminTenant;
+  /** Commission rules, when the viewer may manage them and they have loaded. */
+  rules?: CommissionRule[];
+  onDone: () => void;
+}) {
   const [reason, setReason] = React.useState('');
   const save = useApiMutation(
     (body: Record<string, unknown>) => api.patch(`admin/tenants/${t.id}`, body),
@@ -502,22 +584,7 @@ function TenantPanel({ tenant: t, onDone }: { tenant: AdminTenant; onDone: () =>
         ))}
       </dl>
       <Documents docs={t.kycDocuments} />
-      <form
-        className="grid gap-3 border-t pt-4"
-        onSubmit={(e) => (e.preventDefault(), save.mutate({ commissionRate: Number(rate) }))}
-      >
-        <Field label="Commission (%)" hint="Overrides the default rule for this business">
-          <Input inputMode="decimal" value={rate} onChange={(e) => setRate(e.target.value)} />
-        </Field>
-        <Button
-          type="submit"
-          variant="outline"
-          loading={save.isPending && save.variables?.commissionRate !== undefined}
-          disabled={!rate}
-        >
-          Save commission
-        </Button>
-      </form>
+      {rules ? <CommissionForm tenant={t} rules={rules} onDone={onDone} /> : null}
       {t.status === 'ACTIVE' || t.status === 'SUSPENDED' ? (
         <div className="grid gap-3 border-t pt-4">
           <Field label="Reason">

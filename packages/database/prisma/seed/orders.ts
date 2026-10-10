@@ -531,7 +531,7 @@ function addOrderRows(
     const merchantGross = r2(o.subtotal + o.packagingCharge - o.merchantDiscount);
     const serviceGst = r2((o.deliveryFee + o.platformFee) * 0.18);
     const gstCollected = r2(Math.max(0, o.taxTotal - serviceGst));
-    const commission = r2((merchantGross * (o.commissionRate ?? 18)) / 100);
+    const commission = o.commissionAmount ?? 0;
     const commissionGst = r2(commission * 0.18);
     const tds = r2(merchantGross * 0.001);
     c.lineRows.push({
@@ -601,8 +601,8 @@ function addOrderRows(
         ),
       )
     : 0;
-  const merchantGross = o.subtotal + o.packagingCharge - o.merchantDiscount;
-  const commission = o.channel === 'POS' ? 0 : r2((merchantGross * (o.commissionRate ?? 18)) / 100);
+  // what settlement charged (none for counter sales), like analytics-service
+  const commission = o.commissionAmount ?? 0;
   c.factRows.push({
     orderId: o.id,
     orderNumber,

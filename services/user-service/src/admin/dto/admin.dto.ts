@@ -4,13 +4,10 @@ import {
   IsArray,
   IsEmail,
   IsIn,
-  IsNumber,
   IsOptional,
   IsString,
   Length,
-  Max,
   MaxLength,
-  Min,
 } from 'class-validator';
 import { PLATFORM_ROLES, PlatformRole, TENANT_STATUSES, TENANT_TYPES } from '@foodgrid/types';
 import { PageQueryDto } from '@foodgrid/utils/server';
@@ -71,12 +68,6 @@ export class UpdateTenantAdminDto {
   @IsOptional()
   @IsIn(['ACTIVE', 'SUSPENDED'])
   status?: 'ACTIVE' | 'SUSPENDED';
-  @ApiPropertyOptional({ description: 'Commission override in percent' })
-  @IsOptional()
-  @IsNumber()
-  @Min(0)
-  @Max(50)
-  commissionRate?: number;
   @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(500) reason?: string;
 }
 

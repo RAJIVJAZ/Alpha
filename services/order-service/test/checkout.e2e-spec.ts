@@ -13,6 +13,7 @@ import {
   truncateSchemas,
 } from '@foodgrid/utils/testing';
 import { AppModule } from '../src/app.module';
+import { OrderEventHandlers } from '../src/events/order-event.handlers';
 import { SERVICE } from '../src/service.config';
 
 const TENANT = 'tnt_test_kitchen';
@@ -319,6 +320,45 @@ describe('order-service checkout & lifecycle (e2e)', () => {
       'READY',
       'COMPLETED',
     ]);
+  });
+
+  it('keeps the commission payment-service charged on the order, for the merchant only', async () => {
+    const token = customer();
+    await fillCart(token);
+    const { body } = await api()
+      .post('/api/v1/orders')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ orderType: 'TAKEAWAY', paymentMethod: 'COD' })
+      .expect(201);
+    const id = body.order.id as string;
+    // payment.commission.accrued for a business with a 12% override
+    await app.get(OrderEventHandlers).onCommission({
+      id: 'evt_comm_1',
+      type: 'payment.commission.accrued',
+      data: {
+        orderId: id,
+        tenantId: TENANT,
+        outletId: 'outlet_1',
+        commissionRate: '12.00',
+        commissionAmount: '64.68',
+      },
+    } as never);
+
+    const seen = await api()
+      .get(`/api/v1/merchant/orders/${id}`)
+      .set('Authorization', `Bearer ${merchant()}`)
+      .expect(200);
+    expect(seen.body).toMatchObject({ commissionRate: '12.00', commissionAmount: '64.68' });
+    // later order events carry it to every consumer
+    await api()
+      .post(`/api/v1/merchant/orders/${id}/accept`)
+      .set('Authorization', `Bearer ${merchant()}`)
+      .send({})
+      .expect(200);
+    const accepted = await prisma.outboxEvent.findFirstOrThrow({
+      where: { aggregateId: id, type: 'order.accepted' },
+    });
+    expect(accepted.payload).toMatchObject({ commissionRate: '12.00', commissionAmount: '64.68' });
   });
 
   it('isolates orders between tenants and between customers', async () => {

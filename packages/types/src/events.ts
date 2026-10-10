@@ -109,7 +109,9 @@ export interface OrderSnapshot {
   total: Money;
   couponFundedBy: string | null;
   merchantDiscount: Money;
+  /** Set once payment-service has charged it (`payment.commission.accrued`). */
   commissionRate: Money | null;
+  commissionAmount: Money | null;
   deliveryAddress: AddressSnapshot | null;
   distanceKm: number | null;
   items: OrderLineSnapshot[];
@@ -150,6 +152,19 @@ export interface PaymentEvent {
   amount: Money;
   method: PaymentMethod | null;
   reason?: string | null;
+}
+
+/**
+ * The commission charged on a delivered or completed order, decided once by
+ * payment-service when it settles the order ("0.00" for counter sales).
+ */
+export interface CommissionAccruedEvent {
+  orderId: string;
+  tenantId: string;
+  outletId: string;
+  /** Percent of the merchant's sales from the applied rule. */
+  commissionRate: Money;
+  commissionAmount: Money;
 }
 
 export interface RefundProcessedEvent {
@@ -295,6 +310,7 @@ export const EventTypes = {
   PaymentCaptured: 'payment.captured',
   PaymentFailed: 'payment.failed',
   RefundProcessed: 'payment.refund.processed',
+  CommissionAccrued: 'payment.commission.accrued',
 
   DeliveryAssigned: 'delivery.assigned',
   DeliveryPickedUp: 'delivery.picked_up',

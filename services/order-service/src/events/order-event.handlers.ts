@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '@foodgrid/database/nest';
 import {
   ApprovalDecidedEvent,
+  CommissionAccruedEvent,
   DeliveryEvent,
   EventEnvelope,
   EventTypes,
@@ -96,6 +97,18 @@ export class OrderEventHandlers {
     await this.prisma.order.update({
       where: { id: order.id },
       data: { paymentStatus: full ? 'REFUNDED' : 'PARTIALLY_REFUNDED' },
+    });
+  }
+
+  /** The commission payment-service charged when the order settled. */
+  @OnDomainEvent(EventTypes.CommissionAccrued)
+  async onCommission(env: EventEnvelope<string, CommissionAccruedEvent>) {
+    await this.prisma.order.updateMany({
+      where: { id: env.data.orderId },
+      data: {
+        commissionRate: env.data.commissionRate,
+        commissionAmount: env.data.commissionAmount,
+      },
     });
   }
 

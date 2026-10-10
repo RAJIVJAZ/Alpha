@@ -136,8 +136,6 @@ model Tenant {
   lat             Float?
   lng             Float?
   logoUrl         String?
-  /// Overrides the default commission rule for this tenant (percent).
-  commissionRate  Decimal?     @db.Decimal(5, 2)
   settings        Json         @default("{}")
   kycDocuments    Json         @default("[]")
   approvedAt      DateTime?

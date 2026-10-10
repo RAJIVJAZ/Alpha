@@ -46,7 +46,7 @@ export class TenantsController {
 
   @RequireTenant()
   @Get('current')
-  @ApiOperation({ summary: 'My business (PAN, KYC and commission only for settings / finance)' })
+  @ApiOperation({ summary: 'My business (PAN and KYC only for settings / finance)' })
   current(@TenantId() tenantId: string, @CurrentUser() user: AccessTokenClaims) {
     const perms = permissionsFor(user);
     return perms.has(Permissions.SettingsManage) || perms.has(Permissions.FinanceRead)

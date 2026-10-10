@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import {
   B2bOrderEvent,
+  CommissionAccruedEvent,
   DeliveryEvent,
   EventEnvelope,
   EventTypes,
@@ -30,6 +31,11 @@ export class AnalyticsEventHandlers {
     // ignore never-paid orders that were cancelled before placement
     if (env.data.status === 'CANCELLED' && !env.data.placedAt) return;
     await this.projections.upsertOrderFact(env.data);
+  }
+
+  @OnDomainEvent(EventTypes.CommissionAccrued)
+  async commission(env: EventEnvelope<string, CommissionAccruedEvent>) {
+    await this.projections.setCommission(env.data.orderId, env.data.commissionAmount);
   }
 
   @OnDomainEvent(EventTypes.StockConsumed)

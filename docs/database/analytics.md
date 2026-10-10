@@ -147,6 +147,7 @@ Table `analytics."OrderFact"`
 | `isFirstOrder` | Boolean |  | false |  |
 | `prepMins` | Int | ✓ |  |  |
 | `deliveryMins` | Int | ✓ |  |  |
+| `promisedMins` | Int | ✓ |  | Minutes to the ETA promised at checkout (delivery orders); on time = deliveryMins <= promisedMins |
 | `riderId` | String | ✓ |  | → delivery.RiderProfile |
 | `placedAt` | DateTime |  |  |  |
 | `deliveredAt` | DateTime | ✓ |  |  |

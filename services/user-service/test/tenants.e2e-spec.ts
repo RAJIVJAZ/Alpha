@@ -60,7 +60,6 @@ describe('user-service tenants & profile (e2e)', () => {
         legalName: 'Test Kitchen Pvt Ltd',
         gstin: GSTIN,
         pan: 'AABCS1234K',
-        commissionRate: 16,
         kycDocuments: [{ kind: 'PAN', url: 's3://kyc/pan.pdf' }],
       },
     });
@@ -287,7 +286,7 @@ describe('user-service tenants & profile (e2e)', () => {
       });
     });
 
-    it('shows PAN, KYC documents and commission only to settings or finance roles', async () => {
+    it('shows PAN and KYC documents only to settings or finance roles', async () => {
       const chef = await staff('+919811100041', 'CHEF');
       const accountant = await staff('+919811100042', 'ACCOUNTANT');
       const res = await api()
@@ -295,13 +294,7 @@ describe('user-service tenants & profile (e2e)', () => {
         .set('Authorization', chef.auth)
         .expect(200);
       expect(res.body).toMatchObject({ id: tenantId, name: 'Test Kitchen', gstin: GSTIN });
-      for (const field of [
-        'pan',
-        'kycDocuments',
-        'commissionRate',
-        'approvedBy',
-        'rejectionReason',
-      ])
+      for (const field of ['pan', 'kycDocuments', 'approvedBy', 'rejectionReason'])
         expect(res.body).not.toHaveProperty(field);
       const mine = await api()
         .get('/api/v1/tenants/mine')
@@ -314,7 +307,7 @@ describe('user-service tenants & profile (e2e)', () => {
         .get('/api/v1/tenants/current')
         .set('Authorization', accountant.auth)
         .expect(200);
-      expect(full.body).toMatchObject({ pan: 'AABCS1234K', commissionRate: '16' });
+      expect(full.body).toMatchObject({ pan: 'AABCS1234K' });
     });
   });
 

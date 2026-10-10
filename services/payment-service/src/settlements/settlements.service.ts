@@ -1,8 +1,22 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '@foodgrid/database/nest';
-import type { CommissionRule, Prisma, SettlementStatus } from '@foodgrid/database';
-import type { B2bOrderEvent, OrderStatusChangedEvent } from '@foodgrid/types';
-import { conflict, normalizePage, notFound, paginate, round2, sumMoney } from '@foodgrid/utils';
+import type { CommissionRule, DbClient, Prisma, SettlementStatus } from '@foodgrid/database';
+import {
+  B2bOrderEvent,
+  CommissionAccruedEvent,
+  EventTypes,
+  OrderStatusChangedEvent,
+} from '@foodgrid/types';
+import {
+  conflict,
+  money,
+  normalizePage,
+  notFound,
+  paginate,
+  round2,
+  sumMoney,
+} from '@foodgrid/utils';
+import { OutboxService } from '@foodgrid/utils/server';
 import {
   CommissionRuleLike,
   computeSettlementLine,
@@ -32,6 +46,7 @@ export class SettlementsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly gst: GstService,
+    private readonly outbox: OutboxService,
   ) {}
 
   // ─── commission rules ─────────────────────────────────────────────────────
@@ -57,10 +72,16 @@ export class SettlementsService {
     );
   }
 
-  /** Accrues the merchant payable for a delivered / completed consumer order. */
+  /**
+   * Accrues the merchant payable for a delivered / completed consumer order and
+   * publishes the commission charged, so the order and analytics carry the same figure.
+   */
   async accrueOrder(o: OrderStatusChangedEvent) {
-    // Counter sales are collected by the merchant directly; nothing to settle.
-    if (o.channel === 'POS' || o.paymentMethod === 'CASH') return null;
+    // Counter sales are collected by the merchant directly; nothing to settle, no commission.
+    if (o.channel === 'POS' || o.paymentMethod === 'CASH') {
+      await this.commissionCharged(this.prisma, o, 0, 0);
+      return null;
+    }
     const tenantType = o.outletType === 'FOOD_CART' ? 'FOOD_CART' : 'RESTAURANT';
     const rule = await this.ruleFor(o.tenantId, o.outletId, tenantType);
     const amounts = computeSettlementLine(
@@ -88,6 +109,7 @@ export class SettlementsService {
           ...amounts,
         },
       });
+      await this.commissionCharged(tx, o, rule.ratePct, amounts.commission);
       // the platform invoices the customer as the deemed supplier (ECO u/s 9(5))
       const discount = Number(o.discount);
       await this.gst.invoiceCustomerOrder(tx, {
@@ -98,6 +120,28 @@ export class SettlementsService {
         serviceTaxable: round2(Number(o.deliveryFee) + Number(o.platformFee)),
       });
       return line;
+    });
+  }
+
+  private commissionCharged(
+    db: DbClient,
+    o: OrderStatusChangedEvent,
+    ratePct: number,
+    commission: number,
+  ) {
+    return this.outbox.enqueue<CommissionAccruedEvent>(db, {
+      stream: 'payment',
+      type: EventTypes.CommissionAccrued,
+      aggregateType: 'Order',
+      aggregateId: o.orderId,
+      tenantId: o.tenantId,
+      data: {
+        orderId: o.orderId,
+        tenantId: o.tenantId,
+        outletId: o.outletId,
+        commissionRate: money(ratePct),
+        commissionAmount: money(commission),
+      },
     });
   }
 

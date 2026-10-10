@@ -6,6 +6,7 @@ export const SERVICE_NAME = 'analytics-service';
 /** Event streams consumed by this service. */
 export const SUBSCRIBED_STREAMS: EventStream[] = [
   'order',
+  'payment',
   'delivery',
   'marketplace',
   'inventory',

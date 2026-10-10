@@ -28,25 +28,9 @@ import {
 } from '../lib/format';
 import { useApi, useApiMutation } from '../lib/hooks';
 import type { Settlement } from '../merchant/types';
-import type { AdminTenant } from './types';
+import type { AdminTenant, CommissionRule as Rule } from './types';
 
 type AdminSettlement = Settlement & { tenantId: string; tenantName: string | null };
-interface Rule {
-  id: string;
-  name: string;
-  tenantType: string | null;
-  tenantId: string | null;
-  tenantName: string | null;
-  outletId: string | null;
-  ratePct: string;
-  fixedFee: string;
-  minFee: string | null;
-  maxFee: string | null;
-  priority: number;
-  effectiveFrom: string;
-  effectiveTo: string | null;
-  isActive: boolean;
-}
 interface Payout {
   id: string;
   ownerId: string;
@@ -431,7 +415,7 @@ function RuleDialog({ rule: r, onClose }: { rule: Rule | null; onClose: () => vo
     },
     {
       invalidate: ['admin/commission-rules'],
-      success: r ? 'Rule updated' : 'Rule added; applies to new orders',
+      success: r ? 'Rule updated' : 'Rule added; applies to orders settled from now on',
       onSuccess: onClose,
     },
   );
