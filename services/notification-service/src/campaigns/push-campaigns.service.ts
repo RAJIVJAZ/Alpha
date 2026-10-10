@@ -112,7 +112,12 @@ export class PushCampaignsService {
         ),
       );
       for (const r of results) {
-        if (r.status === 'fulfilled' && r.value.some((n) => n.status === 'SENT')) ok++;
+        // the in-app copy is always SENT, so only a push to a device counts as delivered
+        if (
+          r.status === 'fulfilled' &&
+          r.value.some((n) => n.channel === 'PUSH' && n.status === 'SENT')
+        )
+          ok++;
         else failed++;
       }
       await this.prisma.pushCampaign.update({

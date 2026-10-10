@@ -40,7 +40,13 @@ export class DemandForecastDto {
 }
 
 export class InventoryOptimizeDto {
-  @ApiProperty({ type: [Object] }) @IsArray() @ArrayMaxSize(2000) items!: {
+  // Arrays of interfaces reflect as Array, so without @Type(() => Object) the validation
+  // pipe turns every element into an Array and drops keys Array.prototype has (`at`).
+  @ApiProperty({ type: [Object] })
+  @IsArray()
+  @ArrayMaxSize(2000)
+  @Type(() => Object)
+  items!: {
     id: string;
     avgDailyDemand: number;
     demandStdDev: number;
@@ -63,6 +69,7 @@ export class RankSuppliersDto {
   @ApiProperty({ type: [Object] })
   @IsArray()
   @ArrayMaxSize(500)
+  @Type(() => Object)
   offers!: import('../engines/supplier-ranking').SupplierOffer[];
   @ApiProperty() @IsNumber() @Min(0.001) quantity!: number;
   @ApiProperty({ enum: ['LOWEST_COST', 'FASTEST', 'BEST_RATED', 'BALANCED'] })
@@ -83,6 +90,7 @@ export class MarkdownDto {
   @ApiProperty({ type: [Object] })
   @IsArray()
   @ArrayMaxSize(2000)
+  @Type(() => Object)
   products!: import('../engines/dynamic-pricing').MarkdownInput[];
 }
 
@@ -101,6 +109,7 @@ export class TrajectoryDto {
   @ApiProperty({ type: [Object] })
   @IsArray()
   @ArrayMaxSize(5000)
+  @Type(() => Object)
   pings!: import('../engines/fraud').Ping[];
   @ApiPropertyOptional() @IsOptional() @IsObject() drop?: { lat: number; lng: number };
 }
@@ -116,6 +125,7 @@ export class RouteDto {
   @ApiProperty({ type: [Object] })
   @IsArray()
   @ArrayMaxSize(30)
+  @Type(() => Object)
   stops!: import('../engines/routing').Stop[];
   @ApiPropertyOptional() @IsOptional() @IsNumber() avgSpeedKmph?: number;
 }
@@ -125,10 +135,12 @@ export class OutletRecoDto {
   @ApiProperty({ type: [Object] })
   @IsArray()
   @ArrayMaxSize(500)
+  @Type(() => Object)
   history!: import('../engines/recommendations').HistoryOrder[];
   @ApiProperty({ type: [Object] })
   @IsArray()
   @ArrayMaxSize(3000)
+  @Type(() => Object)
   candidates!: import('../engines/recommendations').CandidateOutlet[];
   @ApiPropertyOptional() @IsOptional() @IsObject() context?: Record<string, unknown>;
 }
