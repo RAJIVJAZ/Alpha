@@ -7,6 +7,7 @@ import {
   OrderStatusChangedEvent,
   ReviewCreatedEvent,
 } from '@foodgrid/types';
+import { enumLabel } from '@foodgrid/utils';
 import { OnDomainEvent } from '@foodgrid/utils/server';
 import { DispatchService } from '../dispatch/dispatch.service';
 import { TrackingGateway } from '../tracking/tracking.gateway';
@@ -119,6 +120,11 @@ export class DeliveryEventHandlers {
       where: { id: env.data.entityId },
       data: {
         status,
+        // with changes requested the rider stays pending and may resubmit (RidersService.onboard)
+        rejectionReason:
+          env.data.decision === 'APPROVED'
+            ? null
+            : (env.data.notes ?? enumLabel(env.data.decision)),
         ...(status === 'ACTIVE' ? { approvedAt: new Date(), approvedBy: env.data.reviewedBy } : {}),
       },
     });

@@ -379,6 +379,77 @@ describe('delivery-service dispatch, proof of delivery and incentives (e2e)', ()
     ).toMatchObject({ status: 'SUSPENDED', isOnline: false });
   });
 
+  it('takes a rider application, shows the reviewer note and accepts a resubmission', async () => {
+    http.on('POST', 'user', 'internal/approvals', { id: 'apr_1' });
+    const applicant = `Bearer ${issueTestToken({ sub: 'applicant_u', roles: ['CUSTOMER'], phone: '+919800000300' })}`;
+    const licence =
+      'https://cdn.test/kyc/applicant_u/2026-10-10/0b8e3a52-1f7c-4c1e-9d55-3f0f7d2c9a10.jpg';
+    const apply = (name: string, url = licence, auth = applicant) =>
+      api()
+        .post('/api/v1/riders/onboarding')
+        .set('Authorization', auth)
+        .send({
+          name,
+          city: 'Bengaluru',
+          vehicleType: 'SCOOTER',
+          vehicleNumber: 'KA01AB1234',
+          documents: [{ kind: 'DRIVING_LICENSE', url }],
+        });
+    const me = async () =>
+      (await api().get('/api/v1/riders/me').set('Authorization', applicant).expect(200)).body as {
+        id: string;
+        status: string;
+        rejectionReason: string | null;
+      };
+    const decide = async (
+      decision: 'APPROVED' | 'REJECTED' | 'CHANGES_REQUESTED',
+      notes: string | null,
+    ) =>
+      app.get(DeliveryEventHandlers).onApproval({
+        data: {
+          entityType: 'RIDER',
+          entityId: (await me()).id,
+          decision,
+          notes,
+          reviewedBy: 'admin',
+        },
+      } as unknown as Parameters<DeliveryEventHandlers['onApproval']>[0]);
+
+    await api().get('/api/v1/riders/me').set('Authorization', applicant).expect(404);
+    const googleOnly = `Bearer ${issueTestToken({ sub: 'google_u', roles: ['CUSTOMER'] })}`;
+    expect((await apply('Kiran', licence, googleOnly).expect(400)).body.code).toBe(
+      'PHONE_REQUIRED',
+    );
+    expect((await apply('Kiran', 'https://example.com/dl.jpg').expect(400)).body.code).toBe(
+      'INVALID_DOCUMENT',
+    );
+    await apply('Kiran').expect(201);
+    expect(await me()).toMatchObject({ status: 'PENDING_APPROVAL', rejectionReason: null });
+    expect(http.callsTo('user', 'internal/approvals')).toHaveLength(1);
+    expect((await apply('Kiran').expect(409)).body.code).toBe('ALREADY_APPLIED');
+
+    await decide('CHANGES_REQUESTED', 'Add the back of the licence');
+    expect(await me()).toMatchObject({
+      status: 'PENDING_APPROVAL',
+      rejectionReason: 'Add the back of the licence',
+    });
+    await apply('Kiran').expect(201);
+    expect(await me()).toMatchObject({ status: 'PENDING_APPROVAL', rejectionReason: null });
+
+    await decide('REJECTED', 'Licence photo is blurred');
+    expect(await me()).toMatchObject({
+      status: 'REJECTED',
+      rejectionReason: 'Licence photo is blurred',
+    });
+
+    await apply('Kiran K').expect(201);
+    expect(await me()).toMatchObject({ status: 'PENDING_APPROVAL', rejectionReason: null });
+    expect(http.callsTo('user', 'internal/approvals')).toHaveLength(3);
+
+    await decide('APPROVED', null);
+    expect(await me()).toMatchObject({ status: 'ACTIVE', rejectionReason: null });
+  });
+
   it('refuses a RATING scheme without the rating it is about', async () => {
     const res = await createScheme({ name: 'Top rated', type: 'RATING', target: 5 }).expect(400);
     expect(res.body.code).toBe('VALIDATION_FAILED');

@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '@foodgrid/database/nest';
 import type { Prisma, RiderProfile, RiderStatus } from '@foodgrid/database';
 import {
+  badRequest,
   conflict,
   dateOnly,
   enumLabel,
@@ -13,6 +14,7 @@ import {
 } from '@foodgrid/utils';
 import { InternalHttpService } from '@foodgrid/utils/server';
 import { GeoStore } from '../common/geo-store';
+import { isOwnUpload } from '../common/own-upload';
 import { splitByIstDay } from '../domain/attendance';
 import { IncentivesService } from '../incentives/incentives.service';
 import { TrackingGateway } from '../tracking/tracking.gateway';
@@ -50,14 +52,23 @@ export class RidersService {
     return rider;
   }
 
-  /** Rider sign-up; documents go to the admin approval queue. */
+  /**
+   * Rider sign-up; documents go to the admin approval queue. A rejected
+   * applicant, or one the reviewer asked for changes, may apply again.
+   */
   async onboard(user: { sub: string; phone?: string }, dto: RiderOnboardingDto) {
+    // customers and the restaurant call the rider on this number
+    if (!user.phone) throw badRequest('Sign in with your mobile number to apply', 'PHONE_REQUIRED');
+    if (dto.documents?.some((d) => !isOwnUpload(d.url, user.sub, 'kyc')))
+      throw badRequest('Upload your documents in the rider app', 'INVALID_DOCUMENT');
     const existing = await this.prisma.riderProfile.findUnique({ where: { userId: user.sub } });
-    if (existing && existing.status !== 'REJECTED')
-      throw conflict('You have already applied', 'ALREADY_APPLIED');
+    const reopened =
+      existing?.status === 'REJECTED' ||
+      (existing?.status === 'PENDING_APPROVAL' && existing.rejectionReason !== null);
+    if (existing && !reopened) throw conflict('You have already applied', 'ALREADY_APPLIED');
     const data = {
       name: dto.name,
-      phone: user.phone ?? '',
+      phone: user.phone,
       city: dto.city,
       vehicleType: dto.vehicleType,
       vehicleNumber: dto.vehicleNumber,
@@ -66,6 +77,7 @@ export class RidersService {
       upiId: dto.upiId,
       documents: (dto.documents ?? []) as unknown as Prisma.InputJsonValue,
       status: 'PENDING_APPROVAL' as const,
+      rejectionReason: null,
     };
     const rider = existing
       ? await this.prisma.riderProfile.update({ where: { id: existing.id }, data })

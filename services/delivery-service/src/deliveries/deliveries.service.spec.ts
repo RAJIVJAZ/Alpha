@@ -6,7 +6,8 @@ import type { GeoStore, LivePosition } from '../common/geo-store';
 import { riderView } from '../common/rider-view';
 import type { IncentivesService } from '../incentives/incentives.service';
 import type { TrackingGateway } from '../tracking/tracking.gateway';
-import { DeliveriesService, isOwnProofUpload } from './deliveries.service';
+import { isOwnUpload } from '../common/own-upload';
+import { DeliveriesService } from './deliveries.service';
 
 const DROP = { lat: 12.9352, lng: 77.6245 };
 const rider = { id: 'rider-1', userId: 'user-1' };
@@ -169,7 +170,7 @@ describe('DeliveriesService.complete proof', () => {
   });
 });
 
-describe('isOwnProofUpload', () => {
+describe('isOwnUpload', () => {
   const base = 'https://cdn.foodgrid.in';
   const key = '2026-10-10/0b8e3a52-1f7c-4c1e-9d55-3f0f7d2c9a10.jpg';
   beforeAll(() => {
@@ -180,27 +181,42 @@ describe('isOwnProofUpload', () => {
   });
 
   it('accepts only this user’s delivery-proof keys under our media base', () => {
-    expect(isOwnProofUpload(`${base}/delivery-proof/user-1/${key}`, 'user-1')).toBe(true);
-    expect(isOwnProofUpload(`${base}/delivery-proof/user-2/${key}`, 'user-1')).toBe(false);
-    expect(isOwnProofUpload(`${base}/avatars/user-1/${key}`, 'user-1')).toBe(false);
-    expect(isOwnProofUpload(`https://evil.example/delivery-proof/user-1/${key}`, 'user-1')).toBe(
+    expect(isOwnUpload(`${base}/delivery-proof/user-1/${key}`, 'user-1', 'delivery-proof')).toBe(
+      true,
+    );
+    expect(isOwnUpload(`${base}/delivery-proof/user-2/${key}`, 'user-1', 'delivery-proof')).toBe(
       false,
     );
-    expect(isOwnProofUpload(`${base}/delivery-proof/user-1/../user-2/${key}`, 'user-1')).toBe(
+    expect(isOwnUpload(`${base}/avatars/user-1/${key}`, 'user-1', 'delivery-proof')).toBe(false);
+    expect(
+      isOwnUpload(`https://evil.example/delivery-proof/user-1/${key}`, 'user-1', 'delivery-proof'),
+    ).toBe(false);
+    expect(
+      isOwnUpload(`${base}/delivery-proof/user-1/../user-2/${key}`, 'user-1', 'delivery-proof'),
+    ).toBe(false);
+    expect(
+      isOwnUpload(`${base}.evil.example/delivery-proof/user-1/${key}`, 'user-1', 'delivery-proof'),
+    ).toBe(false);
+  });
+
+  it('takes PDFs only as KYC documents', () => {
+    const pdf = '2026-10-10/0b8e3a52-1f7c-4c1e-9d55-3f0f7d2c9a10.pdf';
+    expect(isOwnUpload(`${base}/kyc/user-1/${pdf}`, 'user-1', 'kyc')).toBe(true);
+    expect(isOwnUpload(`${base}/kyc/user-1/${key}`, 'user-1', 'kyc')).toBe(true);
+    expect(isOwnUpload(`${base}/delivery-proof/user-1/${pdf}`, 'user-1', 'delivery-proof')).toBe(
       false,
     );
-    expect(isOwnProofUpload(`${base}.evil.example/delivery-proof/user-1/${key}`, 'user-1')).toBe(
-      false,
-    );
+    expect(isOwnUpload(`${base}/delivery-proof/user-1/${key}`, 'user-1', 'kyc')).toBe(false);
   });
 
   it('falls back to the bucket URL without a CDN', () => {
     delete process.env.CDN_BASE_URL;
     process.env.S3_MEDIA_BUCKET = 'foodgrid-media';
     expect(
-      isOwnProofUpload(
+      isOwnUpload(
         `https://foodgrid-media.s3.amazonaws.com/delivery-proof/user-1/${key}`,
         'user-1',
+        'delivery-proof',
       ),
     ).toBe(true);
     delete process.env.S3_MEDIA_BUCKET;

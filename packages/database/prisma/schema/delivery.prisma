@@ -113,6 +113,8 @@ model RiderProfile {
   upiId           String?
   approvedAt      DateTime?
   approvedBy      String?
+  /// Reviewer's note when the application was rejected or changes were requested; cleared on resubmission.
+  rejectionReason String?
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
 

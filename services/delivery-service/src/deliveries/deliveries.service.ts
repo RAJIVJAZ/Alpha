@@ -16,6 +16,7 @@ import {
 import { businessCounter, InternalHttpService, OutboxService, REDIS } from '@foodgrid/utils/server';
 import { GeoStore } from '../common/geo-store';
 import { toDeliveryEvent } from '../common/delivery-event';
+import { isOwnUpload } from '../common/own-upload';
 import { DEFAULT_TARIFF, splitEarning } from '../domain/fees';
 import { IncentivesService } from '../incentives/incentives.service';
 import { TrackingGateway } from '../tracking/tracking.gateway';
@@ -46,26 +47,8 @@ const MAX_POSITION_AGE_MS = 5 * 60_000;
 const MAX_OTP_ATTEMPTS = 5;
 const otpAttemptsKey = (deliveryId: string) => `delivery:otp-attempts:${deliveryId}`;
 
-/**
- * Whether `url` is a delivery-proof photo this user uploaded through user-service
- * POST /media/presign, whose keys are delivery-proof/<userId>/<yyyy-mm-dd>/<uuid>.<ext>
- * under the same public base (CDN_BASE_URL, else the bucket URL).
- * shortcut: checks the key, not that the object exists; HEAD it if a photo ever
- * becomes proof on its own.
- */
-export function isOwnProofUpload(url: string, userId: string): boolean {
-  const base =
-    process.env.CDN_BASE_URL ||
-    `https://${process.env.S3_MEDIA_BUCKET ?? 'foodgrid-media-local'}.s3.amazonaws.com`;
-  const prefix = `${base.replace(/\/$/, '')}/delivery-proof/${userId}/`;
-  return (
-    url.startsWith(prefix) &&
-    /^\d{4}-\d{2}-\d{2}\/[0-9a-f-]{36}\.(jpg|png|webp)$/.test(url.slice(prefix.length))
-  );
-}
-
 function assertOwnProof(url: string | undefined, userId: string) {
-  if (url && !isOwnProofUpload(url, userId))
+  if (url && !isOwnUpload(url, userId, 'delivery-proof'))
     throw badRequest(
       'Take the proof photo in the rider app so it is uploaded to FoodGrid',
       'INVALID_PROOF_PHOTO',

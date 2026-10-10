@@ -285,5 +285,6 @@ Table `delivery."RiderProfile"`
 | `upiId` | String | ✓ |  |  |
 | `approvedAt` | DateTime | ✓ |  |  |
 | `approvedBy` | String | ✓ |  |  |
+| `rejectionReason` | String | ✓ |  | Reviewer's note when the application was rejected or changes were requested; cleared on resubmission. |
 | `createdAt` | DateTime |  | now() |  |
 | `updatedAt` | DateTime |  |  |  |
