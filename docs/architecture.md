@@ -174,7 +174,7 @@ a fraud score, an amount to charge). They go through `InternalHttpService`
 | ads-service          | user                                 | campaign approval requests                                                                             |
 | notification-service | user                                 | contact details and tenant members                                                                     |
 | analytics-service    | ai, delivery, order, user            | weekly outlet scores; rider look-up and names for reports                                              |
-| ai-service           | order, inventory                     | sales and stock history                                                                                |
+| ai-service           | order, inventory                     | sales and stock history, cities with active outlets (weather sync)                                     |
 
 **Events** carry facts that other contexts react to: an order was accepted, a payment
 captured, a delivery completed. They use a transactional outbox, Redis Streams and
@@ -462,6 +462,7 @@ Lua script.
 | payment-service      | Monday 03:00 IST | `payments:weekly-settlement`        | weekly merchant settlements                              |
 | analytics-service    | Monday 04:00 IST | `analytics:weekly-scores`           | outlet performance scores                                |
 | notification-service | every minute     | `notifications:scheduled-campaigns` | send scheduled push campaigns                            |
+| ai-service           | every 3 hours    | `ai:weather-sync`                   | OpenWeather forecast for cities with active outlets      |
 
 ## Observability
 

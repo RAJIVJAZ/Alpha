@@ -578,6 +578,40 @@ describe('order-service checkout & lifecycle (e2e)', () => {
     ]);
   });
 
+  it('lists the cities with active outlets and their centre for the weather sync', async () => {
+    const outlet = (id: string, city: string, status: 'ACTIVE' | 'DRAFT', lat: number) =>
+      prisma.outlet.create({
+        data: {
+          id,
+          tenantId: OTHER_TENANT,
+          type: 'RESTAURANT',
+          status,
+          name: id,
+          slug: id,
+          addressLine1: '1 Main Road',
+          city,
+          state: 'Karnataka',
+          stateCode: '29',
+          pincode: '560001',
+          lat,
+          lng: 77.6,
+          geohash: 'tdr1wx',
+        },
+      });
+    await outlet('outlet_blr_2', 'Bengaluru', 'ACTIVE', 12.9752);
+    await outlet('outlet_mys', 'Mysuru', 'DRAFT', 12.2958);
+    const res = await api()
+      .get('/api/v1/internal/outlets/cities')
+      .set('x-service-token', issueServiceToken('ai-service'))
+      .expect(200);
+    // outlet_1 (12.9352) and outlet_blr_2 average out; the draft outlet's city is left out
+    expect(res.body).toEqual([
+      { name: 'Bengaluru', lat: expect.any(Number), lng: expect.any(Number) },
+    ]);
+    expect(res.body[0].lat).toBeCloseTo((12.9352 + 12.9752) / 2, 6);
+    expect(res.body[0].lng).toBeCloseTo((77.6245 + 77.6) / 2, 6);
+  });
+
   it('blocks checkout when the fraud engine says BLOCK and persists nothing', async () => {
     http.on('POST', 'ai', 'internal/ai/fraud/score', {
       score: 0.97,

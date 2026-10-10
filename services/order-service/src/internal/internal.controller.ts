@@ -93,6 +93,19 @@ export class InternalController {
     });
   }
 
+  // declared before outlets/:id, which would otherwise capture "cities" as an id
+  @Get('outlets/cities')
+  @ApiOperation({ summary: 'Cities with active outlets and their centre (ai-service weather)' })
+  async activeCities() {
+    const rows = await this.prisma.outlet.groupBy({
+      by: ['city'],
+      where: { status: 'ACTIVE' },
+      _avg: { lat: true, lng: true },
+      orderBy: { city: 'asc' },
+    });
+    return rows.map((r) => ({ name: r.city, lat: r._avg.lat!, lng: r._avg.lng! }));
+  }
+
   @Get('outlets/:id')
   async outlet(@Param('id') id: string) {
     const outlet = await this.prisma.outlet.findUnique({ where: { id } });
