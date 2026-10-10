@@ -42,6 +42,7 @@ describe('payment-service commission (e2e)', () => {
       stateCode: '29',
     }));
     http.on('POST', 'user', 'internal/tenants/batch', []);
+    http.on('POST', 'user', 'internal/audit-logs', ({ body }) => body);
   });
 
   afterAll(async () => {
@@ -95,11 +96,35 @@ describe('payment-service commission (e2e)', () => {
       .set('Authorization', ops)
       .send(override)
       .expect(403);
-    await api()
+    const created = await api()
       .post('/api/v1/admin/commission-rules')
       .set('Authorization', admin)
-      .send(override)
+      .send({ ...override, ratePct: 14 })
       .expect(201);
+    await api()
+      .patch(`/api/v1/admin/commission-rules/${created.body.id}`)
+      .set('Authorization', admin)
+      .send({ ratePct: 12 })
+      .expect(200);
+    // who changed a business's commission is in the admin audit log (user-service)
+    expect(http.callsTo('user', 'internal/audit-logs').map((c) => c.body)).toEqual([
+      expect.objectContaining({ actorId: 'fin_1', action: 'commission_rule.create' }),
+      {
+        actorId: 'fin_1',
+        tenantId: OVERRIDDEN,
+        action: 'commission_rule.create',
+        entityType: 'CommissionRule',
+        changes: { ...override, ratePct: 14 },
+      },
+      {
+        actorId: 'fin_1',
+        tenantId: OVERRIDDEN,
+        action: 'commission_rule.update',
+        entityType: 'CommissionRule',
+        entityId: created.body.id,
+        changes: { ratePct: 12 },
+      },
+    ]);
 
     await delivered('ord_over', OVERRIDDEN);
     await delivered('ord_over', OVERRIDDEN); // redelivered: accrued and published once

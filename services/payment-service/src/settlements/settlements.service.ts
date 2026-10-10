@@ -16,7 +16,7 @@ import {
   round2,
   sumMoney,
 } from '@foodgrid/utils';
-import { OutboxService } from '@foodgrid/utils/server';
+import { InternalHttpService, OutboxService } from '@foodgrid/utils/server';
 import {
   CommissionRuleLike,
   computeSettlementLine,
@@ -47,6 +47,7 @@ export class SettlementsService {
     private readonly prisma: PrismaService,
     private readonly gst: GstService,
     private readonly outbox: OutboxService,
+    private readonly internal: InternalHttpService,
   ) {}
 
   // ─── commission rules ─────────────────────────────────────────────────────
@@ -55,11 +56,36 @@ export class SettlementsService {
       orderBy: [{ isActive: 'desc' }, { priority: 'desc' }, { createdAt: 'desc' }],
     });
   }
-  createRule(dto: CommissionRuleDto) {
+  async createRule(dto: CommissionRuleDto, actorId: string) {
+    await this.audit(actorId, 'commission_rule.create', dto.tenantId, undefined, dto);
     return this.prisma.commissionRule.create({ data: dto });
   }
-  updateRule(id: string, dto: UpdateCommissionRuleDto) {
+  async updateRule(id: string, dto: UpdateCommissionRuleDto, actorId: string) {
+    const rule = await this.prisma.commissionRule.findUnique({ where: { id } });
+    if (!rule) throw notFound('Commission rule', id);
+    await this.audit(actorId, 'commission_rule.update', rule.tenantId, id, dto);
     return this.prisma.commissionRule.update({ where: { id }, data: dto });
+  }
+
+  /**
+   * A business's commission is money terms, so who changed it goes to the admin audit log.
+   * Recorded before the change: a failed audit blocks it, and a retried create cannot duplicate.
+   */
+  private audit(
+    actorId: string,
+    action: string,
+    tenantId: string | null | undefined,
+    entityId: string | undefined,
+    changes: object,
+  ) {
+    return this.internal.post('user', 'internal/audit-logs', {
+      actorId,
+      tenantId: tenantId ?? undefined,
+      action,
+      entityType: 'CommissionRule',
+      entityId,
+      changes,
+    });
   }
 
   private async ruleFor(tenantId: string, outletId: string, tenantType: string) {

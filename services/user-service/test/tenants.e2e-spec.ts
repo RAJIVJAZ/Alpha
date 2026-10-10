@@ -6,6 +6,7 @@ import { InternalHttpService } from '@foodgrid/utils/server';
 import {
   createTestApp,
   FakeInternalHttp,
+  issueServiceToken,
   issueTestToken,
   truncateSchemas,
 } from '@foodgrid/utils/testing';
@@ -309,6 +310,34 @@ describe('user-service tenants & profile (e2e)', () => {
         .expect(200);
       expect(full.body).toMatchObject({ pan: 'AABCS1234K' });
     });
+  });
+
+  it("records another service's admin action in the audit log, for services only", async () => {
+    const entry = {
+      actorId: 'fin_1',
+      tenantId,
+      action: 'commission_rule.update',
+      entityType: 'CommissionRule',
+      entityId: 'rule_1',
+      changes: { ratePct: 12 },
+    };
+    await api().post('/api/v1/internal/audit-logs').send(entry).expect(401);
+    await api()
+      .post('/api/v1/internal/audit-logs')
+      .set('x-service-token', issueServiceToken('payment-service'))
+      .send({ ...entry, action: undefined })
+      .expect(400);
+    await api()
+      .post('/api/v1/internal/audit-logs')
+      .set('x-service-token', issueServiceToken('payment-service'))
+      .send(entry)
+      .expect(201);
+    const logs = await api()
+      .get('/api/v1/admin/audit-logs')
+      .query({ entityType: 'CommissionRule', tenantId })
+      .set('Authorization', `Bearer ${issueTestToken({ sub: 'adm', roles: ['ADMIN'] })}`)
+      .expect(200);
+    expect(logs.body.data).toEqual([expect.objectContaining(entry)]);
   });
 
   describe('profile email', () => {

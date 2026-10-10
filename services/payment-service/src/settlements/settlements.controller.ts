@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Permissions } from '@foodgrid/auth';
-import { RequirePermissions, RequireTenant, TenantId } from '@foodgrid/auth/nest';
+import { CurrentUser, RequirePermissions, RequireTenant, TenantId } from '@foodgrid/auth/nest';
 import type { InvoiceType } from '@foodgrid/database';
 import { DateRangeQueryDto, DirectoryService } from '@foodgrid/utils/server';
 import { GstService } from '../gst/gst.service';
@@ -84,13 +84,17 @@ export class AdminFinanceController {
   @ApiOperation({
     summary: 'Commission management: create a rule (platform / tenant type / tenant / outlet)',
   })
-  createRule(@Body() dto: CommissionRuleDto) {
-    return this.settlements.createRule(dto);
+  createRule(@Body() dto: CommissionRuleDto, @CurrentUser('sub') actorId: string) {
+    return this.settlements.createRule(dto, actorId);
   }
 
   @Patch('commission-rules/:id')
-  updateRule(@Param('id') id: string, @Body() dto: UpdateCommissionRuleDto) {
-    return this.settlements.updateRule(id, dto);
+  updateRule(
+    @Param('id') id: string,
+    @Body() dto: UpdateCommissionRuleDto,
+    @CurrentUser('sub') actorId: string,
+  ) {
+    return this.settlements.updateRule(id, dto, actorId);
   }
 
   @Get('settlements')

@@ -373,7 +373,9 @@ sequenceDiagram
 - **Settlements.** Delivered and completed orders accrue a settlement line and the
   customer's GST invoice, using the most specific active commission rule (outlet, then
   tenant, then tenant type, then priority). A business's commission override (admin
-  Businesses screen) is a tenant-wide rule like any other. The commission charged
+  Businesses screen) is a tenant-wide rule like any other; every rule created or changed
+  is first written to the admin audit log (user-service `internal/audit-logs`), and the
+  change is refused if that fails. The commission charged
   (`0.00` for counter sales) is published once as `payment.commission.accrued`; the
   order and analytics take it from there, so revenue reports, merchant profitability
   and settlements show the same figure. A weekly job (Monday 03:00 IST) groups

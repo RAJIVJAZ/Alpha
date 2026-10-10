@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
-import { IsArray, IsIn } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import { IsArray, IsIn, IsObject, IsOptional, IsString, MaxLength } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Internal } from '@foodgrid/auth/nest';
 import { PrismaService } from '@foodgrid/database/nest';
 import { PLATFORM_ROLES, PlatformRole } from '@foodgrid/types';
@@ -9,12 +9,23 @@ import { notFound } from '@foodgrid/utils';
 import { IdsDto } from '@foodgrid/utils/server';
 import { ApprovalsService } from '../approvals/approvals.service';
 import { CreateApprovalDto } from '../approvals/dto/approval.dto';
+import { AuditService } from '../common/audit.service';
 
 class AddRolesDto {
   @ApiProperty({ enum: PLATFORM_ROLES, isArray: true })
   @IsArray()
   @IsIn(PLATFORM_ROLES, { each: true })
   roles!: PlatformRole[];
+}
+
+/** An admin action taken in another service (e.g. a commission rule change). */
+class AuditEntryDto {
+  @ApiProperty() @IsString() @MaxLength(64) actorId!: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(64) tenantId?: string;
+  @ApiProperty({ example: 'commission_rule.update' }) @IsString() @MaxLength(80) action!: string;
+  @ApiProperty({ example: 'CommissionRule' }) @IsString() @MaxLength(80) entityType!: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(64) entityId?: string;
+  @ApiPropertyOptional() @IsOptional() @IsObject() changes?: Record<string, unknown>;
 }
 
 const BASIC = {
@@ -35,6 +46,7 @@ export class InternalController {
   constructor(
     private readonly prisma: PrismaService,
     private readonly approvals: ApprovalsService,
+    private readonly audit: AuditService,
   ) {}
 
   @Get('users/:id')
@@ -97,5 +109,12 @@ export class InternalController {
   @ApiOperation({ summary: 'Submit an entity to the admin approval queue' })
   createApproval(@Body() dto: CreateApprovalDto) {
     return this.approvals.create(dto);
+  }
+
+  @Post('audit-logs')
+  @ApiOperation({ summary: "Record another service's admin action in the audit log" })
+  async recordAudit(@Body() dto: AuditEntryDto) {
+    const { id } = await this.audit.record(dto);
+    return { id };
   }
 }
