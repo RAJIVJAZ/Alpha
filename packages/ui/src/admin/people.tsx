@@ -393,6 +393,8 @@ export function TenantsAdmin({ commission = false }: { commission?: boolean }) {
       header: 'Commission',
       align: 'right',
       cell: (t) => {
+        // until the rules load (or if they fail) we cannot tell an override from the default
+        if (!rules.data) return '—';
         const rule = businessRule(rules.data, t.id);
         return rule ? `${Number(rule.ratePct)}%` : 'Default';
       },

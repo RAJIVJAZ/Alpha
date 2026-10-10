@@ -25,7 +25,7 @@ import {
   UpdateTenantDto,
 } from './dto/tenant.dto';
 
-/** Tenant fields every member may see; PAN, KYC documents, commission and review data are left out. */
+/** Tenant fields every member may see; PAN, KYC documents and review data are left out. */
 export const PUBLIC_TENANT_FIELDS = {
   id: true,
   type: true,

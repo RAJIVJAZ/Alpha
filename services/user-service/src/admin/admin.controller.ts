@@ -86,7 +86,7 @@ export class AdminController {
 
   @RequirePermissions(Permissions.PlatformApprovals)
   @Patch('tenants/:id')
-  @ApiOperation({ summary: 'Suspend / reactivate a business or override its commission' })
+  @ApiOperation({ summary: 'Suspend or reactivate a business' })
   updateTenant(
     @Param('id') id: string,
     @CurrentUser('sub') actor: string,

@@ -412,6 +412,10 @@ rcmd XRANGE events:dlq - + COUNT 10              # stream, group, entryId, type,
 
 **Likely causes**: a handler bug on an unexpected payload; a dependency the handler
 needs is down (database, another service); a data problem (a missing row, a constraint).
+`No order fact for <order id> yet` on `events:payment` from analytics-service is a
+`payment.commission.accrued` read before the order's own events, typically while
+analytics catches up after an outage; once its `events:order` lag is gone, replay the
+dead-lettered ones or that order's commission stays 0 in revenue reports.
 
 **Mitigation**: fix the cause (deploy the fix, restore the dependency). Entries still
 pending are retried automatically; for the ones already dead-lettered, follow
