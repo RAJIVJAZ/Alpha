@@ -194,6 +194,7 @@ export class DeliveriesService {
     // the right code: retries after a location or cash error must not use up tries
     await this.redis.del(otpAttemptsKey(delivery.id));
     assertOwnProof(dto.proofPhotoUrl, userId);
+    assertOwnProof(dto.proofSignatureUrl, userId);
     if (delivery.isCod && !dto.codCollected)
       throw conflict('Collect the cash before completing a COD order', 'COD_NOT_COLLECTED');
     // fail closed: without a recent fix there is nothing to check the drop against

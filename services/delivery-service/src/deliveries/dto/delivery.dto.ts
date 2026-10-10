@@ -13,7 +13,10 @@ export class CompleteDeliveryDto {
   @IsOptional()
   @IsUrl({ require_tld: false })
   proofPhotoUrl?: string;
-  @ApiPropertyOptional() @IsOptional() @IsUrl({ require_tld: false }) proofSignatureUrl?: string;
+  @ApiPropertyOptional({ description: 'Optional signature image, uploaded like the photo' })
+  @IsOptional()
+  @IsUrl({ require_tld: false })
+  proofSignatureUrl?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(300) note?: string;
   @ApiPropertyOptional({ description: 'Cash collected for COD orders' })
   @IsOptional()

@@ -154,6 +154,12 @@ describe('DeliveriesService.complete proof', () => {
         proofPhotoUrl: 'https://example.com/door.jpg',
       }),
     ).rejects.toMatchObject({ code: 'INVALID_PROOF_PHOTO' });
+    await expect(
+      service(atDrop).complete('user-1', 'del-1', {
+        otp: '4821',
+        proofSignatureUrl: 'https://example.com/signature.png',
+      }),
+    ).rejects.toMatchObject({ code: 'INVALID_PROOF_PHOTO' });
   });
 
   it('accepts the OTP with the rider’s own proof photo', async () => {
