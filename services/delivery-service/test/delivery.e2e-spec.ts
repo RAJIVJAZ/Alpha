@@ -272,6 +272,28 @@ describe('delivery-service dispatch, proof of delivery and incentives (e2e)', ()
     );
   });
 
+  it('pays a delivery once when completion is sent twice at the same time', async () => {
+    const { id } = await dispatchToNext();
+    await step(id, 'picked-up').expect(200);
+    await api()
+      .post('/api/v1/riders/me/location')
+      .set('Authorization', auth('next'))
+      .send(DROP)
+      .expect(200);
+
+    const results = await Promise.all([complete(id, { otp: OTP }), complete(id, { otp: OTP })]);
+    expect(results.map((r) => r.status).sort()).toEqual([200, 409]);
+    const rider = await prisma.riderProfile.findUniqueOrThrow({ where: { id: RIDERS.next.id } });
+    expect(rider.totalDeliveries).toBe(1);
+    expect(await prisma.riderEarning.count({ where: { deliveryId: id, type: 'BASE_PAY' } })).toBe(
+      1,
+    );
+    const delivered = await prisma.outboxEvent.count({
+      where: { type: EventTypes.DeliveryDelivered },
+    });
+    expect(delivered).toBe(1);
+  });
+
   it('locks the delivery code after five wrong tries', async () => {
     const { id } = await dispatchToNext();
     await step(id, 'picked-up').expect(200);

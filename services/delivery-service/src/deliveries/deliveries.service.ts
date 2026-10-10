@@ -100,14 +100,18 @@ export class DeliveriesService {
     delivery: Delivery,
     rider: RiderProfile,
     to: DeliveryStatus,
-    data: Prisma.DeliveryUpdateInput,
+    data: Prisma.DeliveryUpdateManyMutationInput,
     eventType?: string,
   ) {
     deliveryStateMachine.assert(delivery.status, to);
-    const updated = await tx.delivery.update({
-      where: { id: delivery.id },
+    // only from the status read: a repeated or parallel request must not apply (and pay) a step twice
+    const { count } = await tx.delivery.updateMany({
+      where: { id: delivery.id, status: delivery.status },
       data: { ...data, status: to },
     });
+    if (!count)
+      throw conflict('This delivery was just updated. Refresh and try again', 'DELIVERY_CHANGED');
+    const updated = await tx.delivery.findUniqueOrThrow({ where: { id: delivery.id } });
     if (eventType) {
       await this.outbox.enqueue<DeliveryEvent>(tx, {
         stream: 'delivery',
