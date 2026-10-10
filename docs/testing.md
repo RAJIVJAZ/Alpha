@@ -1,12 +1,12 @@
 # Testing
 
-| Layer                               | What it covers                                                                                                                                                      | Where                                                                                           | Run                                                |
-| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- | -------------------------------------------------- |
-| Unit (Jest + ts-jest)               | Pure logic: state machines, pricing, coupons, GST, money, delivery fees and dispatch scoring, OTP and permission rules, tenant scoping, the outbox consumer, guards | `*.spec.ts` next to the code in `packages/{auth,database,utils,types}/src` and `services/*/src` | `pnpm test`                                        |
-| Integration (e2e, Jest + supertest) | A service's real `AppModule` over HTTP against PostgreSQL and Redis: auth flows, checkout and order lifecycle, payments and the wallet ledger, stock, procurement   | `services/*/test/*.e2e-spec.ts` (auth, order, payment, inventory, procurement, delivery)        | `pnpm test:integration`                            |
-| Flutter (widget + unit)             | Whole-app widget tests with fake HTTP, socket, storage and location; `foodgrid_core` units                                                                          | `packages/flutter_core/test`, `apps/*-mobile/test`                                              | `flutter test`                                     |
-| Web apps                            | No test suites; TypeScript, ESLint and `next build`                                                                                                                 | `apps/*-web`, `packages/ui`                                                                     | `pnpm typecheck`, `pnpm lint`, `pnpm build`        |
-| Static                              | Prettier, ESLint, `tsc --noEmit`, generated files up to date                                                                                                        | whole repository                                                                                | `pnpm format:check`, `pnpm lint`, `pnpm typecheck` |
+| Layer                               | What it covers                                                                                                                                                                                                                               | Where                                                                                           | Run                                                |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- | -------------------------------------------------- |
+| Unit (Jest + ts-jest)               | Pure logic: state machines, pricing, coupons, GST, money, delivery fees and dispatch scoring, OTP and permission rules, tenant scoping, the outbox consumer, guards                                                                          | `*.spec.ts` next to the code in `packages/{auth,database,utils,types}/src` and `services/*/src` | `pnpm test`                                        |
+| Integration (e2e, Jest + supertest) | A service's real `AppModule` over HTTP against PostgreSQL and Redis: auth flows, checkout and order lifecycle, payments and the wallet ledger, stock, procurement, dispatch, AI models and weather signals, notifications and push campaigns | `services/*/test/*.e2e-spec.ts` (every service)                                                 | `pnpm test:integration`                            |
+| Flutter (widget + unit)             | Whole-app widget tests with fake HTTP, socket, storage and location; `foodgrid_core` units                                                                                                                                                   | `packages/flutter_core/test`, `apps/*-mobile/test`                                              | `flutter test`                                     |
+| Web apps                            | No test suites; TypeScript, ESLint and `next build`                                                                                                                                                                                          | `apps/*-web`, `packages/ui`                                                                     | `pnpm typecheck`, `pnpm lint`, `pnpm build`        |
+| Static                              | Prettier, ESLint, `tsc --noEmit`, generated files up to date                                                                                                                                                                                 | whole repository                                                                                | `pnpm format:check`, `pnpm lint`, `pnpm typecheck` |
 
 ## Unit tests
 
@@ -25,8 +25,8 @@ Prisma enums and the enums in `@foodgrid/types` drift apart.
 ## Integration tests
 
 Every service has a `test:integration` script (`jest -c jest.integration.config.js --runInBand`,
-30 s timeout, `passWithNoTests`). Suites exist today for auth-service, order-service,
-payment-service, inventory-service, procurement-service and delivery-service.
+30 s timeout) and at least one suite in `test/`. ai-service and notification-service set
+`passWithNoTests: false`, so a missing or misnamed suite fails instead of passing empty.
 
 How a suite is set up (`packages/utils/src/server/testing`):
 

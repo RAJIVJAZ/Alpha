@@ -6,7 +6,7 @@ module.exports = {
   roots: ['<rootDir>/test'],
   testRegex: '.*\\.e2e-spec\\.ts$',
   testTimeout: 30000,
-  passWithNoTests: true,
+  passWithNoTests: false,
   // env (test DB, keys, disabled workers) must be set before AppModule is imported
   setupFiles: require('node:fs').existsSync(`${__dirname}/test/setup-env.ts`)
     ? ['<rootDir>/test/setup-env.ts']
