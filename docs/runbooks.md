@@ -16,7 +16,8 @@ Procedures: [Rolling back a deploy](#rolling-back-a-deploy) ·
 [Rotating JWT keys and secrets](#rotating-jwt-keys-and-secrets) ·
 [Draining the outbox](#draining-the-outbox) ·
 [Replaying a stuck consumer group](#replaying-a-stuck-consumer-group) ·
-[Rider cash reconciliation](#rider-cash-reconciliation)
+[Rider cash reconciliation](#rider-cash-reconciliation) ·
+[Rider cannot complete a delivery](#rider-cannot-complete-a-delivery)
 
 ## Tools
 
@@ -621,3 +622,24 @@ than a positive balance.
    Missing debits mean payment-service has not processed those `delivery.delivered`
    events: see [event consumer errors](#event-consumer-errors). Ledger entries carry
    idempotency keys (`earning:`, `tip:`, `cod:` + delivery id), so replaying is safe.
+
+## Rider cannot complete a delivery
+
+Completing a delivery always needs the customer's 4-digit code (shown in the customer
+app once the order is picked up, and in the pickup notification). The rider app names the
+error code:
+
+- `OTP_MISMATCH` / `OTP_LOCKED`: five wrong codes lock the delivery for 15 minutes. Call
+  the customer on the drop phone and confirm the order reached them. If it did, clear the
+  lock (`rcmd DEL delivery:otp-attempts:<delivery id>`, see [Tools](#tools)) and have the
+  customer read the code to the rider again.
+- The customer cannot see the code (app not installed, notification missed): confirm the
+  handover with the customer by phone first, then read the code to the rider from
+  `GET /api/v1/admin/deliveries` (open deliveries, `deliveryOtp`, permission
+  `platform:riders`). Never give a rider the code without speaking to the customer.
+- `OTP_UNAVAILABLE`: the order has no code, which checkout never produces. Escalate to
+  backend on-call; do not have the rider report it as failed (that cancels and refunds
+  the order).
+- `TOO_FAR_FROM_DROP` / `LOCATION_REQUIRED`: the rider must be within 500 m of the drop
+  point with location on. Retrying with the right code does not count against the five
+  tries.

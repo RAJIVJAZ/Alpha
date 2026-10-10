@@ -242,7 +242,7 @@ stateDiagram-v2
   PICKED_UP --> AT_DROP: arrived at drop
   PICKED_UP --> DELIVERED: complete
   PICKED_UP --> FAILED: fail
-  AT_DROP --> DELIVERED: complete (OTP or photo, within 500 m)
+  AT_DROP --> DELIVERED: complete (customer OTP, within 500 m)
   AT_DROP --> FAILED: fail
   SEARCHING --> CANCELLED: order cancelled or rejected
   UNASSIGNED --> CANCELLED: order cancelled or rejected
