@@ -353,7 +353,7 @@ async function uploadProof(file: File): Promise<string> {
   }>('media/presign', { folder: 'delivery-proof', contentType: file.type, fileName: file.name });
   if (file.size > p.maxBytes) throw new Error('Photo is too large (max 5 MB)');
   const res = await fetch(p.uploadUrl, { method: 'PUT', headers: p.headers, body: file });
-  if (!res.ok) throw new Error('Photo upload failed — try again or use the OTP');
+  if (!res.ok) throw new Error('Photo upload failed — try again or remove the photo');
   return p.publicUrl;
 }
 
@@ -366,7 +366,7 @@ function CompleteDialog({ delivery: d, onClose }: { delivery: Delivery; onClose:
       await pingNow();
       const proofPhotoUrl = file ? await uploadProof(file) : undefined;
       return api.post(`deliveries/${d.id}/complete`, {
-        otp: otp || undefined,
+        otp,
         proofPhotoUrl,
         codCollected: d.isCod ? cash : undefined,
       });
@@ -383,8 +383,8 @@ function CompleteDialog({ delivery: d, onClose }: { delivery: Delivery; onClose:
         <DialogHeader>
           <DialogTitle>Complete {d.orderNumber}</DialogTitle>
           <DialogDescription>
-            Ask the customer for the 4-digit code in their app. For contact-less drops, take a photo
-            of the order at the door instead.
+            Ask the customer for the 4-digit code in their app. You need it to complete every order;
+            a photo of the handover is optional.
           </DialogDescription>
         </DialogHeader>
         <form className="grid gap-4" onSubmit={(e) => (e.preventDefault(), done.mutate())}>
@@ -392,6 +392,7 @@ function CompleteDialog({ delivery: d, onClose }: { delivery: Delivery; onClose:
             <Input
               inputMode="numeric"
               pattern="\d{4}"
+              required
               maxLength={4}
               autoComplete="one-time-code"
               className="text-center text-2xl tracking-[0.5em]"
@@ -401,7 +402,7 @@ function CompleteDialog({ delivery: d, onClose }: { delivery: Delivery; onClose:
           </Field>
           <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed p-4 text-sm text-muted-foreground hover:bg-muted">
             <Camera className="size-5" aria-hidden />
-            {file ? file.name : 'Take a proof photo'}
+            {file ? file.name : 'Add a handover photo (optional)'}
             <input
               type="file"
               accept="image/jpeg,image/png,image/webp"
@@ -423,12 +424,7 @@ function CompleteDialog({ delivery: d, onClose }: { delivery: Delivery; onClose:
             </label>
           ) : null}
           <DialogFooter>
-            <Button
-              type="submit"
-              size="lg"
-              loading={done.isPending}
-              disabled={otp.length !== 4 && !file}
-            >
+            <Button type="submit" size="lg" loading={done.isPending} disabled={otp.length !== 4}>
               <Check /> Mark delivered
             </Button>
           </DialogFooter>

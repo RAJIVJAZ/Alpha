@@ -8,8 +8,10 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  Max,
   MaxLength,
   Min,
+  ValidateIf,
 } from 'class-validator';
 
 export class IncentiveSchemeDto {
@@ -26,7 +28,14 @@ export class IncentiveSchemeDto {
   @IsOptional()
   @IsArray()
   peakWindows?: { start: string; end: string }[];
-  @ApiPropertyOptional() @IsOptional() @IsNumber() minRating?: number;
+  @ApiPropertyOptional({
+    description: 'Required for RATING: deliveries count while at or above it',
+  })
+  @ValidateIf((o: IncentiveSchemeDto) => o.type === 'RATING' || o.minRating != null)
+  @IsNumber()
+  @Min(1)
+  @Max(5)
+  minRating?: number;
   @ApiProperty() @IsDateString() startsAt!: string;
   @ApiProperty() @IsDateString() endsAt!: string;
   @ApiPropertyOptional() @IsOptional() @IsBoolean() isActive?: boolean;

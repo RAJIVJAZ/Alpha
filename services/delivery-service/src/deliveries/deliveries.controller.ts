@@ -168,7 +168,7 @@ export class DeliveriesController {
   @Post(':id/complete')
   @HttpCode(200)
   @ApiOperation({
-    summary: 'Complete with customer OTP or photo proof (upload via /media/presign)',
+    summary: "Complete with the customer's OTP (optional photo uploaded via /media/presign)",
   })
   async complete(
     @CurrentUser('sub') userId: string,

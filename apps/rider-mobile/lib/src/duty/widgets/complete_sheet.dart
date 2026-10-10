@@ -10,8 +10,9 @@ import '../duty_repository.dart';
 import '../location_tracker.dart';
 import '../models.dart';
 
-/// Proof of delivery: the customer's 4-digit code, or a photo at the door, and
-/// confirmation that COD cash was collected. Pops `true` once delivered.
+/// Proof of delivery: the customer's 4-digit code (always required), an
+/// optional handover photo, and confirmation that COD cash was collected.
+/// Pops `true` once delivered.
 class CompleteSheet extends ConsumerStatefulWidget {
   const CompleteSheet({super.key, required this.delivery});
   final Delivery delivery;
@@ -30,7 +31,7 @@ class _CompleteSheetState extends ConsumerState<CompleteSheet> {
 
   Delivery get d => widget.delivery;
 
-  bool get _hasProof => _otp.text.length == 4 || _photo != null;
+  bool get _hasProof => _otp.text.length == 4;
   bool get _ready => _hasProof && (!d.isCod || _cash) && !_busy;
 
   @override
@@ -68,10 +69,9 @@ class _CompleteSheetState extends ConsumerState<CompleteSheet> {
         );
       }
       if (mounted) setState(() => _stage = 'Completing…');
-      final otp = _otp.text.trim();
       await container.read(dutyRepositoryProvider).complete(
             d.id,
-            otp: otp.length == 4 ? otp : null,
+            otp: _otp.text.trim(),
             proofPhotoUrl: photoUrl,
             codCollected: d.isCod ? _cash : null,
           );
@@ -94,7 +94,7 @@ class _CompleteSheetState extends ConsumerState<CompleteSheet> {
         child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           Text('Complete ${d.orderNumber}', style: text.titleLarge?.copyWith(fontWeight: FontWeight.w600)),
           const SizedBox(height: 4),
-          const Caption('Ask the customer for the 4-digit code in their app. For contact-less drops, take a photo of the order at the door instead.'),
+          const Caption('Ask the customer for the 4-digit code in their app. You need it to complete every order; a photo of the handover is optional.'),
           const SizedBox(height: 16),
           TextField(
             key: const ValueKey('otp-field'),
@@ -110,18 +110,12 @@ class _CompleteSheetState extends ConsumerState<CompleteSheet> {
             onSubmitted: (_) => _submit(),
           ),
           const SizedBox(height: 12),
-          Row(children: [
-            const Expanded(child: Divider()),
-            Padding(padding: const EdgeInsets.symmetric(horizontal: 8), child: Caption('or')),
-            const Expanded(child: Divider()),
-          ]),
-          const SizedBox(height: 12),
           SizedBox(
             height: 52,
             child: OutlinedButton.icon(
               onPressed: _busy ? null : _takePhoto,
               icon: const Icon(Icons.photo_camera_outlined),
-              label: Text(_photo == null ? 'Take a proof photo' : 'Retake photo'),
+              label: Text(_photo == null ? 'Add a handover photo (optional)' : 'Retake photo'),
             ),
           ),
           if (_photo != null) ...[
@@ -174,7 +168,7 @@ class _CompleteSheetState extends ConsumerState<CompleteSheet> {
             ),
           ),
           if (!_hasProof)
-            const Padding(padding: EdgeInsets.only(top: 6), child: Caption('Enter the code or take a photo to continue.')),
+            const Padding(padding: EdgeInsets.only(top: 6), child: Caption("Enter the customer's code to continue.")),
         ]),
       ),
     );

@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '@foodgrid/database/nest';
-import type { Prisma, RiderStatus } from '@foodgrid/database';
+import type { Prisma, RiderProfile, RiderStatus } from '@foodgrid/database';
 import {
   conflict,
   dateOnly,
@@ -13,6 +13,8 @@ import {
 } from '@foodgrid/utils';
 import { InternalHttpService } from '@foodgrid/utils/server';
 import { GeoStore } from '../common/geo-store';
+import { splitByIstDay } from '../domain/attendance';
+import { IncentivesService } from '../incentives/incentives.service';
 import { TrackingGateway } from '../tracking/tracking.gateway';
 import { ZonesService } from '../zones/zones.service';
 import {
@@ -32,6 +34,7 @@ export class RidersService {
     private readonly zones: ZonesService,
     private readonly gateway: TrackingGateway,
     private readonly internal: InternalHttpService,
+    private readonly incentives: IncentivesService,
   ) {}
 
   async byUser(userId: string) {
@@ -109,7 +112,7 @@ export class RidersService {
       }),
     ]);
     await this.geo.update(rider.id, { lat: ping.lat, lng: ping.lng, at: now.toISOString() });
-    await this.sessionStart(rider.id, now);
+    await this.geo.startSession(rider.id, now);
     return { online: true, zone: zone ? { id: zone.id, name: zone.name } : null };
   }
 
@@ -117,26 +120,59 @@ export class RidersService {
     const rider = await this.byUser(userId);
     if (rider.isOnDelivery)
       throw conflict('Finish your current delivery before going offline', 'ON_DELIVERY');
-    const now = new Date();
-    const started = await this.sessionEnd(rider.id);
-    const minutes = started ? Math.round((now.getTime() - started.getTime()) / 60_000) : 0;
-    await this.prisma.$transaction([
-      this.prisma.riderProfile.update({ where: { id: rider.id }, data: { isOnline: false } }),
-      this.prisma.riderAttendance.updateMany({
-        where: { riderId: rider.id, date: dateOnly(istDate(now)) },
-        data: { checkOutAt: now, onlineMinutes: { increment: minutes } },
-      }),
-    ]);
+    return { online: false, sessionMinutes: await this.endShift(rider, new Date()) };
+  }
+
+  /**
+   * Riders not on a delivery whose last position is older than `cutoff` (app
+   * killed, no network) go offline; their shift ends at that last position.
+   */
+  async takeStaleOffline(cutoff: Date) {
+    const stale = await this.prisma.riderProfile.findMany({
+      where: { isOnline: true, isOnDelivery: false, lastLocationAt: { lt: cutoff } },
+    });
+    for (const rider of stale) {
+      // claimed one by one: a rider who pinged or took an order since the query stays online
+      const { count } = await this.prisma.riderProfile.updateMany({
+        where: {
+          id: rider.id,
+          isOnline: true,
+          isOnDelivery: false,
+          lastLocationAt: { lt: cutoff },
+        },
+        data: { isOnline: false },
+      });
+      if (count) await this.endShift(rider, rider.lastLocationAt ?? cutoff);
+    }
+  }
+
+  /**
+   * Takes the rider offline and credits the online session to attendance, split
+   * by IST day so shifts across midnight keep their minutes, then re-totals
+   * LOGIN_HOURS incentives. Returns the minutes credited.
+   */
+  private async endShift(rider: RiderProfile, end: Date) {
+    const started = await this.geo.endSession(rider.id);
+    const days = started ? splitByIstDay(started, end) : [];
+    await this.prisma.$transaction(async (tx) => {
+      await tx.riderProfile.update({ where: { id: rider.id }, data: { isOnline: false } });
+      for (const d of days) {
+        const date = dateOnly(d.date);
+        await tx.riderAttendance.upsert({
+          where: { riderId_date: { riderId: rider.id, date } },
+          create: { riderId: rider.id, date, status: 'PRESENT', onlineMinutes: d.minutes },
+          update: { onlineMinutes: { increment: d.minutes } },
+        });
+      }
+      if (!started) return; // was not online: nothing to check out
+      await tx.riderAttendance.updateMany({
+        where: { riderId: rider.id, date: dateOnly(istDate(end)) },
+        data: { checkOutAt: end },
+      });
+      if (days.length) await this.incentives.afterOnlineSession(tx, rider, started, end);
+    });
     await this.geo.remove(rider.id);
-    return { online: false, sessionMinutes: minutes };
-  }
-
-  private sessionStart(riderId: string, at: Date) {
-    return this.geo.startSession(riderId, at);
-  }
-
-  private sessionEnd(riderId: string): Promise<Date | null> {
-    return this.geo.endSession(riderId);
+    return days.reduce((sum, d) => sum + d.minutes, 0);
   }
 
   /** High-frequency location updates from the rider app. */
@@ -304,7 +340,8 @@ export class RidersService {
   async adminSetStatus(id: string, dto: AdminRiderStatusDto) {
     const rider = await this.prisma.riderProfile.findUnique({ where: { id } });
     if (!rider) throw notFound('Rider', id);
-    if (dto.status !== 'ACTIVE') await this.geo.remove(id);
+    // a left-over session would later be credited from its old start as online time
+    if (dto.status !== 'ACTIVE') await this.endShift(rider, new Date());
     return this.prisma.riderProfile.update({
       where: { id },
       data: {

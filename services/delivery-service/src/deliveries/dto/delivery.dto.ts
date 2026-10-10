@@ -2,11 +2,14 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsBoolean, IsOptional, IsString, IsUrl, Matches, MaxLength } from 'class-validator';
 
 export class CompleteDeliveryDto {
-  @ApiPropertyOptional({ description: '4-digit OTP shown in the customer app' })
+  @ApiProperty({ description: '4-digit OTP shown in the customer app (always required)' })
+  // presence is checked in the service so the rider gets OTP_REQUIRED, not a validation dump
   @IsOptional()
-  @Matches(/^\d{4}$/)
+  @Matches(/^\d{4}$/, { message: 'The delivery code has 4 digits' })
   otp?: string;
-  @ApiPropertyOptional({ description: 'Proof photo (required for contact-less drops without OTP)' })
+  @ApiPropertyOptional({
+    description: 'Optional handover photo: a delivery-proof upload from POST /media/presign',
+  })
   @IsOptional()
   @IsUrl({ require_tld: false })
   proofPhotoUrl?: string;

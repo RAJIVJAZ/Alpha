@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:foodgrid_core/foodgrid_core.dart';
+import 'package:rider_mobile/src/common/device.dart';
 import 'package:rider_mobile/src/duty/duty_screen.dart';
 
 import 'helpers.dart';
@@ -160,7 +162,7 @@ void main() {
     await settle(tester);
 
     FilledButton submit() => tester.widget<FilledButton>(find.ancestor(of: find.text('Mark delivered'), matching: find.byWidgetPredicate((w) => w is FilledButton)));
-    expect(submit().onPressed, isNull, reason: 'needs proof first');
+    expect(submit().onPressed, isNull, reason: 'needs the code first');
 
     await tester.enterText(find.byKey(const ValueKey('otp-field')), '1234');
     await tester.pump();
@@ -213,6 +215,45 @@ void main() {
     await settle(tester);
 
     expect(find.textContaining("That code doesn't match"), findsOneWidget);
+  });
+
+  testWidgets('a photo alone cannot complete an order: the customer code is required', (tester) async {
+    final rig = TestRig();
+    rig.extra.add(photoTakerProvider.overrideWithValue(
+      () async => PickedPhoto(bytes: Uint8List.fromList([1, 2, 3]), fileName: 'door.jpg', contentType: 'image/jpeg'),
+    ));
+    dutyRoutes(rig.api, current: () => [deliveryJson(status: 'AT_DROP')]);
+
+    await rig.pump(tester, const DutyScreen());
+    await tester.tap(find.text('Complete delivery'));
+    await settle(tester);
+    await tester.tap(find.text('Add a handover photo (optional)'));
+    await settle(tester);
+
+    FilledButton submit() => tester.widget<FilledButton>(find.ancestor(of: find.text('Mark delivered'), matching: find.byWidgetPredicate((w) => w is FilledButton)));
+    expect(find.text('Photo ready · door.jpg'), findsOneWidget);
+    expect(submit().onPressed, isNull);
+    expect(find.text("Enter the customer's code to continue."), findsOneWidget);
+
+    await tester.enterText(find.byKey(const ValueKey('otp-field')), '5375');
+    await tester.pump();
+    expect(submit().onPressed, isNotNull);
+  });
+
+  testWidgets('too many wrong codes are explained in the sheet', (tester) async {
+    final rig = TestRig();
+    dutyRoutes(rig.api, current: () => [deliveryJson(status: 'AT_DROP')]);
+    rig.api.on('POST', '/deliveries/d1/complete', (_) => throw const ApiError(429, 'OTP_LOCKED', 'Too many wrong codes'));
+
+    await rig.pump(tester, const DutyScreen());
+    await tester.tap(find.text('Complete delivery'));
+    await settle(tester);
+    await tester.enterText(find.byKey(const ValueKey('otp-field')), '0000');
+    await tester.pump();
+    await tester.tap(find.text('Mark delivered'));
+    await settle(tester);
+
+    expect(find.textContaining('Wait 15 minutes'), findsOneWidget);
   });
 
   testWidgets('navigate and call open Maps directions and the dialer', (tester) async {

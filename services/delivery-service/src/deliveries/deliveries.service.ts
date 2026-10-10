@@ -1,22 +1,23 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
+import type Redis from 'ioredis';
 import { PrismaService } from '@foodgrid/database/nest';
 import type { Delivery, DeliveryStatus, Prisma, RiderProfile } from '@foodgrid/database';
-import { DeliveryEvent, EventTypes, IncentiveAchievedEvent } from '@foodgrid/types';
+import { DeliveryEvent, EventTypes } from '@foodgrid/types';
 import {
   AppError,
+  badRequest,
   conflict,
   dateOnly,
   haversineKm,
   istDate,
-  money,
   notFound,
   StateMachine,
 } from '@foodgrid/utils';
-import { businessCounter, InternalHttpService, OutboxService } from '@foodgrid/utils/server';
+import { businessCounter, InternalHttpService, OutboxService, REDIS } from '@foodgrid/utils/server';
 import { GeoStore } from '../common/geo-store';
 import { toDeliveryEvent } from '../common/delivery-event';
 import { DEFAULT_TARIFF, splitEarning } from '../domain/fees';
-import { deliveryContribution } from '../domain/incentives';
+import { IncentivesService } from '../incentives/incentives.service';
 import { TrackingGateway } from '../tracking/tracking.gateway';
 import { CompleteDeliveryDto, FailDeliveryDto } from './dto/delivery.dto';
 
@@ -41,6 +42,35 @@ const completed = businessCounter('deliveries_completed_total', 'Deliveries comp
 const MAX_COMPLETION_DISTANCE_KM = 0.5;
 /** A position older than this cannot vouch for where the rider is now. */
 const MAX_POSITION_AGE_MS = 5 * 60_000;
+/** Code tries per delivery per 15 minutes, so the 4 digits cannot be guessed at the door. */
+const MAX_OTP_ATTEMPTS = 5;
+const otpAttemptsKey = (deliveryId: string) => `delivery:otp-attempts:${deliveryId}`;
+
+/**
+ * Whether `url` is a delivery-proof photo this user uploaded through user-service
+ * POST /media/presign, whose keys are delivery-proof/<userId>/<yyyy-mm-dd>/<uuid>.<ext>
+ * under the same public base (CDN_BASE_URL, else the bucket URL).
+ * shortcut: checks the key, not that the object exists; HEAD it if a photo ever
+ * becomes proof on its own.
+ */
+export function isOwnProofUpload(url: string, userId: string): boolean {
+  const base =
+    process.env.CDN_BASE_URL ||
+    `https://${process.env.S3_MEDIA_BUCKET ?? 'foodgrid-media-local'}.s3.amazonaws.com`;
+  const prefix = `${base.replace(/\/$/, '')}/delivery-proof/${userId}/`;
+  return (
+    url.startsWith(prefix) &&
+    /^\d{4}-\d{2}-\d{2}\/[0-9a-f-]{36}\.(jpg|png|webp)$/.test(url.slice(prefix.length))
+  );
+}
+
+function assertOwnProof(url: string | undefined, userId: string) {
+  if (url && !isOwnProofUpload(url, userId))
+    throw badRequest(
+      'Take the proof photo in the rider app so it is uploaded to FoodGrid',
+      'INVALID_PROOF_PHOTO',
+    );
+}
 
 /** Rider-side delivery flow: pickup → drop → proof of delivery. */
 @Injectable()
@@ -53,6 +83,8 @@ export class DeliveriesService {
     private readonly gateway: TrackingGateway,
     private readonly geo: GeoStore,
     private readonly internal: InternalHttpService,
+    private readonly incentives: IncentivesService,
+    @Inject(REDIS) private readonly redis: Redis,
   ) {}
 
   private async ownDelivery(userId: string, id: string) {
@@ -127,24 +159,37 @@ export class DeliveriesService {
   }
 
   /**
-   * Proof of delivery: the customer's OTP, or a photo for contact-less drops.
+   * Proof of delivery: the customer's OTP, always (a photo only adds evidence).
    * Riders must be near the drop location. Earnings, attendance and
    * incentives are updated atomically and delivery.delivered is published.
    */
   async complete(userId: string, id: string, dto: CompleteDeliveryDto) {
     const { rider, delivery } = await this.ownDelivery(userId, id);
-    if (delivery.deliveryOtp) {
-      if (dto.otp) {
-        if (dto.otp !== delivery.deliveryOtp)
-          throw new AppError('OTP_MISMATCH', 'Incorrect delivery OTP', 400);
-      } else if (!dto.proofPhotoUrl) {
-        throw new AppError(
-          'PROOF_REQUIRED',
-          'Enter the customer OTP or upload a delivery photo',
-          400,
-        );
-      }
-    }
+    // every delivery order gets a code at checkout; one without it cannot be proven delivered
+    if (!delivery.deliveryOtp)
+      throw conflict(
+        'This order has no delivery code. Call support to close it',
+        'OTP_UNAVAILABLE',
+      );
+    if (!dto.otp)
+      throw badRequest("Enter the 4-digit delivery code from the customer's app", 'OTP_REQUIRED');
+    // counted before checking, so parallel guesses cannot get past the limit
+    const attempts = await this.redis.incr(otpAttemptsKey(delivery.id));
+    if (attempts === 1) await this.redis.expire(otpAttemptsKey(delivery.id), 15 * 60);
+    if (attempts > MAX_OTP_ATTEMPTS)
+      throw new AppError(
+        'OTP_LOCKED',
+        'Too many wrong codes. Try again in 15 minutes or call support',
+        429,
+      );
+    if (dto.otp !== delivery.deliveryOtp)
+      throw badRequest(
+        "That code doesn't match. Ask the customer for the code shown in their app",
+        'OTP_MISMATCH',
+      );
+    // the right code: retries after a location or cash error must not use up tries
+    await this.redis.del(otpAttemptsKey(delivery.id));
+    assertOwnProof(dto.proofPhotoUrl, userId);
     if (delivery.isCod && !dto.codCollected)
       throw conflict('Collect the cash before completing a COD order', 'COD_NOT_COLLECTED');
     // fail closed: without a recent fix there is nothing to check the drop against
@@ -199,7 +244,7 @@ export class DeliveriesService {
         },
         update: { deliveryCount: { increment: 1 }, distanceKm: { increment: d.distanceKm } },
       });
-      await this.progressIncentives(tx, rider, now);
+      await this.incentives.afterDelivery(tx, rider, now);
       return d;
     });
     completed.inc({ outcome: 'delivered' });
@@ -209,6 +254,7 @@ export class DeliveriesService {
 
   async fail(userId: string, id: string, dto: FailDeliveryDto) {
     const { rider, delivery } = await this.ownDelivery(userId, id);
+    assertOwnProof(dto.proofPhotoUrl, userId);
     const updated = await this.prisma.$transaction(async (tx) => {
       const d = await this.move(
         tx,
@@ -259,72 +305,6 @@ export class DeliveriesService {
           earnedAt: at,
         },
       });
-    }
-  }
-
-  private async progressIncentives(tx: Tx, rider: RiderProfile, at: Date) {
-    const schemes = await tx.incentiveScheme.findMany({
-      where: {
-        isActive: true,
-        startsAt: { lte: at },
-        endsAt: { gte: at },
-        OR: [{ zoneId: null }, { zoneId: rider.zoneId }],
-        AND: [{ OR: [{ city: null }, { city: rider.city }] }],
-      },
-    });
-    for (const s of schemes) {
-      const inc = deliveryContribution(
-        {
-          type: s.type,
-          target: s.target,
-          peakWindows: s.peakWindows as { start: string; end: string }[] | null,
-          minRating: s.minRating,
-          startsAt: s.startsAt,
-          endsAt: s.endsAt,
-        },
-        at,
-        rider.rating,
-      );
-      if (!inc) continue;
-      const progress = await tx.riderIncentive.upsert({
-        where: { riderId_schemeId: { riderId: rider.id, schemeId: s.id } },
-        create: {
-          riderId: rider.id,
-          schemeId: s.id,
-          progress: inc,
-          target: s.target,
-          rewardAmount: s.rewardAmount,
-        },
-        update: { progress: { increment: inc } },
-      });
-      if (progress.status === 'IN_PROGRESS' && progress.progress >= progress.target) {
-        await tx.riderIncentive.update({
-          where: { id: progress.id },
-          data: { status: 'ACHIEVED', achievedAt: at },
-        });
-        await tx.riderEarning.create({
-          data: {
-            riderId: rider.id,
-            type: 'INCENTIVE',
-            amount: s.rewardAmount,
-            description: s.name,
-            earnedAt: at,
-          },
-        });
-        await this.outbox.enqueue<IncentiveAchievedEvent>(tx, {
-          stream: 'delivery',
-          type: EventTypes.IncentiveAchieved,
-          aggregateType: 'RiderIncentive',
-          aggregateId: progress.id,
-          data: {
-            riderIncentiveId: progress.id,
-            riderId: rider.id,
-            userId: rider.userId,
-            schemeName: s.name,
-            rewardAmount: money(s.rewardAmount.toString()),
-          },
-        });
-      }
     }
   }
 

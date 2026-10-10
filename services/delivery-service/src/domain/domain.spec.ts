@@ -1,7 +1,8 @@
 import { buildHeatmap } from './heatmap';
 import { rankCandidates, scoreRider, searchRadiusKm, updateAcceptanceRate } from './dispatch';
 import { deliveryEtaMins, deliveryFee, riderEarning, splitEarning } from './fees';
-import { deliveryContribution } from './incentives';
+import { splitByIstDay } from './attendance';
+import { attendanceProgress, deliveryContribution } from './incentives';
 
 const tariff = { baseFee: 25, perKmFee: 8, freeKm: 2, riderBasePay: 30, riderPerKm: 6 };
 
@@ -101,6 +102,88 @@ describe('incentives', () => {
         4.5,
       ),
     ).toBe(0);
+  });
+
+  it('counts RATING deliveries only while the rider holds the rating', () => {
+    const rating = { ...scheme, type: 'RATING' as const, minRating: 4.7 };
+    const at = new Date('2026-10-06T12:00:00Z');
+    expect(deliveryContribution(rating, at, 4.8)).toBe(1);
+    expect(deliveryContribution(rating, at, 4.6)).toBe(0);
+    expect(deliveryContribution(rating, new Date('2026-11-02T12:00:00Z'), 4.8)).toBe(0);
+  });
+
+  it('leaves attendance-based schemes to attendanceProgress', () => {
+    const at = new Date('2026-10-06T07:00:00Z');
+    expect(deliveryContribution({ ...scheme, type: 'LOGIN_HOURS' }, at, 5)).toBe(0);
+    expect(deliveryContribution({ ...scheme, type: 'STREAK' }, at, 5)).toBe(0);
+  });
+
+  const day = (date: string, onlineMinutes: number, deliveryCount = 0) => ({
+    date: new Date(`${date}T00:00:00Z`),
+    onlineMinutes,
+    deliveryCount,
+  });
+
+  it('totals LOGIN_HOURS in whole hours online', () => {
+    expect(attendanceProgress('LOGIN_HOURS', [])).toBe(0);
+    expect(attendanceProgress('LOGIN_HOURS', [day('2026-10-05', 150), day('2026-10-06', 29)])).toBe(
+      2,
+    );
+    expect(attendanceProgress('LOGIN_HOURS', [day('2026-10-05', 150), day('2026-10-06', 30)])).toBe(
+      3,
+    );
+  });
+
+  it('measures STREAK as the longest run of consecutive days with a delivery', () => {
+    expect(
+      attendanceProgress('STREAK', [
+        day('2026-10-01', 60, 3),
+        day('2026-10-02', 60, 1),
+        day('2026-10-03', 240, 0), // online but no delivery breaks the run
+        day('2026-10-04', 60, 2),
+        day('2026-10-06', 60, 2), // 5th missing
+        day('2026-10-07', 60, 1),
+        day('2026-10-08', 60, 4),
+      ]),
+    ).toBe(3);
+    // order of rows does not matter, and a single day is a streak of one
+    expect(attendanceProgress('STREAK', [day('2026-10-02', 0, 1), day('2026-10-01', 0, 1)])).toBe(
+      2,
+    );
+    expect(attendanceProgress('STREAK', [day('2026-10-02', 0, 1)])).toBe(1);
+    expect(attendanceProgress('STREAK', [day('2026-10-02', 300, 0)])).toBe(0);
+    expect(attendanceProgress('ORDER_COUNT', [day('2026-10-02', 300, 9)])).toBe(0);
+  });
+});
+
+describe('attendance', () => {
+  it('splits a shift across IST midnight between both days', () => {
+    // 22:30 → 01:15 IST
+    expect(
+      splitByIstDay(new Date('2026-10-05T17:00:00Z'), new Date('2026-10-05T19:45:00Z')),
+    ).toEqual([
+      { date: '2026-10-05', minutes: 90 },
+      { date: '2026-10-06', minutes: 75 },
+    ]);
+  });
+
+  it('keeps a same-day shift on one day and ignores empty sessions', () => {
+    expect(
+      splitByIstDay(new Date('2026-10-05T04:30:00Z'), new Date('2026-10-05T08:30:00Z')),
+    ).toEqual([{ date: '2026-10-05', minutes: 240 }]);
+    const t = new Date('2026-10-05T04:30:00Z');
+    expect(splitByIstDay(t, t)).toEqual([]);
+    expect(splitByIstDay(t, new Date(t.getTime() - 60_000))).toEqual([]);
+  });
+
+  it('credits every day of a shift longer than a day', () => {
+    // 20:00 IST on the 5th → 02:00 IST on the 7th
+    const days = splitByIstDay(new Date('2026-10-05T14:30:00Z'), new Date('2026-10-06T20:30:00Z'));
+    expect(days).toEqual([
+      { date: '2026-10-05', minutes: 240 },
+      { date: '2026-10-06', minutes: 1440 },
+      { date: '2026-10-07', minutes: 120 },
+    ]);
   });
 });
 
