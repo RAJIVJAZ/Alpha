@@ -416,15 +416,16 @@ export function buildOrder(
       : coupon?.fundedBy === 'SHARED'
         ? r2(couponDiscount / 2)
         : 0;
+  const ok = status === 'DELIVERED' || status === 'COMPLETED';
+  // what payment-service charges once the order settles: nothing before, 0 for counter sales
   const settles = channel !== 'POS' && paymentMethod !== 'CASH';
-  const commissionRate = settles ? outlet.commissionRate : null;
+  const commissionRate = !ok ? null : settles ? outlet.commissionRate : 0;
   const commissionAmount =
     commissionRate !== null
       ? r2(((subtotal + packagingCharge - merchantDiscount) * commissionRate) / 100)
       : null;
 
   // ── timeline ─────────────────────────────────────────────────────────────
-  const ok = status === 'DELIVERED' || status === 'COMPLETED';
   const acceptedAt =
     status === 'REJECTED' || (status === 'CANCELLED' && cancelledBy === 'CUSTOMER')
       ? null

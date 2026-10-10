@@ -698,7 +698,10 @@ function buildLiveOrders(ctx: SeedContext, rng: Rng, demo: CustomerRef): SimOrde
       },
     );
     o.status = p.status as never;
-    o.cancelledAt =
+    // not settled yet, so not charged (payment.commission.accrued sets it on delivery)
+    o.commissionRate =
+      o.commissionAmount =
+      o.cancelledAt =
       o.cancelReason =
       o.cancelledBy =
       o.deliveredAt =
