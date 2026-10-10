@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@foodgrid/database/nest';
 import type { IncentiveScheme, IncentiveType, Prisma, RiderProfile } from '@foodgrid/database';
 import { EventTypes, IncentiveAchievedEvent } from '@foodgrid/types';
-import { dateOnly, istDate, money, notFound } from '@foodgrid/utils';
+import { badRequest, dateOnly, istDate, money, notFound } from '@foodgrid/utils';
 import { OutboxService } from '@foodgrid/utils/server';
 import { attendanceProgress, deliveryContribution } from '../domain/incentives';
 import { IncentiveSchemeDto, UpdateIncentiveSchemeDto } from './dto/incentive.dto';
@@ -36,7 +36,15 @@ export class IncentivesService {
     });
   }
 
-  update(id: string, dto: UpdateIncentiveSchemeDto) {
+  async update(id: string, dto: UpdateIncentiveSchemeDto) {
+    // the DTO cannot see the stored scheme: a RATING scheme without minRating would pay every delivery
+    if (dto.type === 'RATING' || dto.minRating === null) {
+      const s = await this.prisma.incentiveScheme.findUnique({ where: { id } });
+      if (!s) throw notFound('Incentive scheme', id);
+      const minRating = dto.minRating === undefined ? s.minRating : dto.minRating;
+      if ((dto.type ?? s.type) === 'RATING' && minRating == null)
+        throw badRequest('A RATING scheme needs minRating (1 to 5)', 'VALIDATION_FAILED');
+    }
     return this.prisma.incentiveScheme.update({
       where: { id },
       data: {
@@ -130,6 +138,10 @@ export class IncentivesService {
    * Recomputes an attendance-based scheme from the rider's attendance days in its window.
    * shortcut: whole IST days count, so a scheme starting mid-day gets that day's earlier
    * minutes too; store per-session rows if schemes ever start off midnight.
+   * shortcut: attendance has no zone, so a zone-scoped scheme also counts the rider's
+   * hours and delivery days in other zones once they check in to its zone; keep
+   * per-zone minutes (a zoneId on attendance or per-session rows) before zone-targeted
+   * LOGIN_HOURS/STREAK schemes carry real money.
    */
   private async retotal(tx: Tx, rider: RiderProfile, s: IncentiveScheme, at: Date) {
     if (s.minRating && rider.rating < s.minRating) return;

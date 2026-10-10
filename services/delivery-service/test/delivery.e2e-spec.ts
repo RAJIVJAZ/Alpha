@@ -360,5 +360,25 @@ describe('delivery-service dispatch, proof of delivery and incentives (e2e)', ()
   it('refuses a RATING scheme without the rating it is about', async () => {
     const res = await createScheme({ name: 'Top rated', type: 'RATING', target: 5 }).expect(400);
     expect(res.body.code).toBe('VALIDATION_FAILED');
+
+    // an update cannot leave a RATING scheme without it either (it would pay every delivery)
+    const orders = await createScheme({ name: 'Orders', type: 'ORDER_COUNT', target: 5 }).expect(
+      201,
+    );
+    const rated = await createScheme({
+      name: 'Top rated',
+      type: 'RATING',
+      target: 5,
+      minRating: 4.5,
+    }).expect(201);
+    const patch = (id: string, body: object) =>
+      api().patch(`/api/v1/admin/incentives/${id}`).set('Authorization', admin()).send(body);
+    for (const [id, body] of [
+      [orders.body.id, { type: 'RATING' }],
+      [rated.body.id, { minRating: null }],
+    ] as const)
+      expect((await patch(id, body).expect(400)).body.code).toBe('VALIDATION_FAILED');
+    await patch(orders.body.id, { type: 'RATING', minRating: 4 }).expect(200);
+    await patch(rated.body.id, { target: 10 }).expect(200);
   });
 });
