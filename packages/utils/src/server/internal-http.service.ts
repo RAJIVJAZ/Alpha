@@ -64,7 +64,12 @@ export class InternalHttpService {
     path: string,
     opts: InternalRequestOptions = {},
   ): Promise<T> {
-    const url = new URL(`/api/v1/${path.replace(/^\//, '')}`, this.baseUrl(service));
+    const base = this.baseUrl(service);
+    // relative join keeps any path in the base (a Vercel binding URL may carry one)
+    const url = new URL(
+      `api/v1/${path.replace(/^\//, '')}`,
+      base.endsWith('/') ? base : `${base}/`,
+    );
     for (const [k, v] of Object.entries(opts.query ?? {}))
       if (v !== undefined) url.searchParams.set(k, String(v));
     const retries = opts.retries ?? (method === 'GET' ? 2 : 0);

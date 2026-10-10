@@ -49,3 +49,6 @@ crash.log
 
 # Redis snapshots from local dev
 *.rdb
+
+# Vercel CLI (vercel link / vercel build)
+.vercel

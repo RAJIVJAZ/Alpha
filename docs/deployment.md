@@ -95,3 +95,43 @@ production (approve the environment), or re-run that commit's CD run for staging
 are immutable and ECR keeps the last 300 builds of each image, so nothing is rebuilt.
 Migrations only go forward, so each one must stay compatible with the release before
 it. The [runbook](./runbooks.md#rolling-back-a-deploy) has the full procedure.
+
+## Vercel (alternative, not yet deployed)
+
+`vercel.json` describes the whole platform as one Vercel project with
+[services](https://vercel.com/docs/services). It is generated with the gateway routes
+(`pnpm gateway:routes`, from `scripts/generate-gateway-routes.ts`); change the generator,
+not the file.
+
+| What                     | How it is set up                                                                                                                                                   |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 18 services              | the six Next.js apps (`*-web`) and the twelve NestJS services (`*-service`), each built with Turborepo from the repo root                                          |
+| Public API               | every `/api/v1/*` route (on any host) is rewritten to the service that owns it, as the nginx gateway does; `/api/v1/internal/*` is not routed                      |
+| Web apps                 | chosen by subdomain like the Kubernetes ingress: `admin.`, `partner.` (restaurant), `business.` (vendor), `supplier.`, `rider.`; any other host: customer-web      |
+| Service-to-service calls | bindings set `<NAME>_SERVICE_URL`, which `InternalHttpService` already reads; each service binds only the services it calls                                        |
+| Web app → API            | bindings to all twelve services; `apiUrl()` in `@foodgrid/auth/next` picks the owning one, and middleware (where bindings do not resolve) uses the public rewrites |
+
+Before a first deploy:
+
+- Add the domains (`foodgrid.in`, `www.`, `api.`, `admin.`, `partner.`, `business.`,
+  `supplier.`, `rider.`) to the project. Preview URLs have no subdomain, so they always
+  show customer-web.
+- Set the environment variables from `.env.example` (`DATABASE_URL`, `REDIS_URL`, JWT keys,
+  `INTERNAL_SERVICE_SECRET`, provider keys) for the project. Do not set `API_URL` or any
+  `*_SERVICE_URL`: Vercel injects the bindings. PostgreSQL and Redis must be reachable from
+  Vercel (managed, with connection pooling for Prisma).
+- `pnpm db:deploy` against the database; nothing runs migrations on Vercel.
+
+What Vercel Functions do not run, and the services rely on:
+
+- **Event consumers and the outbox relay** (Redis Streams) and the **scheduled jobs** run
+  inside the long-lived Nest process. On Functions they only run while an instance happens
+  to be warm, so orders, dispatch, notifications, analytics and procurement events are not
+  processed reliably.
+- **The tracking socket** (`/ws`, socket.io in delivery-service) needs persistent
+  connections; it is not routed on Vercel.
+- **The admin IP allow-list** of the production ingress has no equivalent here; use the
+  Vercel Firewall.
+
+Keep the API services on Kubernetes (above) for production until those three move to
+something Vercel runs (queues, cron and a hosted realtime service).

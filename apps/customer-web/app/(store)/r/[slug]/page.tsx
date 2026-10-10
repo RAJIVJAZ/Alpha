@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { apiUrl } from '@foodgrid/auth/next';
 import { OutletView } from '@foodgrid/ui/customer';
 
 type Props = { params: Promise<{ slug: string }> };
@@ -7,10 +8,9 @@ type Props = { params: Promise<{ slug: string }> };
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   try {
-    const res = await fetch(
-      `${process.env.API_URL ?? 'http://localhost:8080/api/v1'}/outlets/${encodeURIComponent(slug)}`,
-      { next: { revalidate: 300 } },
-    );
+    const res = await fetch(apiUrl(`outlets/${encodeURIComponent(slug)}`), {
+      next: { revalidate: 300 },
+    });
     if (!res.ok) return { title: 'Restaurant' };
     const o = (await res.json()) as {
       name: string;

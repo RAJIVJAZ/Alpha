@@ -25,7 +25,7 @@ generator client {
   provider        = "prisma-client-js"
   output          = "../../generated/client"
   previewFeatures = ["postgresqlExtensions"]
-  binaryTargets   = ["native", "linux-musl-openssl-3.0.x", "debian-openssl-3.0.x"]
+  binaryTargets   = ["native", "linux-musl-openssl-3.0.x", "debian-openssl-3.0.x", "rhel-openssl-3.0.x"] // rhel: Vercel Functions
 }
 
 datasource db {

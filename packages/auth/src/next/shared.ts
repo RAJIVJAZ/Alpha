@@ -1,4 +1,6 @@
 /** Shared by the route handlers (Node) and middleware (Edge): no Node-only imports. */
+import { API_ROUTES } from './api-routes';
+
 export const ACCESS_COOKIE = 'fg_at';
 export const REFRESH_COOKIE = 'fg_rt';
 const REFRESH_TTL_SECONDS = 30 * 24 * 3600;
@@ -10,6 +12,23 @@ export function apiBase(): string {
     process.env.NEXT_PUBLIC_API_URL ??
     'http://localhost:8080/api/v1'
   ).replace(/\/+$/, '');
+}
+
+/**
+ * Absolute URL of an API path (`orders/1?x=y`, or a root path such as `/.well-known/jwks.json`).
+ * With API_URL set (Docker, Kubernetes) everything goes through the gateway. On Vercel each
+ * API service is bound to the web app as <NAME>_SERVICE_URL; bindings do not resolve in
+ * middleware, so there `origin` (the request's own origin) reaches the public /api/v1 rewrites.
+ */
+export function apiUrl(path: string, origin?: string): string {
+  const full = path.startsWith('/') ? path : `/api/v1/${path}`;
+  if (!process.env.API_URL && !process.env.NEXT_PUBLIC_API_URL) {
+    const owner = API_ROUTES.find(([prefix]) => full === prefix || full.startsWith(`${prefix}/`));
+    const bound = owner && process.env[owner[1]];
+    if (bound) return new URL(full.slice(1), bound.endsWith('/') ? bound : `${bound}/`).href;
+    if (origin && process.env.VERCEL) return new URL(full, origin).href;
+  }
+  return path.startsWith('/') ? `${new URL(apiBase()).origin}${path}` : `${apiBase()}/${path}`;
 }
 
 export interface AuthTokens {
@@ -50,9 +69,9 @@ export function clearSessionCookies(jar: CookieWriter) {
 /** Calls auth-service to rotate the refresh token. Returns null when the session is gone. */
 export async function refreshTokens(
   refreshToken: string,
-  meta: { ip?: string | null; userAgent?: string | null } = {},
+  meta: { ip?: string | null; userAgent?: string | null; origin?: string } = {},
 ): Promise<AuthTokens | null> {
-  const res = await fetch(`${apiBase()}/auth/refresh`, {
+  const res = await fetch(apiUrl('auth/refresh', meta.origin), {
     method: 'POST',
     headers: {
       'content-type': 'application/json',

@@ -1,0 +1,1183 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "services": {
+    "admin-web": {
+      "root": "apps/admin-web",
+      "framework": "nextjs",
+      "buildCommand": "cd ../.. && pnpm turbo run build --filter=@foodgrid/admin-web...",
+      "bindings": [
+        {
+          "type": "service",
+          "service": "auth-service",
+          "format": "url",
+          "env": "AUTH_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "user-service",
+          "format": "url",
+          "env": "USER_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "order-service",
+          "format": "url",
+          "env": "ORDER_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "payment-service",
+          "format": "url",
+          "env": "PAYMENT_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "inventory-service",
+          "format": "url",
+          "env": "INVENTORY_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "procurement-service",
+          "format": "url",
+          "env": "PROCUREMENT_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "delivery-service",
+          "format": "url",
+          "env": "DELIVERY_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "supplier-service",
+          "format": "url",
+          "env": "SUPPLIER_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "analytics-service",
+          "format": "url",
+          "env": "ANALYTICS_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "ads-service",
+          "format": "url",
+          "env": "ADS_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "notification-service",
+          "format": "url",
+          "env": "NOTIFICATION_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "ai-service",
+          "format": "url",
+          "env": "AI_SERVICE_URL"
+        }
+      ]
+    },
+    "restaurant-web": {
+      "root": "apps/restaurant-web",
+      "framework": "nextjs",
+      "buildCommand": "cd ../.. && pnpm turbo run build --filter=@foodgrid/restaurant-web...",
+      "bindings": [
+        {
+          "type": "service",
+          "service": "auth-service",
+          "format": "url",
+          "env": "AUTH_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "user-service",
+          "format": "url",
+          "env": "USER_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "order-service",
+          "format": "url",
+          "env": "ORDER_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "payment-service",
+          "format": "url",
+          "env": "PAYMENT_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "inventory-service",
+          "format": "url",
+          "env": "INVENTORY_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "procurement-service",
+          "format": "url",
+          "env": "PROCUREMENT_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "delivery-service",
+          "format": "url",
+          "env": "DELIVERY_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "supplier-service",
+          "format": "url",
+          "env": "SUPPLIER_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "analytics-service",
+          "format": "url",
+          "env": "ANALYTICS_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "ads-service",
+          "format": "url",
+          "env": "ADS_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "notification-service",
+          "format": "url",
+          "env": "NOTIFICATION_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "ai-service",
+          "format": "url",
+          "env": "AI_SERVICE_URL"
+        }
+      ]
+    },
+    "vendor-web": {
+      "root": "apps/vendor-web",
+      "framework": "nextjs",
+      "buildCommand": "cd ../.. && pnpm turbo run build --filter=@foodgrid/vendor-web...",
+      "bindings": [
+        {
+          "type": "service",
+          "service": "auth-service",
+          "format": "url",
+          "env": "AUTH_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "user-service",
+          "format": "url",
+          "env": "USER_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "order-service",
+          "format": "url",
+          "env": "ORDER_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "payment-service",
+          "format": "url",
+          "env": "PAYMENT_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "inventory-service",
+          "format": "url",
+          "env": "INVENTORY_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "procurement-service",
+          "format": "url",
+          "env": "PROCUREMENT_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "delivery-service",
+          "format": "url",
+          "env": "DELIVERY_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "supplier-service",
+          "format": "url",
+          "env": "SUPPLIER_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "analytics-service",
+          "format": "url",
+          "env": "ANALYTICS_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "ads-service",
+          "format": "url",
+          "env": "ADS_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "notification-service",
+          "format": "url",
+          "env": "NOTIFICATION_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "ai-service",
+          "format": "url",
+          "env": "AI_SERVICE_URL"
+        }
+      ]
+    },
+    "supplier-web": {
+      "root": "apps/supplier-web",
+      "framework": "nextjs",
+      "buildCommand": "cd ../.. && pnpm turbo run build --filter=@foodgrid/supplier-web...",
+      "bindings": [
+        {
+          "type": "service",
+          "service": "auth-service",
+          "format": "url",
+          "env": "AUTH_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "user-service",
+          "format": "url",
+          "env": "USER_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "order-service",
+          "format": "url",
+          "env": "ORDER_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "payment-service",
+          "format": "url",
+          "env": "PAYMENT_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "inventory-service",
+          "format": "url",
+          "env": "INVENTORY_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "procurement-service",
+          "format": "url",
+          "env": "PROCUREMENT_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "delivery-service",
+          "format": "url",
+          "env": "DELIVERY_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "supplier-service",
+          "format": "url",
+          "env": "SUPPLIER_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "analytics-service",
+          "format": "url",
+          "env": "ANALYTICS_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "ads-service",
+          "format": "url",
+          "env": "ADS_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "notification-service",
+          "format": "url",
+          "env": "NOTIFICATION_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "ai-service",
+          "format": "url",
+          "env": "AI_SERVICE_URL"
+        }
+      ]
+    },
+    "rider-web": {
+      "root": "apps/rider-web",
+      "framework": "nextjs",
+      "buildCommand": "cd ../.. && pnpm turbo run build --filter=@foodgrid/rider-web...",
+      "bindings": [
+        {
+          "type": "service",
+          "service": "auth-service",
+          "format": "url",
+          "env": "AUTH_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "user-service",
+          "format": "url",
+          "env": "USER_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "order-service",
+          "format": "url",
+          "env": "ORDER_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "payment-service",
+          "format": "url",
+          "env": "PAYMENT_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "inventory-service",
+          "format": "url",
+          "env": "INVENTORY_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "procurement-service",
+          "format": "url",
+          "env": "PROCUREMENT_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "delivery-service",
+          "format": "url",
+          "env": "DELIVERY_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "supplier-service",
+          "format": "url",
+          "env": "SUPPLIER_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "analytics-service",
+          "format": "url",
+          "env": "ANALYTICS_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "ads-service",
+          "format": "url",
+          "env": "ADS_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "notification-service",
+          "format": "url",
+          "env": "NOTIFICATION_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "ai-service",
+          "format": "url",
+          "env": "AI_SERVICE_URL"
+        }
+      ]
+    },
+    "customer-web": {
+      "root": "apps/customer-web",
+      "framework": "nextjs",
+      "buildCommand": "cd ../.. && pnpm turbo run build --filter=@foodgrid/customer-web...",
+      "bindings": [
+        {
+          "type": "service",
+          "service": "auth-service",
+          "format": "url",
+          "env": "AUTH_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "user-service",
+          "format": "url",
+          "env": "USER_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "order-service",
+          "format": "url",
+          "env": "ORDER_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "payment-service",
+          "format": "url",
+          "env": "PAYMENT_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "inventory-service",
+          "format": "url",
+          "env": "INVENTORY_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "procurement-service",
+          "format": "url",
+          "env": "PROCUREMENT_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "delivery-service",
+          "format": "url",
+          "env": "DELIVERY_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "supplier-service",
+          "format": "url",
+          "env": "SUPPLIER_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "analytics-service",
+          "format": "url",
+          "env": "ANALYTICS_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "ads-service",
+          "format": "url",
+          "env": "ADS_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "notification-service",
+          "format": "url",
+          "env": "NOTIFICATION_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "ai-service",
+          "format": "url",
+          "env": "AI_SERVICE_URL"
+        }
+      ]
+    },
+    "auth-service": {
+      "root": "services/auth-service",
+      "framework": "nestjs",
+      "entrypoint": "src/main.ts",
+      "buildCommand": "cd ../.. && pnpm turbo run build --filter=@foodgrid/auth-service...",
+      "bindings": [
+        {
+          "type": "service",
+          "service": "notification-service",
+          "format": "url",
+          "env": "NOTIFICATION_SERVICE_URL"
+        }
+      ]
+    },
+    "user-service": {
+      "root": "services/user-service",
+      "framework": "nestjs",
+      "entrypoint": "src/main.ts",
+      "buildCommand": "cd ../.. && pnpm turbo run build --filter=@foodgrid/user-service...",
+      "bindings": [
+        {
+          "type": "service",
+          "service": "auth-service",
+          "format": "url",
+          "env": "AUTH_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "notification-service",
+          "format": "url",
+          "env": "NOTIFICATION_SERVICE_URL"
+        }
+      ]
+    },
+    "order-service": {
+      "root": "services/order-service",
+      "framework": "nestjs",
+      "entrypoint": "src/main.ts",
+      "buildCommand": "cd ../.. && pnpm turbo run build --filter=@foodgrid/order-service...",
+      "bindings": [
+        {
+          "type": "service",
+          "service": "ads-service",
+          "format": "url",
+          "env": "ADS_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "ai-service",
+          "format": "url",
+          "env": "AI_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "delivery-service",
+          "format": "url",
+          "env": "DELIVERY_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "user-service",
+          "format": "url",
+          "env": "USER_SERVICE_URL"
+        }
+      ]
+    },
+    "payment-service": {
+      "root": "services/payment-service",
+      "framework": "nestjs",
+      "entrypoint": "src/main.ts",
+      "buildCommand": "cd ../.. && pnpm turbo run build --filter=@foodgrid/payment-service...",
+      "bindings": [
+        {
+          "type": "service",
+          "service": "ads-service",
+          "format": "url",
+          "env": "ADS_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "delivery-service",
+          "format": "url",
+          "env": "DELIVERY_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "order-service",
+          "format": "url",
+          "env": "ORDER_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "supplier-service",
+          "format": "url",
+          "env": "SUPPLIER_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "user-service",
+          "format": "url",
+          "env": "USER_SERVICE_URL"
+        }
+      ]
+    },
+    "inventory-service": {
+      "root": "services/inventory-service",
+      "framework": "nestjs",
+      "entrypoint": "src/main.ts",
+      "buildCommand": "cd ../.. && pnpm turbo run build --filter=@foodgrid/inventory-service...",
+      "bindings": [
+        {
+          "type": "service",
+          "service": "order-service",
+          "format": "url",
+          "env": "ORDER_SERVICE_URL"
+        }
+      ]
+    },
+    "procurement-service": {
+      "root": "services/procurement-service",
+      "framework": "nestjs",
+      "entrypoint": "src/main.ts",
+      "buildCommand": "cd ../.. && pnpm turbo run build --filter=@foodgrid/procurement-service...",
+      "bindings": [
+        {
+          "type": "service",
+          "service": "ai-service",
+          "format": "url",
+          "env": "AI_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "inventory-service",
+          "format": "url",
+          "env": "INVENTORY_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "order-service",
+          "format": "url",
+          "env": "ORDER_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "supplier-service",
+          "format": "url",
+          "env": "SUPPLIER_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "user-service",
+          "format": "url",
+          "env": "USER_SERVICE_URL"
+        }
+      ]
+    },
+    "delivery-service": {
+      "root": "services/delivery-service",
+      "framework": "nestjs",
+      "entrypoint": "src/main.ts",
+      "buildCommand": "cd ../.. && pnpm turbo run build --filter=@foodgrid/delivery-service...",
+      "bindings": [
+        {
+          "type": "service",
+          "service": "ai-service",
+          "format": "url",
+          "env": "AI_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "notification-service",
+          "format": "url",
+          "env": "NOTIFICATION_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "order-service",
+          "format": "url",
+          "env": "ORDER_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "user-service",
+          "format": "url",
+          "env": "USER_SERVICE_URL"
+        }
+      ]
+    },
+    "supplier-service": {
+      "root": "services/supplier-service",
+      "framework": "nestjs",
+      "entrypoint": "src/main.ts",
+      "buildCommand": "cd ../.. && pnpm turbo run build --filter=@foodgrid/supplier-service...",
+      "bindings": [
+        {
+          "type": "service",
+          "service": "user-service",
+          "format": "url",
+          "env": "USER_SERVICE_URL"
+        }
+      ]
+    },
+    "analytics-service": {
+      "root": "services/analytics-service",
+      "framework": "nestjs",
+      "entrypoint": "src/main.ts",
+      "buildCommand": "cd ../.. && pnpm turbo run build --filter=@foodgrid/analytics-service...",
+      "bindings": [
+        {
+          "type": "service",
+          "service": "ai-service",
+          "format": "url",
+          "env": "AI_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "delivery-service",
+          "format": "url",
+          "env": "DELIVERY_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "order-service",
+          "format": "url",
+          "env": "ORDER_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "user-service",
+          "format": "url",
+          "env": "USER_SERVICE_URL"
+        }
+      ]
+    },
+    "ads-service": {
+      "root": "services/ads-service",
+      "framework": "nestjs",
+      "entrypoint": "src/main.ts",
+      "buildCommand": "cd ../.. && pnpm turbo run build --filter=@foodgrid/ads-service...",
+      "bindings": [
+        {
+          "type": "service",
+          "service": "order-service",
+          "format": "url",
+          "env": "ORDER_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "supplier-service",
+          "format": "url",
+          "env": "SUPPLIER_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "user-service",
+          "format": "url",
+          "env": "USER_SERVICE_URL"
+        }
+      ]
+    },
+    "notification-service": {
+      "root": "services/notification-service",
+      "framework": "nestjs",
+      "entrypoint": "src/main.ts",
+      "buildCommand": "cd ../.. && pnpm turbo run build --filter=@foodgrid/notification-service...",
+      "bindings": [
+        {
+          "type": "service",
+          "service": "user-service",
+          "format": "url",
+          "env": "USER_SERVICE_URL"
+        }
+      ]
+    },
+    "ai-service": {
+      "root": "services/ai-service",
+      "framework": "nestjs",
+      "entrypoint": "src/main.ts",
+      "buildCommand": "cd ../.. && pnpm turbo run build --filter=@foodgrid/ai-service...",
+      "bindings": [
+        {
+          "type": "service",
+          "service": "inventory-service",
+          "format": "url",
+          "env": "INVENTORY_SERVICE_URL"
+        },
+        {
+          "type": "service",
+          "service": "order-service",
+          "format": "url",
+          "env": "ORDER_SERVICE_URL"
+        }
+      ]
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/api/v1/admin/notification-templates/:path*",
+      "destination": {
+        "service": "notification-service"
+      }
+    },
+    {
+      "source": "/api/v1/admin/commission-rules/:path*",
+      "destination": {
+        "service": "payment-service"
+      }
+    },
+    {
+      "source": "/api/v1/admin/delivery-zones/:path*",
+      "destination": {
+        "service": "delivery-service"
+      }
+    },
+    {
+      "source": "/api/v1/admin/push-campaigns/:path*",
+      "destination": {
+        "service": "notification-service"
+      }
+    },
+    {
+      "source": "/api/v1/meal-subscriptions/:path*",
+      "destination": {
+        "service": "order-service"
+      }
+    },
+    {
+      "source": "/api/v1/admin/settlements/:path*",
+      "destination": {
+        "service": "payment-service"
+      }
+    },
+    {
+      "source": "/api/v1/admin/audit-logs/:path*",
+      "destination": {
+        "service": "user-service"
+      }
+    },
+    {
+      "source": "/api/v1/admin/deliveries/:path*",
+      "destination": {
+        "service": "delivery-service"
+      }
+    },
+    {
+      "source": "/api/v1/admin/incentives/:path*",
+      "destination": {
+        "service": "delivery-service"
+      }
+    },
+    {
+      "source": "/api/v1/admin/rider-cash/:path*",
+      "destination": {
+        "service": "payment-service"
+      }
+    },
+    {
+      "source": "/api/v1/admin/approvals/:path*",
+      "destination": {
+        "service": "user-service"
+      }
+    },
+    {
+      "source": "/api/v1/recommendations/:path*",
+      "destination": {
+        "service": "order-service"
+      }
+    },
+    {
+      "source": "/.well-known/jwks.json",
+      "destination": {
+        "service": "auth-service"
+      }
+    },
+    {
+      "source": "/api/v1/admin/payments/:path*",
+      "destination": {
+        "service": "payment-service"
+      }
+    },
+    {
+      "source": "/api/v1/admin/coupons/:path*",
+      "destination": {
+        "service": "order-service"
+      }
+    },
+    {
+      "source": "/api/v1/admin/heatmap/:path*",
+      "destination": {
+        "service": "delivery-service"
+      }
+    },
+    {
+      "source": "/api/v1/admin/payouts/:path*",
+      "destination": {
+        "service": "payment-service"
+      }
+    },
+    {
+      "source": "/api/v1/admin/reviews/:path*",
+      "destination": {
+        "service": "order-service"
+      }
+    },
+    {
+      "source": "/api/v1/admin/tenants/:path*",
+      "destination": {
+        "service": "user-service"
+      }
+    },
+    {
+      "source": "/api/v1/admin/wallets/:path*",
+      "destination": {
+        "service": "payment-service"
+      }
+    },
+    {
+      "source": "/api/v1/notifications/:path*",
+      "destination": {
+        "service": "notification-service"
+      }
+    },
+    {
+      "source": "/api/v1/admin/riders/:path*",
+      "destination": {
+        "service": "delivery-service"
+      }
+    },
+    {
+      "source": "/api/v1/admin/staff/:path*",
+      "destination": {
+        "service": "user-service"
+      }
+    },
+    {
+      "source": "/api/v1/admin/stats/:path*",
+      "destination": {
+        "service": "user-service"
+      }
+    },
+    {
+      "source": "/api/v1/admin/users/:path*",
+      "destination": {
+        "service": "user-service"
+      }
+    },
+    {
+      "source": "/api/v1/marketplace/:path*",
+      "destination": {
+        "service": "supplier-service"
+      }
+    },
+    {
+      "source": "/api/v1/memberships/:path*",
+      "destination": {
+        "service": "order-service"
+      }
+    },
+    {
+      "source": "/api/v1/procurement/:path*",
+      "destination": {
+        "service": "procurement-service"
+      }
+    },
+    {
+      "source": "/api/v1/settlements/:path*",
+      "destination": {
+        "service": "payment-service"
+      }
+    },
+    {
+      "source": "/api/v1/deliveries/:path*",
+      "destination": {
+        "service": "delivery-service"
+      }
+    },
+    {
+      "source": "/api/v1/admin/cms/:path*",
+      "destination": {
+        "service": "user-service"
+      }
+    },
+    {
+      "source": "/api/v1/admin/gst/:path*",
+      "destination": {
+        "service": "payment-service"
+      }
+    },
+    {
+      "source": "/api/v1/analytics/:path*",
+      "destination": {
+        "service": "analytics-service"
+      }
+    },
+    {
+      "source": "/api/v1/inventory/:path*",
+      "destination": {
+        "service": "inventory-service"
+      }
+    },
+    {
+      "source": "/api/v1/admin/ai/:path*",
+      "destination": {
+        "service": "ai-service"
+      }
+    },
+    {
+      "source": "/api/v1/merchant/:path*",
+      "destination": {
+        "service": "order-service"
+      }
+    },
+    {
+      "source": "/api/v1/payments/:path*",
+      "destination": {
+        "service": "payment-service"
+      }
+    },
+    {
+      "source": "/api/v1/coupons/:path*",
+      "destination": {
+        "service": "order-service"
+      }
+    },
+    {
+      "source": "/api/v1/devices/:path*",
+      "destination": {
+        "service": "notification-service"
+      }
+    },
+    {
+      "source": "/api/v1/outlets/:path*",
+      "destination": {
+        "service": "order-service"
+      }
+    },
+    {
+      "source": "/api/v1/tenants/:path*",
+      "destination": {
+        "service": "user-service"
+      }
+    },
+    {
+      "source": "/api/v1/wallets/:path*",
+      "destination": {
+        "service": "payment-service"
+      }
+    },
+    {
+      "source": "/api/v1/orders/:path*",
+      "destination": {
+        "service": "order-service"
+      }
+    },
+    {
+      "source": "/api/v1/riders/:path*",
+      "destination": {
+        "service": "delivery-service"
+      }
+    },
+    {
+      "source": "/api/v1/search/:path*",
+      "destination": {
+        "service": "order-service"
+      }
+    },
+    {
+      "source": "/api/v1/seller/:path*",
+      "destination": {
+        "service": "supplier-service"
+      }
+    },
+    {
+      "source": "/api/v1/media/:path*",
+      "destination": {
+        "service": "user-service"
+      }
+    },
+    {
+      "source": "/api/v1/users/:path*",
+      "destination": {
+        "service": "user-service"
+      }
+    },
+    {
+      "source": "/api/v1/auth/:path*",
+      "destination": {
+        "service": "auth-service"
+      }
+    },
+    {
+      "source": "/api/v1/cart/:path*",
+      "destination": {
+        "service": "order-service"
+      }
+    },
+    {
+      "source": "/api/v1/ads/:path*",
+      "destination": {
+        "service": "ads-service"
+      }
+    },
+    {
+      "source": "/api/v1/cms/:path*",
+      "destination": {
+        "service": "user-service"
+      }
+    },
+    {
+      "source": "/api/v1/gst/:path*",
+      "destination": {
+        "service": "payment-service"
+      }
+    },
+    {
+      "source": "/api/v1/kds/:path*",
+      "destination": {
+        "service": "order-service"
+      }
+    },
+    {
+      "source": "/api/v1/pos/:path*",
+      "destination": {
+        "service": "order-service"
+      }
+    },
+    {
+      "source": "/api/v1/ai/:path*",
+      "destination": {
+        "service": "ai-service"
+      }
+    },
+    {
+      "source": "/api/v1/qr/:path*",
+      "destination": {
+        "service": "order-service"
+      }
+    },
+    {
+      "source": "/(.*)",
+      "has": [
+        {
+          "type": "host",
+          "value": "admin\\..+"
+        }
+      ],
+      "destination": {
+        "service": "admin-web"
+      }
+    },
+    {
+      "source": "/(.*)",
+      "has": [
+        {
+          "type": "host",
+          "value": "partner\\..+"
+        }
+      ],
+      "destination": {
+        "service": "restaurant-web"
+      }
+    },
+    {
+      "source": "/(.*)",
+      "has": [
+        {
+          "type": "host",
+          "value": "business\\..+"
+        }
+      ],
+      "destination": {
+        "service": "vendor-web"
+      }
+    },
+    {
+      "source": "/(.*)",
+      "has": [
+        {
+          "type": "host",
+          "value": "supplier\\..+"
+        }
+      ],
+      "destination": {
+        "service": "supplier-web"
+      }
+    },
+    {
+      "source": "/(.*)",
+      "has": [
+        {
+          "type": "host",
+          "value": "rider\\..+"
+        }
+      ],
+      "destination": {
+        "service": "rider-web"
+      }
+    },
+    {
+      "source": "/(.*)",
+      "destination": {
+        "service": "customer-web"
+      }
+    }
+  ]
+}

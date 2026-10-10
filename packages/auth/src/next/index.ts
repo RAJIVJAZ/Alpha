@@ -13,7 +13,7 @@ import { createRemoteJWKSet, jwtVerify } from 'jose';
 import type { AccessTokenClaims } from '@foodgrid/types';
 import {
   ACCESS_COOKIE,
-  apiBase,
+  apiUrl,
   clearSessionCookies,
   isExpired,
   REFRESH_COOKIE,
@@ -22,12 +22,12 @@ import {
   type AuthTokens,
 } from './shared';
 
-export { ACCESS_COOKIE, REFRESH_COOKIE, apiBase } from './shared';
+export { ACCESS_COOKIE, REFRESH_COOKIE, apiBase, apiUrl } from './shared';
 
 let jwks: ReturnType<typeof createRemoteJWKSet> | undefined;
 function keySet() {
   jwks ??= createRemoteJWKSet(
-    new URL(process.env.AUTH_JWKS_URL ?? `${new URL(apiBase()).origin}/.well-known/jwks.json`),
+    new URL(process.env.AUTH_JWKS_URL ?? apiUrl('/.well-known/jwks.json')),
     { cacheMaxAge: 10 * 60_000 },
   );
   return jwks;
@@ -54,7 +54,7 @@ export async function serverApi<T>(
   init: RequestInit & { query?: Record<string, string | number | undefined> } = {},
 ): Promise<T> {
   const token = (await cookies()).get(ACCESS_COOKIE)?.value;
-  const url = new URL(`${apiBase()}/${path.replace(/^\/+/, '')}`);
+  const url = new URL(apiUrl(path.replace(/^\/+/, '')));
   for (const [k, v] of Object.entries(init.query ?? {}))
     if (v !== undefined && v !== '') url.searchParams.set(k, String(v));
   const res = await fetch(url, {
@@ -89,7 +89,7 @@ const clientMeta = async () => {
 
 async function forward(path: string, body: unknown, extraHeaders: Record<string, string> = {}) {
   const meta = await clientMeta();
-  return fetch(`${apiBase()}/${path}`, {
+  return fetch(apiUrl(path), {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
@@ -227,7 +227,7 @@ export function createAuthRoutes(opts: AuthRoutesOptions = {}) {
       return json(401, { statusCode: 401, code: 'UNAUTHENTICATED', message: 'Not signed in' });
     }
     if (action === 'session') {
-      const res = await fetch(`${apiBase()}/auth/me`, {
+      const res = await fetch(apiUrl('auth/me'), {
         headers: { authorization: `Bearer ${token}` },
         cache: 'no-store',
       });
@@ -262,7 +262,7 @@ export function createApiProxy() {
     if (path[0] === 'internal')
       return json(404, { statusCode: 404, code: 'NOT_FOUND', message: 'Not found' });
     const jar = await cookies();
-    const url = `${apiBase()}/${path.map(encodeURIComponent).join('/')}${req.nextUrl.search}`;
+    const url = `${apiUrl(path.map(encodeURIComponent).join('/'))}${req.nextUrl.search}`;
     const body =
       req.method === 'GET' || req.method === 'HEAD' ? undefined : await req.arrayBuffer();
     const meta = await clientMeta();

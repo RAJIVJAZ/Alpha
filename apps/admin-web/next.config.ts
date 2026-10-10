@@ -2,7 +2,7 @@ import path from 'node:path';
 import type { NextConfig } from 'next';
 
 const config: NextConfig = {
-  output: 'standalone',
+  output: process.env.VERCEL ? undefined : 'standalone', // Vercel builds its own output
   // trace workspace packages from the monorepo root into the standalone bundle
   outputFileTracingRoot: path.join(__dirname, '../..'),
   transpilePackages: ['@foodgrid/ui', '@foodgrid/auth'],

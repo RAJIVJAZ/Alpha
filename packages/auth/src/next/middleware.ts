@@ -43,6 +43,7 @@ export function createAuthMiddleware(opts: AuthMiddlewareOptions = {}) {
       renewed = await refreshTokens(refresh, {
         ip: req.headers.get('x-forwarded-for'),
         userAgent: req.headers.get('user-agent'),
+        origin: req.nextUrl.origin,
       });
       access = renewed?.accessToken;
     }
