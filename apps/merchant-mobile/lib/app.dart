@@ -14,6 +14,7 @@ class MerchantApp extends ConsumerWidget {
         theme: _kitchen(FoodGridTheme.light()),
         darkTheme: _kitchen(FoodGridTheme.dark()),
         routerConfig: ref.watch(routerProvider),
+        builder: (_, child) => PushListener(child: child!),
       );
 
   /// FoodGrid theme with larger tap targets and labels for a busy counter.

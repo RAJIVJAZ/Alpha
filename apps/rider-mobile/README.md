@@ -116,23 +116,38 @@ Android `applicationId` is `in.foodgrid.rider`, the iOS bundle id is
 
 ## Push notifications
 
-The app does not bundle a push plugin. Registration is wired through
-`registerPushToken` from `foodgrid_core`. `pushRegistrationProvider`
-(`lib/src/push/push.dart`) calls it for the signed-in rider with the token from
-`pushTokenSourceProvider`, which returns `null` until a plugin supplies one. To
-enable push:
+Push comes from Firebase Cloud Messaging (`firebase_core` and
+`firebase_messaging`, through `foodgrid_core`). After sign-in the app asks for
+notification permission and registers the FCM token with notification-service
+(`POST /devices`, app `RIDER`). It registers again when the token rotates or
+another user signs in, and removes it on sign-out (`DELETE /devices/{token}`).
+The system shows pushes while the app is in the background; while it is open
+they appear as a snack bar (`PushListener` in `MaterialApp.builder`). New offers therefore reach a rider whose app is in the background.
 
-1. Add `firebase_messaging` (plus `google-services.json` and
-   `GoogleService-Info.plist`, the APNs key, and `POST_NOTIFICATIONS` on Android 13+).
-2. Override the token source in `main()`:
-   ```dart
-   pushTokenSourceProvider.overrideWithValue(() => FirebaseMessaging.instance.getToken()),
-   ```
-3. On `FirebaseMessaging.instance.onTokenRefresh`, invalidate
-   `pushRegistrationProvider` (it registers again). Call `unregisterPushToken`
-   on sign-out if the device should stop receiving a rider's pushes.
+The repository holds no Firebase project files. Without them Firebase does not
+start, the log says "Push notifications are off" and the app runs without push.
+To turn push on for an environment:
 
-The shell re-registers whenever a different rider signs in.
+1. In the Firebase console add the Android app `in.foodgrid.rider` and the iOS app
+   `in.foodgrid.rider` to the environment's project.
+2. From this directory run `dart pub global activate flutterfire_cli`, then
+   `flutterfire configure --project=<firebase-project-id> --platforms=android,ios`.
+   It writes `android/app/google-services.json` and
+   `ios/Runner/GoogleService-Info.plist` and applies the Google Services Gradle
+   plugin. The app starts Firebase from those native files, so the
+   `lib/firebase_options.dart` it also writes is not used. (By hand instead:
+   download both files from the console and apply
+   `com.google.gms.google-services` in `android/settings.gradle.kts` and
+   `android/app/build.gradle.kts`. Never apply the plugin without the JSON file:
+   the Android build then fails.)
+3. iOS: on the Runner target enable the *Push Notifications* capability and
+   *Background Modes → Remote notifications*. Create an APNs authentication key
+   (.p8) in the Apple Developer account and upload it under Firebase console →
+   Project settings → Cloud Messaging → Apple app configuration. Without it iOS
+   never gets an FCM token.
+4. Server: run notification-service with `PUSH_PROVIDER=fcm` and
+   `FCM_SERVICE_ACCOUNT_BASE64` (a base64 service-account key of the same
+   Firebase project).
 
 ## Architecture
 
@@ -153,7 +168,7 @@ lib/
   main.dart                     ProviderScope + AppConfig(app: rider)
   src/app.dart                  MaterialApp.router, rider theme (bigger targets)
   src/router.dart               routes, session redirect, RIDER-only sign-in
-  src/shell/home_shell.dart     bottom nav; keeps location, socket and push alive
+  src/shell/home_shell.dart     bottom nav; keeps location and socket alive
   src/common/                   JSON readers, polling, device seams (location,
                                 url opener, camera), error wording, widgets
   src/profile/profile.dart      RiderProfile, profileProvider (online/offline)
@@ -163,7 +178,6 @@ lib/
   src/performance/              incentives, attendance calendar
   src/demand/                   heatmap models/geometry, map screen
   src/trips/                    paged history
-  src/push/push.dart            push token registration
 ```
 
 ## Tests
@@ -223,8 +237,8 @@ Coverage:
 
 ## Known limitations
 
-* No push plugin is bundled (see above), so offers reach a backgrounded app only
-  once push is configured.
+* Push needs the Firebase files of each environment (see above); without them
+  offers reach the rider only while the app is open.
 * Tapping a demand circle does not show a tooltip. The busiest-spots list and
   zone list carry the details instead.
 * The proof photo is uploaded when the rider taps *Mark delivered*, not in the

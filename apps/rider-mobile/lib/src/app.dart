@@ -30,5 +30,6 @@ class RiderApp extends ConsumerWidget {
         theme: riderTheme(FoodGridTheme.light()),
         darkTheme: riderTheme(FoodGridTheme.dark()),
         routerConfig: ref.watch(routerProvider),
+        builder: (_, child) => PushListener(child: child!),
       );
 }

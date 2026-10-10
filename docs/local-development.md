@@ -104,6 +104,8 @@ flutter run --dart-define=API_URL=http://localhost:8080/api/v1  # iOS simulator,
 
 On a physical phone use your machine's LAN address. Google sign-in needs
 `--dart-define=GOOGLE_SERVER_CLIENT_ID=…`; each app's README lists its options.
+Push notifications need the Firebase files of a project ("Push notifications" in
+each app's README); without them the apps run with push off.
 
 ## Useful commands
 

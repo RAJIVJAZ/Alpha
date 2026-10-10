@@ -7,11 +7,9 @@ import '../common/widgets.dart';
 import '../duty/duty_providers.dart';
 import '../duty/location_tracker.dart';
 import '../duty/rider_events.dart';
-import '../push/push.dart';
 
 /// Bottom navigation for the signed-in rider. Also owns what must keep
-/// running whatever tab is open: location sharing, the rider socket and
-/// push registration.
+/// running whatever tab is open: location sharing and the rider socket.
 class HomeShell extends ConsumerWidget {
   const HomeShell({super.key, required this.shell});
   final StatefulNavigationShell shell;
@@ -27,7 +25,6 @@ class HomeShell extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     ref.listen(locationTrackerProvider, (_, _) {});
-    ref.listen(pushRegistrationProvider, (_, _) {});
     ref.listen<AsyncValue<RiderEvent>>(riderEventsProvider, (_, next) {
       final e = next.value;
       if (e != null) _onEvent(context, ref, e);

@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../device/devices.dart';
 import '../providers.dart';
 import 'auth_repository.dart';
 import 'claims.dart';
@@ -47,6 +48,16 @@ class SessionController extends AsyncNotifier<Session?> {
   }
 
   Future<void> signOut() async {
+    // stop pushes for this user to this phone, before logout drops the credentials the call needs
+    final pushToken = ref.read(registeredPushTokenProvider);
+    if (pushToken != null) {
+      try {
+        await unregisterPushToken(ref.read(apiClientProvider), pushToken);
+      } catch (_) {
+        // offline: the next user to sign in on this phone takes the token over
+      }
+      ref.read(registeredPushTokenProvider.notifier).set(null);
+    }
     await ref.read(authRepositoryProvider).logout();
     state = const AsyncData<Session?>(null);
   }

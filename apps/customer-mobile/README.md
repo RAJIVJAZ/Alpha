@@ -73,28 +73,42 @@ flutter run --dart-define=API_URL=http://192.168.1.20:8080/api/v1 \
 
 ## Push notifications (FCM)
 
-The notification service delivers order updates to registered device tokens. This repository contains no Firebase project files, so wiring is left to each deployment:
+Push comes from Firebase Cloud Messaging (`firebase_core` and
+`firebase_messaging`, through `foodgrid_core`). After sign-in the app asks for
+notification permission and registers the FCM token with notification-service
+(`POST /devices`, app `CUSTOMER`). It registers again when the token rotates or
+another user signs in, and removes it on sign-out (`DELETE /devices/{token}`).
+The system shows pushes while the app is in the background; while it is open
+they appear as a snack bar (`PushListener` in `MaterialApp.builder`).
+Pushes carry `data.deepLink` (for example `foodgrid://orders/<id>`); tapping
+one opens the app but does not route the link yet. To do that, pass it from
+`FirebaseMessaging.onMessageOpenedApp` and `getInitialMessage()` to
+`openLink(context, deepLink)` in `lib/src/common/links.dart`, as the inbox does.
 
-1. Add `firebase_core` and `firebase_messaging`. Put `google-services.json` in `android/app/` and `GoogleService-Info.plist` in `ios/Runner/`, then run `flutterfire configure`.
-2. After sign-in, and whenever the token rotates, register it with the helper from `foodgrid_core`:
+The repository holds no Firebase project files. Without them Firebase does not
+start, the log says "Push notifications are off" and the app runs without push.
+To turn push on for an environment:
 
-   ```dart
-   // e.g. in CustomerApp.build or a small ConsumerStatefulWidget near the root
-   ref.listen(sessionProvider, (prev, next) async {
-     final api = ref.read(apiClientProvider);
-     final config = ref.read(appConfigProvider);
-     final messaging = FirebaseMessaging.instance;
-     if (next.value != null && prev?.value == null) {
-       await messaging.requestPermission();
-       final token = await messaging.getToken();
-       if (token != null) await registerPushToken(api, config, token);
-       messaging.onTokenRefresh.listen((t) => registerPushToken(api, config, t));
-     }
-   });
-   ```
-
-   Call `unregisterPushToken(api, token)` before signing out.
-3. Pushes carry `data.deepLink` (for example `foodgrid://orders/<id>`). On `FirebaseMessaging.onMessageOpenedApp`, and for the initial message, pass it to `openLink(context, deepLink)` from `lib/src/common/links.dart`. That maps it to an app route, in the same way the notifications inbox does.
+1. In the Firebase console add the Android app `in.foodgrid.customer` and the iOS app
+   `in.foodgrid.customer` to the environment's project.
+2. From this directory run `dart pub global activate flutterfire_cli`, then
+   `flutterfire configure --project=<firebase-project-id> --platforms=android,ios`.
+   It writes `android/app/google-services.json` and
+   `ios/Runner/GoogleService-Info.plist` and applies the Google Services Gradle
+   plugin. The app starts Firebase from those native files, so the
+   `lib/firebase_options.dart` it also writes is not used. (By hand instead:
+   download both files from the console and apply
+   `com.google.gms.google-services` in `android/settings.gradle.kts` and
+   `android/app/build.gradle.kts`. Never apply the plugin without the JSON file:
+   the Android build then fails.)
+3. iOS: on the Runner target enable the *Push Notifications* capability and
+   *Background Modes → Remote notifications*. Create an APNs authentication key
+   (.p8) in the Apple Developer account and upload it under Firebase console →
+   Project settings → Cloud Messaging → Apple app configuration. Without it iOS
+   never gets an FCM token.
+4. Server: run notification-service with `PUSH_PROVIDER=fcm` and
+   `FCM_SERVICE_ACCOUNT_BASE64` (a base64 service-account key of the same
+   Firebase project).
 
 ## Tests
 

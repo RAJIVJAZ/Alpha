@@ -79,27 +79,46 @@ and sees the server's explanation after sign-in.
 
 ## Push notifications
 
-The app has no push plugin yet (Firebase needs per-environment config files).
-After adding one (e.g. `firebase_messaging`), register the token after sign-in
-and whenever it rotates:
+Push comes from Firebase Cloud Messaging (`firebase_core` and
+`firebase_messaging`, through `foodgrid_core`). After sign-in the app asks for
+notification permission and registers the FCM token with notification-service
+(`POST /devices`, app `MERCHANT`). It registers again when the token rotates or
+another user signs in, and removes it on sign-out (`DELETE /devices/{token}`).
+The system shows pushes while the app is in the background; while it is open
+they appear as a snack bar (`PushListener` in `MaterialApp.builder`). Without push, new orders still reach the open app over the tracking
+socket (with polling as the fallback) and chime.
 
-```dart
-import 'package:merchant_mobile/core/push.dart';
+The repository holds no Firebase project files. Without them Firebase does not
+start, the log says "Push notifications are off" and the app runs without push.
+To turn push on for an environment:
 
-await registerMerchantPush(ref, token);   // POST devices {token, platform, app: MERCHANT}
-await unregisterMerchantPush(ref, token); // before signing out
-```
-
-These wrap `registerPushToken` / `unregisterPushToken` from `foodgrid_core`.
-Until then new orders reach the open app over the tracking socket (with polling
-as the fallback) and chime.
+1. In the Firebase console add the Android app `in.foodgrid.merchant` and the iOS app
+   `in.foodgrid.merchant` to the environment's project.
+2. From this directory run `dart pub global activate flutterfire_cli`, then
+   `flutterfire configure --project=<firebase-project-id> --platforms=android,ios`.
+   It writes `android/app/google-services.json` and
+   `ios/Runner/GoogleService-Info.plist` and applies the Google Services Gradle
+   plugin. The app starts Firebase from those native files, so the
+   `lib/firebase_options.dart` it also writes is not used. (By hand instead:
+   download both files from the console and apply
+   `com.google.gms.google-services` in `android/settings.gradle.kts` and
+   `android/app/build.gradle.kts`. Never apply the plugin without the JSON file:
+   the Android build then fails.)
+3. iOS: on the Runner target enable the *Push Notifications* capability and
+   *Background Modes → Remote notifications*. Create an APNs authentication key
+   (.p8) in the Apple Developer account and upload it under Firebase console →
+   Project settings → Cloud Messaging → Apple app configuration. Without it iOS
+   never gets an FCM token.
+4. Server: run notification-service with `PUSH_PROVIDER=fcm` and
+   `FCM_SERVICE_ACCOUNT_BASE64` (a base64 service-account key of the same
+   Firebase project).
 
 ## Code layout
 
 ```
 lib/
   main.dart, app.dart, router.dart   ProviderScope (core retry policy), theme, go_router (materialRoute) with the session redirect
-  core/        permissions, JSON readers, shared widgets, outlet store, order alert, timings, push
+  core/        permissions, JSON readers, shared widgets, outlet store, order alert, timings
   features/    auth, outlets, orders, kitchen, menu, pos, inventory, procurement, sales, reviews, more, shell, splash
 assets/sounds/new_order.wav          new-order chime
 ```
