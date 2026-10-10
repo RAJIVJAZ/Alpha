@@ -391,6 +391,28 @@ describe('order-service checkout & lifecycle (e2e)', () => {
     expect(event.payload).toMatchObject({ deliveryOtp: expect.stringMatching(/^\d{4}$/) });
   });
 
+  it('leaves a delivery order for the rider to complete, also from the POS', async () => {
+    const token = customer();
+    await fillCart(token);
+    const { body } = await api()
+      .post('/api/v1/orders')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ orderType: 'DELIVERY', paymentMethod: 'COD', deliveryAddress: HOME })
+      .expect(201);
+    const id = body.order.id as string;
+    const staff = { Authorization: `Bearer ${merchant()}` };
+    await api().post(`/api/v1/merchant/orders/${id}/accept`).set(staff).send({}).expect(200);
+    await api().post(`/api/v1/merchant/orders/${id}/ready`).set(staff).expect(200);
+
+    for (const path of [`merchant/orders/${id}/complete`, `pos/orders/${id}/complete`]) {
+      const res = await api().post(`/api/v1/${path}`).set(staff).expect(403);
+      expect(res.body.code).toBe('DELIVERY_ORDER');
+    }
+    expect(await prisma.order.findUniqueOrThrow({ where: { id } })).toMatchObject({
+      status: 'READY',
+    });
+  });
+
   it('isolates orders between tenants and between customers', async () => {
     const token = customer('cust_A');
     await fillCart(token);

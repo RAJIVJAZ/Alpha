@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@foodgrid/database/nest';
 import type { AccessTokenClaims } from '@foodgrid/types';
-import { istDate, istParts, notFound, sumMoney } from '@foodgrid/utils';
+import { forbidden, istDate, istParts, notFound, sumMoney } from '@foodgrid/utils';
 import { toMoney } from '../common/money';
 import { assertOutletAccess } from '../common/outlet-access';
 import { DirectOrderService } from '../orders/direct-order.service';
@@ -50,6 +50,9 @@ export class PosService {
       .order.findUnique({ where: { id: orderId } });
     if (!order) throw notFound('Order', orderId);
     await assertOutletAccess(this.prisma, user, order.outletId);
+    // same rule as merchant/orders/:id/complete: only the rider, with the customer's code, closes these
+    if (order.type === 'DELIVERY')
+      throw forbidden('Delivery orders complete when the rider delivers them', 'DELIVERY_ORDER');
     if (['ACCEPTED', 'PREPARING'].includes(order.status)) {
       await this.lifecycle.transition(orderId, 'READY', {
         actorType: 'MERCHANT',
