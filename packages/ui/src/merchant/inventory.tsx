@@ -1,7 +1,15 @@
 'use client';
 
 import * as React from 'react';
-import { ArrowDownToLine, ClipboardCheck, PackageX, Search, Trash2 } from 'lucide-react';
+import {
+  ArrowDownToLine,
+  ClipboardCheck,
+  PackageX,
+  Pencil,
+  Plus,
+  Search,
+  Trash2,
+} from 'lucide-react';
 import { CategoryBarChart } from '../charts';
 import { Button } from '../components/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/card';
@@ -30,8 +38,10 @@ import {
   formatQty,
 } from '../lib/format';
 import { useApi, useApiMutation } from '../lib/hooks';
+import { useCan } from './access';
+import { ingredientBody, skuFromName, type IngredientForm } from './forms';
 import { OutletPicker, useOutlet } from './outlet';
-import type { Ingredient, InventorySummary, StockMovement } from './types';
+import type { Ingredient, IngredientDetail, InventorySummary, StockMovement } from './types';
 
 /** Inventory tracked by the user's categories: flour, oil, sugar, dairy, vegetables, packaging, spices, other. */
 export const INVENTORY_CATEGORIES = [
@@ -52,6 +62,7 @@ export const INVENTORY_CATEGORIES = [
   'CONDIMENTS',
   'OTHER',
 ];
+const STOCK_UNITS = ['KG', 'G', 'L', 'ML', 'PCS', 'PACK', 'DOZEN', 'BOX'];
 const qty = formatQty;
 
 type StockAction = { kind: 'receive' | 'wastage' | 'count'; ingredient: Ingredient } | null;
@@ -63,6 +74,8 @@ export function InventoryManager() {
   const [q, setQ] = React.useState('');
   const [page, setPage] = React.useState(1);
   const [action, setAction] = React.useState<StockAction>(null);
+  const [editing, setEditing] = React.useState<Ingredient | 'new' | null>(null);
+  const canManage = useCan('inventory:manage');
   const summary = useApi<InventorySummary>(outletId ? 'inventory/summary' : null, {
     outletId: outletId ?? undefined,
   });
@@ -128,12 +141,22 @@ export function InventoryManager() {
         />
       ),
     },
-    {
+  ];
+  if (canManage)
+    columns.push({
       key: 'actions',
       header: <span className="sr-only">Actions</span>,
       align: 'right',
       cell: (i) => (
         <div className="flex justify-end gap-1">
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => setEditing(i)}
+            aria-label={`Edit ${i.name}`}
+          >
+            <Pencil />
+          </Button>
           <Button
             size="sm"
             variant="ghost"
@@ -160,15 +183,23 @@ export function InventoryManager() {
           </Button>
         </div>
       ),
-    },
-  ];
+    });
 
   return (
     <>
       <PageHeader
         title="Inventory"
         description="Live stock from recipes, purchases and wastage"
-        actions={<OutletPicker />}
+        actions={
+          <>
+            <OutletPicker />
+            {canManage && outletId ? (
+              <Button onClick={() => setEditing('new')}>
+                <Plus /> Ingredient
+              </Button>
+            ) : null}
+          </>
+        }
       />
       <StatGrid>
         <StatTile label="Stock value" value={s ? formatMoneyCompact(s.totalValue) : '—'} />
@@ -291,6 +322,13 @@ export function InventoryManager() {
         </TabsContent>
       </Tabs>
       <StockDialog action={action} outletId={outletId} onClose={() => setAction(null)} />
+      {editing && outletId ? (
+        <IngredientDialog
+          ingredient={editing === 'new' ? null : editing}
+          outletId={outletId}
+          onClose={() => setEditing(null)}
+        />
+      ) : null}
     </>
   );
 }
@@ -460,5 +498,203 @@ function StockDialog({
         </form>
       </DialogContent>
     </Dialog>
+  );
+}
+
+const EMPTY_INGREDIENT: IngredientForm = {
+  name: '',
+  sku: '',
+  category: 'OTHER',
+  unit: 'KG',
+  reorderLevel: '',
+  reorderQty: '',
+  maxStock: '',
+  leadTimeDays: '2',
+  shelfLifeDays: '',
+  openingStock: '',
+  openingUnitCost: '',
+};
+
+/** Create an ingredient, or edit the master data of `ingredient`. */
+function IngredientDialog({
+  ingredient,
+  outletId,
+  onClose,
+}: {
+  ingredient: Ingredient | null;
+  outletId: string;
+  onClose: () => void;
+}) {
+  const detail = useApi<IngredientDetail>(
+    ingredient ? `inventory/ingredients/${ingredient.id}` : null,
+  );
+  const d = detail.data;
+  return (
+    <Dialog open onOpenChange={(o) => (!o ? onClose() : undefined)}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>{ingredient ? `Edit ${ingredient.name}` : 'New ingredient'}</DialogTitle>
+          <DialogDescription>
+            Reorder level, max stock and lead time drive low-stock alerts and purchase forecasts.
+          </DialogDescription>
+        </DialogHeader>
+        {!ingredient ? (
+          <IngredientFormBody initial={EMPTY_INGREDIENT} outletId={outletId} onDone={onClose} />
+        ) : d ? (
+          <IngredientFormBody
+            initial={{
+              ...EMPTY_INGREDIENT,
+              name: d.name,
+              sku: d.sku,
+              category: d.category,
+              unit: d.unit,
+              reorderLevel: String(Number(d.reorderLevel)),
+              reorderQty: String(Number(d.reorderQty)),
+              maxStock: d.maxStock === null ? '' : String(Number(d.maxStock)),
+              leadTimeDays: String(d.leadTimeDays),
+              shelfLifeDays: d.shelfLifeDays === null ? '' : String(d.shelfLifeDays),
+            }}
+            existing={d}
+            onDone={onClose}
+          />
+        ) : (
+          <p className="text-sm text-muted-foreground">Loading…</p>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function IngredientFormBody({
+  initial,
+  outletId,
+  existing,
+  onDone,
+}: {
+  initial: IngredientForm;
+  outletId?: string;
+  existing?: IngredientDetail;
+  onDone: () => void;
+}) {
+  const [f, setF] = React.useState(initial);
+  const [skuEdited, setSkuEdited] = React.useState(!!existing);
+  const set = (k: keyof IngredientForm) => (e: { target: { value: string } }) =>
+    setF((p) => ({ ...p, [k]: e.target.value }));
+  const save = useApiMutation(
+    () =>
+      existing
+        ? api.patch(`inventory/ingredients/${existing.id}`, ingredientBody(f))
+        : api.post('inventory/ingredients', ingredientBody(f, outletId)),
+    {
+      invalidate: ['inventory/'],
+      success: existing ? `${f.name} updated` : `${f.name} added`,
+      onSuccess: onDone,
+    },
+  );
+  const unit = f.unit.toLowerCase();
+  const amount = { type: 'number', min: 0, step: 'any', inputMode: 'decimal' } as const;
+  return (
+    <form className="grid gap-4" onSubmit={(e) => (e.preventDefault(), save.mutate())}>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="Name">
+          <Input
+            value={f.name}
+            maxLength={120}
+            required
+            onChange={(e) =>
+              setF((p) => ({
+                ...p,
+                name: e.target.value,
+                sku: skuEdited ? p.sku : skuFromName(e.target.value),
+              }))
+            }
+          />
+        </Field>
+        <Field label="SKU" hint="Your code for this item; unique at the outlet">
+          <Input
+            value={f.sku}
+            maxLength={40}
+            required
+            onChange={(e) => (setSkuEdited(true), set('sku')(e))}
+          />
+        </Field>
+        <Field label="Category">
+          <Select value={f.category} onChange={set('category')}>
+            {INVENTORY_CATEGORIES.map((c) => (
+              <option key={c} value={c}>
+                {humanize(c)}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        <Field
+          label="Stock unit"
+          hint={existing ? 'Fixed: stock and recipes are counted in it' : undefined}
+        >
+          <Select value={f.unit} onChange={set('unit')} disabled={!!existing}>
+            {STOCK_UNITS.map((u) => (
+              <option key={u} value={u}>
+                {u.toLowerCase()}
+              </option>
+            ))}
+          </Select>
+        </Field>
+      </div>
+      <div className="grid gap-4 sm:grid-cols-3">
+        <Field label={`Reorder level (${unit})`} hint="Alert when stock falls to this">
+          <Input {...amount} value={f.reorderLevel} onChange={set('reorderLevel')} />
+        </Field>
+        <Field label={`Reorder quantity (${unit})`} hint="Smallest order to place">
+          <Input {...amount} value={f.reorderQty} onChange={set('reorderQty')} />
+        </Field>
+        <Field label={`Max stock (${unit})`} hint="Orders never go above it">
+          <Input {...amount} value={f.maxStock} onChange={set('maxStock')} />
+        </Field>
+        <Field label="Supplier lead time (days)">
+          <Input
+            type="number"
+            min={0}
+            max={60}
+            step={1}
+            inputMode="numeric"
+            value={f.leadTimeDays}
+            onChange={set('leadTimeDays')}
+          />
+        </Field>
+        <Field label="Shelf life (days)" hint="Sets batch expiry on receipt">
+          <Input
+            type="number"
+            min={1}
+            step={1}
+            inputMode="numeric"
+            value={f.shelfLifeDays}
+            onChange={set('shelfLifeDays')}
+          />
+        </Field>
+      </div>
+      {existing ? (
+        <p className="text-sm text-muted-foreground">
+          Average cost {formatMoney(existing.avgUnitCost)}/{unit} · it moves with each delivery you
+          receive.
+        </p>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field
+            label={`Cost per ${unit} (₹, before GST)`}
+            hint="Prices recipes until stock arrives"
+          >
+            <Input {...amount} value={f.openingUnitCost} onChange={set('openingUnitCost')} />
+          </Field>
+          <Field label={`Opening stock (${unit})`} hint="What you have on hand today">
+            <Input {...amount} value={f.openingStock} onChange={set('openingStock')} />
+          </Field>
+        </div>
+      )}
+      <DialogFooter>
+        <Button type="submit" loading={save.isPending}>
+          {existing ? 'Save' : 'Add ingredient'}
+        </Button>
+      </DialogFooter>
+    </form>
   );
 }

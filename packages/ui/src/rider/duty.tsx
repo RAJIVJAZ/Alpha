@@ -27,7 +27,7 @@ import {
 import { Field, Input, Select, Textarea } from '../components/form';
 import { EmptyState, PageHeader } from '../components/layout';
 import { StatusBadge } from '../components/status';
-import { api } from '../lib/api';
+import { api, uploadMedia } from '../lib/api';
 import { formatMoney, formatNumber, formatRelative } from '../lib/format';
 import { useApi, useApiMutation } from '../lib/hooks';
 import { cn } from '../lib/utils';
@@ -343,20 +343,6 @@ function ActiveDelivery({ delivery: d }: { delivery: Delivery }) {
   );
 }
 
-/** Uploads a proof photo through a presigned URL and returns its public URL. */
-async function uploadProof(file: File): Promise<string> {
-  const p = await api.post<{
-    uploadUrl: string;
-    headers: Record<string, string>;
-    publicUrl: string;
-    maxBytes: number;
-  }>('media/presign', { folder: 'delivery-proof', contentType: file.type, fileName: file.name });
-  if (file.size > p.maxBytes) throw new Error('Photo is too large (max 5 MB)');
-  const res = await fetch(p.uploadUrl, { method: 'PUT', headers: p.headers, body: file });
-  if (!res.ok) throw new Error('Photo upload failed — try again or remove the photo');
-  return p.publicUrl;
-}
-
 function CompleteDialog({ delivery: d, onClose }: { delivery: Delivery; onClose: () => void }) {
   const [otp, setOtp] = React.useState('');
   const [file, setFile] = React.useState<File | null>(null);
@@ -364,7 +350,7 @@ function CompleteDialog({ delivery: d, onClose }: { delivery: Delivery; onClose:
   const done = useApiMutation(
     async () => {
       await pingNow();
-      const proofPhotoUrl = file ? await uploadProof(file) : undefined;
+      const proofPhotoUrl = file ? await uploadMedia(file, 'delivery-proof') : undefined;
       return api.post(`deliveries/${d.id}/complete`, {
         otp,
         proofPhotoUrl,

@@ -68,6 +68,8 @@ export class IngredientsService {
         data: {
           ...data,
           tenantId,
+          // a cost entered before the first delivery still prices recipes; receipts then average it
+          avgUnitCost: openingUnitCost ?? 0,
           marketplaceCategory:
             dto.marketplaceCategory ?? DEFAULT_MARKETPLACE_CATEGORY[dto.category] ?? null,
           isPerishable:

@@ -13,6 +13,7 @@ export interface Outlet {
   avgPrepTimeMins: number;
   acceptsQrOrders: boolean;
   isMobile: boolean;
+  kdsStations: string[];
   ratingAvg: number;
   ratingCount: number;
 }
@@ -77,6 +78,20 @@ export interface MenuItem {
   kdsStation: string;
   prepTimeMins: number | null;
   imageUrl: string | null;
+  variants: {
+    id: string;
+    name: string;
+    priceDelta: Dec;
+    isDefault: boolean;
+    isAvailable: boolean;
+  }[];
+  addonGroups: {
+    id: string;
+    name: string;
+    minSelect: number;
+    maxSelect: number;
+    addons: { id: string; name: string; price: Dec; isVeg: boolean; isAvailable: boolean }[];
+  }[];
 }
 export interface MenuCategory {
   id: string;
@@ -97,6 +112,39 @@ export interface Ingredient {
   avgUnitCost: Dec;
   stockValue: Dec;
   status: 'OK' | 'LOW' | 'OUT' | string;
+}
+
+/** GET inventory/ingredients/:id: the master data behind the stock list row. */
+export interface IngredientDetail {
+  id: string;
+  name: string;
+  sku: string;
+  category: string;
+  unit: string;
+  currentStock: Dec;
+  reorderLevel: Dec;
+  reorderQty: Dec;
+  maxStock: Dec | null;
+  avgUnitCost: Dec;
+  leadTimeDays: number;
+  shelfLifeDays: number | null;
+}
+
+/** Recipe (bill of materials) for one dish, from GET inventory/recipes. */
+export interface Recipe {
+  id: string;
+  menuItemId: string;
+  name: string;
+  yieldQty: Dec;
+  prepTimeMins: number | null;
+  instructions: string | null;
+  lines: {
+    ingredientId: string;
+    quantity: Dec;
+    unit: string;
+    wastagePct: Dec;
+    ingredient: { name: string; unit: string };
+  }[];
 }
 
 export interface InventorySummary {

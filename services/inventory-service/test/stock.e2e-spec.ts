@@ -237,6 +237,65 @@ describe('inventory-service stock ledger (e2e)', () => {
     for (const pageSize of [501, 0, 2.5]) await list({ pageSize }).expect(400);
   });
 
+  it('sets up a new ingredient and recipe from scratch, costed before the first delivery', async () => {
+    const auth = `Bearer ${owner()}`;
+    const create = (body: object) =>
+      api()
+        .post('/api/v1/inventory/ingredients')
+        .set('Authorization', auth)
+        .send({ outletId: OUTLET, category: 'DAIRY', unit: 'L', ...body });
+
+    const ghee = (
+      await create({
+        name: 'Desi Ghee',
+        sku: 'GHEE',
+        reorderLevel: 2,
+        maxStock: 10,
+        openingUnitCost: 600,
+      }).expect(201)
+    ).body;
+    expect(ghee).toMatchObject({ currentStock: '0', avgUnitCost: '600', leadTimeDays: 2 });
+    await create({ name: 'Ghee again', sku: 'GHEE' }).expect(409);
+    const milk = (
+      await create({ name: 'Milk', sku: 'MILK', openingStock: 5, openingUnitCost: 60 }).expect(201)
+    ).body;
+    expect(milk).toMatchObject({ currentStock: '5', avgUnitCost: '60' });
+    expect(
+      await prisma.stockMovement.count({ where: { ingredientId: milk.id, type: 'OPENING' } }),
+    ).toBe(1);
+
+    const patched = await api()
+      .patch(`/api/v1/inventory/ingredients/${ghee.id}`)
+      .set('Authorization', auth)
+      .send({ reorderLevel: 3, maxStock: null, leadTimeDays: 4 })
+      .expect(200);
+    expect(patched.body).toMatchObject({ reorderLevel: '3', maxStock: null, leadTimeDays: 4 });
+
+    // 100 ml ghee (+10% wastage) and 200 ml milk make 2 portions
+    await api()
+      .put('/api/v1/inventory/recipes')
+      .set('Authorization', auth)
+      .send({
+        outletId: OUTLET,
+        menuItemId: 'menu_dal',
+        name: 'Dal Makhani',
+        yieldQty: 2,
+        lines: [
+          { ingredientId: ghee.id, quantity: 100, unit: 'ML', wastagePct: 10 },
+          { ingredientId: milk.id, quantity: 200, unit: 'ML' },
+        ],
+      })
+      .expect(200);
+    const cost = await api()
+      .get('/api/v1/inventory/recipes/menu_dal/cost')
+      .set('Authorization', auth)
+      .expect(200);
+    expect(cost.body.perPortion).toBe(39); // (0.11 L x 600 + 0.2 L x 60) / 2
+
+    await api().delete('/api/v1/inventory/recipes/menu_dal').set('Authorization', auth).expect(204);
+    await api().get('/api/v1/inventory/recipes/menu_dal').set('Authorization', auth).expect(404);
+  });
+
   it("keeps each tenant's stock private", async () => {
     const rival = owner('tnt_rival');
     await api()

@@ -89,6 +89,21 @@ export const api = {
   delete: <T>(path: string) => apiFetch<T>(path, { method: 'DELETE' }),
 };
 
+/** Uploads an image straight to storage through a presigned URL (media/presign) and returns its public URL. */
+export async function uploadMedia(file: File, folder: string): Promise<string> {
+  const p = await api.post<{
+    uploadUrl: string;
+    headers: Record<string, string>;
+    publicUrl: string;
+    maxBytes: number;
+  }>('media/presign', { folder, contentType: file.type, fileName: file.name });
+  if (file.size > p.maxBytes)
+    throw new Error(`Photo is too large (max ${Math.round(p.maxBytes / 1048576)} MB)`);
+  const res = await fetch(p.uploadUrl, { method: 'PUT', headers: p.headers, body: file });
+  if (!res.ok) throw new Error('Photo upload failed — try again');
+  return p.publicUrl;
+}
+
 export const newIdempotencyKey = () =>
   typeof crypto !== 'undefined' && 'randomUUID' in crypto
     ? crypto.randomUUID()
