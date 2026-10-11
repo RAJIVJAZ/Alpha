@@ -22,6 +22,12 @@ void main() {
     expect(authorizeMerchant(Claims.fromToken(merchantToken(tenantType: 'SUPPLIER'))!), contains('supplier account'));
   });
 
+  test('a rejected business is not offered', () {
+    final rejected = Membership.fromJson({..._memberships[0], 'tenantStatus': 'REJECTED'});
+    final pending = Membership.fromJson({..._memberships[1], 'tenantStatus': 'PENDING_APPROVAL'});
+    expect(eligibleMemberships([rejected, pending]).map((m) => m.tenantId), ['t2']);
+  });
+
   testWidgets('the picker lists eligible businesses and switches with switch-tenant', (tester) async {
     final backend = baseBackend(user: userJson(memberships: [for (final m in _memberships) {...m}]));
     final switched = merchantToken(tenantId: 't2', tenantType: 'FOOD_CART', role: 'MANAGER');

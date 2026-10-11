@@ -12,6 +12,7 @@ import type {
 } from '@foodgrid/types';
 import type { Permission } from '../permissions';
 import {
+  ALLOW_REJECTED_TENANT_KEY,
   ALLOW_SERVICE_KEY,
   IS_INTERNAL_KEY,
   IS_PUBLIC_KEY,
@@ -34,6 +35,12 @@ export const Roles = (...roles: PlatformRole[]) => SetMetadata(ROLES_KEY, roles)
 
 /** Requires an active tenant context, optionally of the given tenant types. */
 export const RequireTenant = (...types: TenantType[]) => SetMetadata(TENANT_TYPES_KEY, types);
+
+/**
+ * Lets a business whose application was rejected use this @RequireTenant()
+ * route, e.g. to read the reviewer's notes and resubmit; it may use no other.
+ */
+export const AllowRejectedTenant = () => SetMetadata(ALLOW_REJECTED_TENANT_KEY, true);
 
 /** Requires all listed permissions (see permissions matrix). */
 export const RequirePermissions = (...permissions: Permission[]) =>

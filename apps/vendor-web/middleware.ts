@@ -1,8 +1,8 @@
-import { createAuthMiddleware } from '@foodgrid/auth/next/middleware';
+import { approvedBusiness, createAuthMiddleware } from '@foodgrid/auth/next/middleware';
 
 export default createAuthMiddleware({
   publicPaths: [],
-  allow: (c) => ['FOOD_CART', 'RETAILER', 'WHOLESALER'].includes(String(c.tenantType)),
+  allow: approvedBusiness('FOOD_CART', 'RETAILER', 'WHOLESALER'),
 });
 
 export const config = {

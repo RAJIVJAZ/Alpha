@@ -305,7 +305,7 @@ export async function seedIdentity(ctx: SeedContext) {
         title: `${p.type === 'SUPPLIER' ? 'Supplier' : 'Restaurant'} onboarding: ${p.name}`,
         submittedBy: owner.id,
         documents: docs,
-        metadata: { tenantType: p.type, city: loc.city },
+        metadata: { type: p.type, city: loc.city },
         createdAt: addMinutes(ctx.now, -rng.int(120, 2000)),
       },
     });

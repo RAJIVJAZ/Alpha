@@ -60,6 +60,8 @@ export class ApprovalsService {
     const where: Prisma.ApprovalRequestWhereInput = {
       entityType: q.entityType,
       status: q.status ?? 'PENDING',
+      // business applications record the business type (TenantsService.create / submitKyc)
+      ...(q.tenantType ? { metadata: { path: ['type'], equals: q.tenantType } } : {}),
     };
     const [rows, total] = await Promise.all([
       this.prisma.approvalRequest.findMany({ where, orderBy: { createdAt: 'asc' }, skip, take }),
@@ -138,6 +140,13 @@ export class ApprovalsService {
           },
         });
       }
+
+      // the applicant reads what to change on the business, which stays under review
+      if (approval.entityType === 'TENANT' && dto.decision === 'CHANGES_REQUESTED')
+        await tx.tenant.updateMany({
+          where: { id: approval.entityId, status: 'PENDING_APPROVAL' },
+          data: { rejectionReason: dto.notes ?? 'Changes requested' },
+        });
 
       if (approval.entityType === 'RIDER' && dto.decision === 'APPROVED') {
         const userId = (approval.metadata as { userId?: string }).userId ?? approval.submittedBy;

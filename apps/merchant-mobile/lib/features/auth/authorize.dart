@@ -42,10 +42,11 @@ final pendingInvitesProvider = FutureProvider.autoDispose<List<PendingInvite>>((
   ];
 });
 
-/// Memberships this app can open.
+/// Memberships this app can open. A rejected business is listed only so its
+/// owner can resubmit the application on the web; the API refuses it here.
 List<Membership> eligibleMemberships(List<Membership> memberships) => [
       for (final m in memberships)
-        if (isMerchantTenant(m.tenantType)) m,
+        if (isMerchantTenant(m.tenantType) && m.tenantStatus != 'REJECTED') m,
     ];
 
 /// One-off message shown on the sign-in screen (e.g. after being signed out

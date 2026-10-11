@@ -628,12 +628,12 @@ function Documents({ docs }: { docs: AdminTenant['kycDocuments'] | Approval['doc
       <ul className="grid gap-1.5 text-sm">
         {docs.map((d, i) => (
           <li
-            key={`${d.type}-${i}`}
+            key={`${d.kind ?? d.type}-${i}`}
             className="flex items-center justify-between gap-3 rounded-md border px-3 py-2"
           >
             <span className="flex items-center gap-2">
               <FileText className="size-4 text-muted-foreground" aria-hidden />
-              {humanize(d.type)}
+              {humanize(d.kind ?? d.type)}
               {d.number ? (
                 <span className="font-mono text-xs text-muted-foreground">{d.number}</span>
               ) : null}
@@ -664,14 +664,19 @@ const ENTITY_LABEL: Record<string, string> = {
   OUTLET: 'Outlets',
 };
 
+/** Businesses that apply through the business apps (user-service ONBOARDABLE_TYPES). */
+const BUSINESS_TYPES = ['RESTAURANT', 'FOOD_CART', 'SUPPLIER', 'WHOLESALER', 'RETAILER'];
+
 /** Onboarding and review queue: restaurants, suppliers and other businesses, riders, ad campaigns. */
 export function ApprovalsQueue({ initialType = '' }: { initialType?: string }) {
   const [type, setType] = React.useState(initialType);
+  const [businessType, setBusinessType] = React.useState('');
   const [status, setStatus] = React.useState('PENDING');
   const [page, setPage] = React.useState(1);
   const [open, setOpen] = React.useState<Approval | null>(null);
   const list = useApi<Paged<Approval>>('admin/approvals', {
     entityType: type || undefined,
+    tenantType: (type === 'TENANT' && businessType) || undefined,
     status: status || undefined,
     page,
     pageSize: 25,
@@ -685,7 +690,13 @@ export function ApprovalsQueue({ initialType = '' }: { initialType?: string }) {
     {
       key: 'type',
       header: 'Kind',
-      cell: (a) => (a.entityType === 'TENANT' ? 'Business' : humanize(a.entityType)),
+      // business applications record the business type (restaurant, supplier …)
+      cell: (a) =>
+        a.entityType !== 'TENANT'
+          ? humanize(a.entityType)
+          : a.metadata?.type
+            ? `Business · ${humanize(String(a.metadata.type))}`
+            : 'Business',
     },
     { key: 'docs', header: 'Documents', align: 'right', cell: (a) => a.documents?.length ?? 0 },
     { key: 'when', header: 'Submitted', cell: (a) => formatRelative(a.createdAt) },
@@ -712,6 +723,21 @@ export function ApprovalsQueue({ initialType = '' }: { initialType?: string }) {
         </TabsList>
       </Tabs>
       <FilterBar>
+        {type === 'TENANT' ? (
+          <Select
+            aria-label="Business type"
+            className="w-48"
+            value={businessType}
+            onChange={(e) => (setBusinessType(e.target.value), setPage(1))}
+          >
+            <option value="">Any business</option>
+            {BUSINESS_TYPES.map((t) => (
+              <option key={t} value={t}>
+                {humanize(t)}
+              </option>
+            ))}
+          </Select>
+        ) : null}
         <Select
           aria-label="Status"
           className="w-48"
@@ -771,6 +797,8 @@ function ApprovalPanel({ id, onDone }: { id: string; onDone: () => void }) {
   const meta = Object.entries(a.metadata ?? {}).filter(
     ([, v]) => v !== null && typeof v !== 'object',
   );
+  // KYC identifiers a business asked to change; applied only on approval
+  const changes = Object.entries((a.metadata?.changes ?? {}) as Record<string, string>);
   return (
     <div className="grid gap-5">
       <div className="pr-8">
@@ -803,6 +831,19 @@ function ApprovalPanel({ id, onDone }: { id: string; onDone: () => void }) {
             </React.Fragment>
           ))}
         </dl>
+      ) : null}
+      {changes.length ? (
+        <section>
+          <h3 className="mb-2 text-sm font-semibold">Changes to review</h3>
+          <dl className="grid grid-cols-[8rem_1fr] gap-y-1.5 text-sm">
+            {changes.map(([k, v]) => (
+              <React.Fragment key={k}>
+                <dt className="text-muted-foreground">{humanize(k.replace(/([A-Z])/g, '_$1'))}</dt>
+                <dd className="break-all font-mono text-xs">{v}</dd>
+              </React.Fragment>
+            ))}
+          </dl>
+        </section>
       ) : null}
       <Documents docs={a.documents} />
       {a.reviewNotes ? (

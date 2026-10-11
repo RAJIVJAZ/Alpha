@@ -27,6 +27,18 @@ export interface AuthMiddlewareOptions {
   allow?: (claims: Record<string, unknown>, path: string) => boolean | string;
 }
 
+/**
+ * `allow` for a business dashboard: an approved business of one of `types`
+ * uses the app; any other signed-in account may only register one, or follow
+ * its application, at /apply.
+ */
+export const approvedBusiness =
+  (...types: string[]) =>
+  (claims: Record<string, unknown>, path: string) =>
+    path === '/apply' ||
+    (types.includes(String(claims.tenantType)) && claims.tenantStatus === 'ACTIVE') ||
+    '/apply';
+
 const matches = (path: string, pattern: string) =>
   pattern.endsWith('*') ? path.startsWith(pattern.slice(0, -1)) : path === pattern;
 

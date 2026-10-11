@@ -6,6 +6,7 @@ import { AccessTokenService, signServiceToken } from '../tokens';
 import { Permissions } from '../permissions';
 import { AuthGuard } from './auth.guard';
 import {
+  ALLOW_REJECTED_TENANT_KEY,
   IS_INTERNAL_KEY,
   IS_PUBLIC_KEY,
   PERMISSIONS_KEY,
@@ -132,6 +133,30 @@ describe('AuthGuard', () => {
       }),
     );
     await expect(guard.canActivate(owner.ctx)).resolves.toBe(true);
+  });
+
+  it('keeps a rejected business to the routes that resubmit its application', async () => {
+    const claims = (tenantStatus: string) =>
+      bearer({
+        sub: 'u',
+        roles: [],
+        sid: 's',
+        tenantId: 't',
+        tenantType: 'RESTAURANT',
+        tenantRole: 'OWNER',
+        tenantStatus,
+      });
+    const rejected = ctxWith({ [TENANT_TYPES_KEY]: [] }, claims('REJECTED'));
+    await expect(guard.canActivate(rejected.ctx)).rejects.toMatchObject({
+      response: { code: 'TENANT_REJECTED' },
+    });
+    const resubmit = ctxWith(
+      { [TENANT_TYPES_KEY]: [], [ALLOW_REJECTED_TENANT_KEY]: true },
+      claims('REJECTED'),
+    );
+    await expect(guard.canActivate(resubmit.ctx)).resolves.toBe(true);
+    const pending = ctxWith({ [TENANT_TYPES_KEY]: [] }, claims('PENDING_APPROVAL'));
+    await expect(guard.canActivate(pending.ctx)).resolves.toBe(true);
   });
 
   it('explains a missing permission in plain words and lists only what is missing', async () => {

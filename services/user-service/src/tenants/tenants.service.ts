@@ -147,12 +147,14 @@ export class TenantsService {
     if (changes.gstin && !isValidGstin(changes.gstin))
       throw badRequest('GSTIN checksum is invalid', 'INVALID_GSTIN');
     if (changes.gstin) changes.stateCode ??= gstinStateCode(changes.gstin);
+    const { status } = await this.get(tenantId);
     const tenant = await this.prisma.tenant.update({
       where: { id: tenantId },
       data: {
         kycDocuments: documents as unknown as Prisma.InputJsonValue,
-        ...(['REJECTED'].includes((await this.get(tenantId)).status)
-          ? { status: 'PENDING_APPROVAL' }
+        // an application not yet approved goes back under review, without the last notes
+        ...(status === 'REJECTED' || status === 'PENDING_APPROVAL'
+          ? { status: 'PENDING_APPROVAL', rejectionReason: null }
           : {}),
       },
     });

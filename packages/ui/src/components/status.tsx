@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { AlertTriangle, CheckCircle2, Circle, Clock, XCircle } from 'lucide-react';
 import { humanize } from '../lib/format';
 import { Badge } from './badge';
@@ -114,3 +115,13 @@ export function StatusBadge({
 }
 
 export const statusTone = (status: string) => TONES[status] ?? 'neutral';
+
+/** A status badge over a short explanation, announced to screen readers (application reviews). */
+export function StatusNote({ status, children }: { status: string; children: ReactNode }) {
+  return (
+    <div role="status" className="grid justify-items-start gap-2 rounded-lg border p-3 text-sm">
+      <StatusBadge status={status} />
+      {children}
+    </div>
+  );
+}

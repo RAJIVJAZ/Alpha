@@ -17,6 +17,7 @@ import {
 } from '../permissions';
 import { AccessTokenService, extractBearer, TokenError, verifyServiceToken } from '../tokens';
 import {
+  ALLOW_REJECTED_TENANT_KEY,
   ALLOW_SERVICE_KEY,
   AUTH_MODULE_OPTIONS,
   IS_INTERNAL_KEY,
@@ -121,6 +122,12 @@ export class AuthGuard implements CanActivate {
         throw new ForbiddenException({
           message: 'Select a business first',
           code: 'TENANT_REQUIRED',
+        });
+      // a rejected business stays in the session only to fix and resubmit its application
+      if (user.tenantStatus === 'REJECTED' && !this.meta<boolean>(ALLOW_REJECTED_TENANT_KEY, ctx))
+        throw new ForbiddenException({
+          message: 'This business was not approved. Update and resubmit its application.',
+          code: 'TENANT_REJECTED',
         });
       if (tenantTypes.length && (!user.tenantType || !tenantTypes.includes(user.tenantType))) {
         throw new ForbiddenException({

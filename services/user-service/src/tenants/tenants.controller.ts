@@ -2,7 +2,13 @@ import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Permissions, permissionsFor } from '@foodgrid/auth';
 import type { AccessTokenClaims } from '@foodgrid/types';
-import { CurrentUser, RequirePermissions, RequireTenant, TenantId } from '@foodgrid/auth/nest';
+import {
+  AllowRejectedTenant,
+  CurrentUser,
+  RequirePermissions,
+  RequireTenant,
+  TenantId,
+} from '@foodgrid/auth/nest';
 import {
   CreateTenantDto,
   InviteMemberDto,
@@ -45,6 +51,7 @@ export class TenantsController {
   }
 
   @RequireTenant()
+  @AllowRejectedTenant()
   @Get('current')
   @ApiOperation({ summary: 'My business (PAN and KYC only for settings / finance)' })
   current(@TenantId() tenantId: string, @CurrentUser() user: AccessTokenClaims) {
@@ -66,6 +73,7 @@ export class TenantsController {
   }
 
   @RequireTenant()
+  @AllowRejectedTenant()
   @RequirePermissions(Permissions.SettingsManage)
   @Post('current/kyc')
   @ApiOperation({

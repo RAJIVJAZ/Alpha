@@ -35,9 +35,14 @@ export class SessionService {
     @Inject(REDIS) private readonly redis: Redis,
   ) {}
 
+  /**
+   * A rejected business stays listed so its owner can fix and resubmit the
+   * application; its token carries tenantStatus REJECTED, which the API guard
+   * admits to those routes only.
+   */
   async memberships(userId: string): Promise<MembershipWithTenant[]> {
     return this.prisma.tenantMember.findMany({
-      where: { userId, status: 'ACTIVE', tenant: { status: { notIn: ['REJECTED', 'SUSPENDED'] } } },
+      where: { userId, status: 'ACTIVE', tenant: { status: { not: 'SUSPENDED' } } },
       include: { tenant: true },
       orderBy: { createdAt: 'asc' },
     });
@@ -83,6 +88,7 @@ export class SessionService {
         ? {
             tenantId: membership.tenantId,
             tenantType: membership.tenant.type,
+            tenantStatus: membership.tenant.status,
             tenantRole: membership.role,
             outletIds: membership.outletIds,
           }

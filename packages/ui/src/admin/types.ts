@@ -55,7 +55,9 @@ export interface AdminTenant {
   city: string | null;
   state: string | null;
   pincode: string | null;
-  kycDocuments: { type: string; url?: string; number?: string; verified?: boolean }[] | null;
+  /** Applications send `kind`; seeded documents carry `type`. */
+  kycDocuments:
+    { kind?: string; type?: string; url?: string; number?: string; verified?: boolean }[] | null;
   approvedAt: string | null;
   rejectionReason: string | null;
   createdAt: string;
@@ -88,7 +90,8 @@ export interface Approval {
   title: string;
   submittedBy: string | null;
   status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CHANGES_REQUESTED' | string;
-  documents: { type: string; url?: string; number?: string; verified?: boolean }[] | null;
+  documents:
+    { kind?: string; type?: string; url?: string; number?: string; verified?: boolean }[] | null;
   metadata: Record<string, unknown> | null;
   reviewedAt: string | null;
   reviewNotes: string | null;

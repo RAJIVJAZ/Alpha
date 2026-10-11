@@ -1,4 +1,4 @@
-import type { PlatformRole, TenantRole, TenantType } from './enums';
+import type { PlatformRole, TenantRole, TenantStatus, TenantType } from './enums';
 
 /** Claims carried by RS256 access tokens issued by auth-service. */
 export interface AccessTokenClaims {
@@ -9,6 +9,8 @@ export interface AccessTokenClaims {
   /** Active tenant (business organisation) selected by the user, if any. */
   tenantId?: string;
   tenantType?: TenantType;
+  /** Review status of that business when the token was minted (only ACTIVE ones are approved). */
+  tenantStatus?: TenantStatus;
   tenantRole?: TenantRole;
   /** Outlets the member may operate; empty/undefined = all outlets of the tenant. */
   outletIds?: string[];

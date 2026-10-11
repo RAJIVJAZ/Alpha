@@ -1,14 +1,14 @@
 'use client';
 
 import * as React from 'react';
-import { FileCheck2, LogOut, RefreshCw, Send, Upload } from 'lucide-react';
-import { signOut } from '../components/app-shell';
+import { LogOut, RefreshCw, Send } from 'lucide-react';
+import { reopenApp, signOut } from '../components/app-shell';
 import { Button } from '../components/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/card';
-import { Field, Input, Select } from '../components/form';
+import { DocumentInput, Field, Input, Select } from '../components/form';
 import { ErrorNotice } from '../components/layout';
 import { Spinner } from '../components/misc';
-import { StatusBadge } from '../components/status';
+import { StatusNote } from '../components/status';
 import { api, ApiError, uploadMedia } from '../lib/api';
 import { humanize } from '../lib/format';
 import { useApi, useApiMutation, useSession } from '../lib/hooks';
@@ -23,23 +23,6 @@ import {
   type ApplicationForm,
 } from './application';
 import type { RiderProfile } from './types';
-
-/** Renews the session so its token carries the RIDER role granted on approval, then opens the app. */
-async function startDelivering() {
-  await fetch('/api/auth/refresh', { method: 'POST', credentials: 'same-origin' }).catch(
-    () => null,
-  );
-  window.location.assign('/');
-}
-
-function StatusNote({ status, children }: { status: string; children: React.ReactNode }) {
-  return (
-    <div role="status" className="grid justify-items-start gap-2 rounded-lg border p-3 text-sm">
-      <StatusBadge status={status} />
-      {children}
-    </div>
-  );
-}
 
 /**
  * Where a signed-in account without the RIDER role lands in rider-web: apply
@@ -84,7 +67,7 @@ export function RiderApplication() {
         ) : profile.status === 'ACTIVE' ? (
           <StatusNote status="APPROVED">
             <p>You are approved as a FoodGrid delivery partner.</p>
-            <Button onClick={() => void startDelivering()}>Start delivering</Button>
+            <Button onClick={() => void reopenApp()}>Start delivering</Button>
           </StatusNote>
         ) : (
           <StatusNote status={profile.status}>
@@ -222,40 +205,15 @@ function ApplicationFields({
       </Field>
       <fieldset className="grid gap-2">
         <legend className="mb-2 text-sm font-medium">Documents (photo or PDF)</legend>
-        {documentsFor(form.vehicleType).map((kind) => {
-          const file = files[kind];
-          return (
-            <label
-              key={kind}
-              className="flex cursor-pointer items-center gap-3 rounded-lg border border-dashed p-3 text-sm focus-within:ring-2 focus-within:ring-ring/30 hover:bg-muted"
-            >
-              {file || sent[kind] ? (
-                <FileCheck2 className="size-5 shrink-0 text-primary" aria-hidden />
-              ) : (
-                <Upload className="size-5 shrink-0 text-muted-foreground" aria-hidden />
-              )}
-              <span className="grid min-w-0">
-                <span className="font-medium">{DOCUMENTS[kind]}</span>
-                <span className="truncate text-muted-foreground">
-                  {file
-                    ? file.name
-                    : sent[kind]
-                      ? 'Sent earlier. Choose a file to replace it.'
-                      : 'Choose a photo or PDF'}
-                </span>
-              </span>
-              <input
-                type="file"
-                accept="image/jpeg,image/png,image/webp,application/pdf"
-                className="sr-only"
-                onChange={(e) => {
-                  const chosen = e.target.files?.[0];
-                  if (chosen) setFiles((f) => ({ ...f, [kind]: chosen }));
-                }}
-              />
-            </label>
-          );
-        })}
+        {documentsFor(form.vehicleType).map((kind) => (
+          <DocumentInput
+            key={kind}
+            label={DOCUMENTS[kind]!}
+            file={files[kind]}
+            sent={!!sent[kind]}
+            onChange={(file) => setFiles((f) => ({ ...f, [kind]: file }))}
+          />
+        ))}
       </fieldset>
       <Button type="submit" size="lg" loading={submit.isPending}>
         <Send /> {previous ? 'Submit again' : 'Submit application'}

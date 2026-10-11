@@ -39,7 +39,15 @@ export async function signOut() {
   window.location.assign('/login');
 }
 
-async function switchTenant(tenantId: string) {
+/** Renews the session so its token carries what changed since sign-in (a role, an approval), then opens the app. */
+export async function reopenApp() {
+  await fetch('/api/auth/refresh', { method: 'POST', credentials: 'same-origin' }).catch(
+    () => null,
+  );
+  window.location.assign('/');
+}
+
+export async function switchTenant(tenantId: string) {
   const res = await fetch('/api/auth/switch-tenant', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },

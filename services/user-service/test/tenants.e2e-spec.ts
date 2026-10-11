@@ -1,7 +1,7 @@
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { PrismaService } from '@foodgrid/database/nest';
-import type { TenantRole } from '@foodgrid/types';
+import type { TenantRole, TenantStatus } from '@foodgrid/types';
 import { InternalHttpService } from '@foodgrid/utils/server';
 import {
   createTestApp,
@@ -309,6 +309,116 @@ describe('user-service tenants & profile (e2e)', () => {
         .set('Authorization', accountant.auth)
         .expect(200);
       expect(full.body).toMatchObject({ pan: 'AABCS1234K' });
+    });
+  });
+
+  describe('business applications', () => {
+    it('onboards a business and takes resubmissions after changes are asked or it is rejected', async () => {
+      const applicant = await prisma.user.create({ data: { phone: '+919811100061' } });
+      const created = await api()
+        .post('/api/v1/tenants')
+        .set(
+          'Authorization',
+          `Bearer ${issueTestToken({ sub: applicant.id, roles: ['CUSTOMER'] })}`,
+        )
+        .send({
+          type: 'SUPPLIER',
+          name: 'Fresh Farms',
+          pan: 'AABCS1234K',
+          gstin: GSTIN,
+          addressLine1: '12, MG Road',
+          city: 'Bengaluru',
+          state: 'Karnataka',
+          pincode: '560001',
+          kycDocuments: [
+            { kind: 'PAN', url: 'https://cdn.test/kyc/pan.pdf', number: 'AABCS1234K' },
+          ],
+        })
+        .expect(201);
+      const id = created.body.id as string;
+      expect(created.body).toMatchObject({ status: 'PENDING_APPROVAL', stateCode: '29' });
+      const owner = (tenantStatus: TenantStatus) =>
+        `Bearer ${issueTestToken({
+          sub: applicant.id,
+          roles: ['CUSTOMER'],
+          tenantId: id,
+          tenantType: 'SUPPLIER',
+          tenantRole: 'OWNER',
+          tenantStatus,
+        })}`;
+      const ops = `Bearer ${issueTestToken({ sub: 'ops_1', roles: ['OPS'] })}`;
+
+      const queue = (tenantType: string) =>
+        api()
+          .get('/api/v1/admin/approvals')
+          .query({ entityType: 'TENANT', tenantType })
+          .set('Authorization', ops)
+          .expect(200);
+      expect((await queue('SUPPLIER')).body.data).toEqual([
+        expect.objectContaining({ entityId: id, title: 'Supplier onboarding: Fresh Farms' }),
+      ]);
+      expect((await queue('RESTAURANT')).body.data).toEqual([]);
+
+      const decide = async (decision: string, notes?: string) => {
+        const approval = await prisma.approvalRequest.findFirstOrThrow({
+          where: { entityId: id, status: 'PENDING' },
+        });
+        await api()
+          .post(`/api/v1/admin/approvals/${approval.id}/decision`)
+          .set('Authorization', ops)
+          .send({ decision, notes })
+          .expect(201);
+      };
+      const current = async (tenantStatus: TenantStatus) =>
+        (
+          await api()
+            .get('/api/v1/tenants/current')
+            .set('Authorization', owner(tenantStatus))
+            .expect(200)
+        ).body;
+      const resubmit = (tenantStatus: TenantStatus) =>
+        api()
+          .post('/api/v1/tenants/current/kyc')
+          .set('Authorization', owner(tenantStatus))
+          .send({
+            fssaiLicense: '12345678901234',
+            documents: [
+              { kind: 'PAN', url: 'https://cdn.test/kyc/pan.pdf', number: 'AABCS1234K' },
+              { kind: 'FSSAI_LICENSE', url: 'https://cdn.test/kyc/fssai.pdf' },
+            ],
+          })
+          .expect(201);
+
+      await decide('CHANGES_REQUESTED', 'Add your FSSAI licence');
+      expect(await current('PENDING_APPROVAL')).toMatchObject({
+        status: 'PENDING_APPROVAL',
+        rejectionReason: 'Add your FSSAI licence',
+      });
+      await resubmit('PENDING_APPROVAL');
+      expect(await current('PENDING_APPROVAL')).toMatchObject({ rejectionReason: null });
+
+      await decide('REJECTED', 'The FSSAI licence has expired');
+      // a rejected business may read the notes and resubmit, and use nothing else
+      expect(await current('REJECTED')).toMatchObject({
+        status: 'REJECTED',
+        rejectionReason: 'The FSSAI licence has expired',
+      });
+      const members = await api()
+        .get('/api/v1/tenants/current/members')
+        .set('Authorization', owner('REJECTED'))
+        .expect(403);
+      expect(members.body.code).toBe('TENANT_REJECTED');
+      await resubmit('REJECTED');
+      expect(await current('REJECTED')).toMatchObject({
+        status: 'PENDING_APPROVAL',
+        rejectionReason: null,
+      });
+
+      await decide('APPROVED');
+      expect(await current('ACTIVE')).toMatchObject({
+        status: 'ACTIVE',
+        fssaiLicense: '12345678901234',
+      });
     });
   });
 

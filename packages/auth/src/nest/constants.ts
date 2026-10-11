@@ -3,6 +3,7 @@ export const IS_INTERNAL_KEY = 'auth:isInternal';
 export const ALLOW_SERVICE_KEY = 'auth:allowService';
 export const ROLES_KEY = 'auth:roles';
 export const TENANT_TYPES_KEY = 'auth:tenantTypes';
+export const ALLOW_REJECTED_TENANT_KEY = 'auth:allowRejectedTenant';
 export const PERMISSIONS_KEY = 'auth:permissions';
 export const AUTH_MODULE_OPTIONS = Symbol('AUTH_MODULE_OPTIONS');
 export const SESSION_REVOCATION_CHECKER = Symbol('SESSION_REVOCATION_CHECKER');

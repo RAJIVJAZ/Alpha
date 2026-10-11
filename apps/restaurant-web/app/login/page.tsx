@@ -10,7 +10,7 @@ export default function LoginPage() {
       <Suspense>
         <LoginPanel
           title="FoodGrid for Restaurants"
-          description="Sign in to manage your restaurant."
+          description="Sign in to manage your restaurant. New to FoodGrid? Sign in with your mobile number to register your restaurant."
           modes={['password', 'otp']}
         />
       </Suspense>

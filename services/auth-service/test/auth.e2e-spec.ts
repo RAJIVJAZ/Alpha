@@ -185,6 +185,7 @@ describe('auth-service (e2e)', () => {
       sid,
       tenantId: kitchen.id,
       tenantType: 'RESTAURANT',
+      tenantStatus: 'ACTIVE',
       tenantRole: 'OWNER',
     });
 
@@ -249,6 +250,26 @@ describe('auth-service (e2e)', () => {
     await switchTenant('not-a-token', null).expect(401);
     // nothing was rotated, so the login refresh token is still the live one
     await refresh(login.body.tokens.refreshToken).expect(200);
+  });
+
+  it('keeps a rejected business selectable to resubmit its application, not a suspended one', async () => {
+    const login = await otpLogin('9000000010');
+    const userId = login.body.user.id as string;
+    const rejected = await joinBusiness(userId, 'Rejected Kitchen', 'RESTAURANT', 'OWNER');
+    const suspended = await joinBusiness(userId, 'Suspended Kitchen', 'RESTAURANT', 'OWNER');
+    await prisma.tenant.update({ where: { id: rejected.id }, data: { status: 'REJECTED' } });
+    await prisma.tenant.update({ where: { id: suspended.id }, data: { status: 'SUSPENDED' } });
+
+    const switched = await switchTenant(login.body.tokens.accessToken, rejected.id).expect(200);
+    expect(claimsOf(switched.body.tokens.accessToken)).toMatchObject({
+      tenantId: rejected.id,
+      tenantStatus: 'REJECTED',
+    });
+    expect(switched.body.user.memberships).toEqual([
+      expect.objectContaining({ tenantId: rejected.id, tenantStatus: 'REJECTED' }),
+    ]);
+    const res = await switchTenant(switched.body.tokens.accessToken, suspended.id).expect(403);
+    expect(res.body.code).toBe('NOT_A_MEMBER');
   });
 
   it('logs staff in with a password and locks out after repeated failures', async () => {

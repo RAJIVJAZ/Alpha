@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { FileCheck2, Upload } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 const field =
@@ -81,5 +82,47 @@ export function Field({
         </p>
       ) : null}
     </div>
+  );
+}
+
+/** Picks one document (photo or PDF) to upload; `sent` says one was uploaded earlier. */
+export function DocumentInput({
+  label,
+  file,
+  sent,
+  onChange,
+}: {
+  label: string;
+  file?: File;
+  sent?: boolean;
+  onChange: (file: File) => void;
+}) {
+  return (
+    <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-dashed p-3 text-sm focus-within:ring-2 focus-within:ring-ring/30 hover:bg-muted">
+      {file || sent ? (
+        <FileCheck2 className="size-5 shrink-0 text-primary" aria-hidden />
+      ) : (
+        <Upload className="size-5 shrink-0 text-muted-foreground" aria-hidden />
+      )}
+      <span className="grid min-w-0">
+        <span className="font-medium">{label}</span>
+        <span className="truncate text-muted-foreground">
+          {file
+            ? file.name
+            : sent
+              ? 'Sent earlier. Choose a file to replace it.'
+              : 'Choose a photo or PDF'}
+        </span>
+      </span>
+      <input
+        type="file"
+        accept="image/jpeg,image/png,image/webp,application/pdf"
+        className="sr-only"
+        onChange={(e) => {
+          const chosen = e.target.files?.[0];
+          if (chosen) onChange(chosen);
+        }}
+      />
+    </label>
   );
 }

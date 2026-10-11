@@ -270,13 +270,20 @@ stateDiagram-v2
 
 - **Tenants** are businesses: `RESTAURANT`, `FOOD_CART`, `SUPPLIER`, `WHOLESALER`,
   `RETAILER` (and `PLATFORM`), with status `PENDING_APPROVAL`, `ACTIVE`, `SUSPENDED` or
-  `REJECTED`. A new business is created with `POST /api/v1/tenants` and becomes active
-  through the approvals queue in admin-web.
+  `REJECTED`. A new business is created with `POST /api/v1/tenants` (the `/apply` page of
+  restaurant-web, vendor-web and supplier-web) and becomes active through the approvals
+  queue in admin-web. A reviewer asking for changes or rejecting it leaves the notes in
+  `Tenant.rejectionReason`; the owner fixes and resubmits with
+  `POST /api/v1/tenants/current/kyc`, which puts it back under review.
 - **Memberships** (`identity.TenantMember`) link a user to a tenant with one tenant role
   and an optional list of `outletIds` (empty means every outlet). A user can belong to
   several tenants and picks one with `POST /api/v1/auth/switch-tenant`.
 - **Access token claims** carry `sub`, `sid`, platform `roles`, and for the active
-  tenant `tenantId`, `tenantType`, `tenantRole` and `outletIds`.
+  tenant `tenantId`, `tenantType`, `tenantStatus`, `tenantRole` and `outletIds`.
+  Suspended businesses are left out of sessions. A rejected one stays selectable so its
+  owner can resubmit, but the API guard refuses its token on every `@RequireTenant()`
+  route except those marked `@AllowRejectedTenant()` (`GET` and `POST kyc` of
+  `tenants/current`).
 - **Data isolation.** Merchant-facing queries use `prisma.forTenant(tenantId)`
   (`packages/database/src/tenant-scope.ts`), which adds the tenant to every read and
   stamps it on every write for the 33 tenant-partitioned models; a cross-tenant access
@@ -307,9 +314,13 @@ Permissions (`packages/auth/src/permissions.ts`):
 | FINANCE         | `platform:finance`, `platform:analytics`, `platform:users:read`                                          |
 | OPS             | `platform:approvals`, `platform:riders`, `platform:users:read`, `platform:analytics`, `platform:content` |
 
-Each web app admits only its audience at sign-in: admin-web the staff roles,
-restaurant-web `RESTAURANT` tenants, vendor-web `FOOD_CART`, `WHOLESALER` and
-`RETAILER`, supplier-web `SUPPLIER`. rider-web and rider-mobile let any account
+admin-web admits only the staff roles at sign-in. restaurant-web (`RESTAURANT`),
+vendor-web (`FOOD_CART`, `WHOLESALER`, `RETAILER`) and supplier-web (`SUPPLIER`) let any
+account sign in, but their middleware (`approvedBusiness` in `@foodgrid/auth`) opens the
+dashboards only to a token whose business is of those types and `ACTIVE`; everyone else
+gets `/apply`: register a business, follow its review, resubmit after changes or a
+rejection, and once approved renew the token (`POST /api/auth/refresh`) to open the
+dashboard. rider-web and rider-mobile let any account
 sign in but open only the rider application (`/apply`, `POST /riders/onboarding`)
 until the account has the `RIDER` role, which approval adds; the application
 then renews the token (`POST /api/auth/refresh` on the web) to pick the role up.

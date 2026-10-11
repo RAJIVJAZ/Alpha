@@ -15,6 +15,7 @@
     "./marketplace": "./src/marketplace/index.ts",
     "./admin": "./src/admin/index.ts",
     "./rider": "./src/rider/index.ts",
+    "./business": "./src/business/index.ts",
     "./customer": "./src/customer/index.ts",
     "./styles.css": "./src/styles.css"
   },

@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsArray, IsIn, IsObject, IsOptional, IsString, MaxLength } from 'class-validator';
 import { PageQueryDto } from '@foodgrid/utils/server';
+import { ONBOARDABLE_TYPES } from '../../tenants/dto/tenant.dto';
 
 export const APPROVAL_ENTITY_TYPES = [
   'TENANT',
@@ -43,4 +44,11 @@ export class ListApprovalsDto extends PageQueryDto {
   @IsOptional()
   @IsIn(['PENDING', 'APPROVED', 'REJECTED', 'CHANGES_REQUESTED'])
   status?: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CHANGES_REQUESTED';
+  @ApiPropertyOptional({
+    enum: ONBOARDABLE_TYPES,
+    description: 'Business applications of this type',
+  })
+  @IsOptional()
+  @IsIn(ONBOARDABLE_TYPES)
+  tenantType?: (typeof ONBOARDABLE_TYPES)[number];
 }
