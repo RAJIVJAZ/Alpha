@@ -88,7 +88,7 @@ The system shows pushes while the app is in the background; while it is open
 they appear as a snack bar (`PushListener` in `MaterialApp.builder`). Without push, new orders still reach the open app over the tracking
 socket (with polling as the fallback) and chime.
 
-Firebase project `alpha-ec72a` is configured: `android/app/google-services.json` (covers all three apps) and the Google Services Gradle plugin are committed. The iOS file `ios/Runner/GoogleService-Info.plist` for this app is not added yet: download it from the Firebase console and add it to the Runner target in Xcode. Without these files Firebase does not
+Firebase project `alpha-ec72a` is configured: `android/app/google-services.json` (covers all three apps) and the Google Services Gradle plugin are committed. So is `ios/Runner/GoogleService-Info.plist` (added to the Runner target). Without these files Firebase does not
 start, the log says "Push notifications are off" and the app runs without push.
 To turn push on for an environment:
 
