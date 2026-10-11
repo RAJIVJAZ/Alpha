@@ -85,7 +85,7 @@ one opens the app but does not route the link yet. To do that, pass it from
 `FirebaseMessaging.onMessageOpenedApp` and `getInitialMessage()` to
 `openLink(context, deepLink)` in `lib/src/common/links.dart`, as the inbox does.
 
-The repository holds no Firebase project files. Without them Firebase does not
+Firebase project `alpha-ec72a` is configured: `android/app/google-services.json` (covers all three apps) and the Google Services Gradle plugin are committed, and so is `ios/Runner/GoogleService-Info.plist` (added to the Runner target). Without these files Firebase does not
 start, the log says "Push notifications are off" and the app runs without push.
 To turn push on for an environment:
 

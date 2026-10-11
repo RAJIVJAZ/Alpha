@@ -1,0 +1,67 @@
+{
+  "project_info": {
+    "project_number": "930576369808",
+    "project_id": "alpha-ec72a",
+    "storage_bucket": "alpha-ec72a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:930576369808:android:a95e38822a3806422bb015",
+        "android_client_info": {
+          "package_name": "in.foodgrid.customer"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDfBNl3NMn8pab0YDCGnE3gyVV9FbSh2Hw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:930576369808:android:748ba61c0f99a94a2bb015",
+        "android_client_info": {
+          "package_name": "in.foodgrid.merchant"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDfBNl3NMn8pab0YDCGnE3gyVV9FbSh2Hw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:930576369808:android:4b3d3d5fa888bdaf2bb015",
+        "android_client_info": {
+          "package_name": "in.foodgrid.rider"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDfBNl3NMn8pab0YDCGnE3gyVV9FbSh2Hw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

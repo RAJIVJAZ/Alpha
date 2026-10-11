@@ -126,7 +126,7 @@ another user signs in, and removes it on sign-out (`DELETE /devices/{token}`).
 The system shows pushes while the app is in the background; while it is open
 they appear as a snack bar (`PushListener` in `MaterialApp.builder`). New offers therefore reach a rider whose app is in the background.
 
-The repository holds no Firebase project files. Without them Firebase does not
+Firebase project `alpha-ec72a` is configured: `android/app/google-services.json` (covers all three apps) and the Google Services Gradle plugin are committed. The iOS file `ios/Runner/GoogleService-Info.plist` for this app is not added yet: download it from the Firebase console and add it to the Runner target in Xcode. Without these files Firebase does not
 start, the log says "Push notifications are off" and the app runs without push.
 To turn push on for an environment:
 
