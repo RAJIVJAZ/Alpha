@@ -1,7 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '@foodgrid/database/nest';
 import { generateDocumentNumber, Prisma } from '@foodgrid/database';
-import type { B2bOrder, B2bOrderItem, B2bOrderStatus, PaymentTerms } from '@foodgrid/database';
+import type {
+  B2bOrder,
+  B2bOrderItem,
+  B2bOrderStatus,
+  DeliverySlot,
+  PaymentTerms,
+} from '@foodgrid/database';
 import { B2bOrderEvent, EventTypes } from '@foodgrid/types';
 import {
   AppError,
@@ -154,6 +160,8 @@ export class B2bOrdersService {
       );
 
     let deliveryDate: Date | null = null;
+    let slotDay = '';
+    let bookedSlot: DeliverySlot | null = null;
     if (input.deliverySlotId) {
       if (!input.deliveryDate)
         throw unprocessable('deliveryDate is required with a slot', 'DATE_REQUIRED');
@@ -161,17 +169,9 @@ export class B2bOrdersService {
         where: { id: input.deliverySlotId, tenantId: input.sellerTenantId },
       });
       if (!slot) throw notFound('Delivery slot', input.deliverySlotId);
-      const day = input.deliveryDate.slice(0, 10);
-      deliveryDate = new Date(`${day}T00:00:00.000Z`);
-      const booked = await this.prisma.b2bOrder.count({
-        where: {
-          deliverySlotId: slot.id,
-          deliveryDate,
-          status: { notIn: ['CANCELLED', 'REJECTED'] },
-        },
-      });
-      const check = slotBookable(slot, day, booked);
-      if (!check.ok) throw unprocessable(check.reason!, 'SLOT_UNAVAILABLE');
+      slotDay = input.deliveryDate.slice(0, 10);
+      deliveryDate = new Date(`${slotDay}T00:00:00.000Z`);
+      bookedSlot = slot;
     }
 
     const paymentTerms: PaymentTerms =
@@ -210,6 +210,19 @@ export class B2bOrdersService {
     );
 
     return this.prisma.$transaction(async (tx) => {
+      // the slot row lock serialises checkouts into the same slot, so capacity holds under concurrency
+      if (bookedSlot) {
+        await tx.$queryRaw`SELECT id FROM "marketplace"."DeliverySlot" WHERE id = ${bookedSlot.id} FOR UPDATE`;
+        const booked = await tx.b2bOrder.count({
+          where: {
+            deliverySlotId: bookedSlot.id,
+            deliveryDate,
+            status: { notIn: ['CANCELLED', 'REJECTED'] },
+          },
+        });
+        const check = slotBookable(bookedSlot, slotDay, booked);
+        if (!check.ok) throw unprocessable(check.reason!, 'SLOT_UNAVAILABLE');
+      }
       // Credit orders hold their invoiced total against the dealer's limit until
       // paid, cancelled or rejected; the conditional update serialises concurrent orders.
       if (onCredit) {

@@ -384,6 +384,31 @@ describe('supplier-service marketplace (e2e)', () => {
     expect(ratingOf).toEqual({ [first.body.id]: null, [second.body.id]: 4 });
   });
 
+  it('never books a slot past its capacity, even when buyers check out at the same time', async () => {
+    const rice = await product(BHARAT, 'RICE-SLOT', 1000);
+    const day = new Date(Date.now() + 7 * 86_400_000).toISOString().slice(0, 10);
+    const slot = await prisma.deliverySlot.create({
+      data: {
+        tenantId: BHARAT,
+        dayOfWeek: new Date(`${day}T00:00:00Z`).getUTCDay(),
+        startTime: '10:00',
+        endTime: '12:00',
+        capacity: 2,
+      },
+    });
+    const results = await Promise.all(
+      [CAFE, SPICE, LAKSHMI, CAFE].map((buyer) =>
+        order(buyer, {
+          items: [{ productId: rice.id, quantity: 1 }],
+          deliverySlotId: slot.id,
+          deliveryDate: day,
+        }),
+      ),
+    );
+    expect(results.map((r) => r.status).sort()).toEqual([201, 201, 422, 422]);
+    expect(await prisma.b2bOrder.count({ where: { deliverySlotId: slot.id } })).toBe(2);
+  });
+
   it("keeps a seller's dealers inside its own territories", async () => {
     const foreign = await prisma.territory.create({
       data: { tenantId: BHARAT, name: 'Bengaluru South' },
