@@ -261,6 +261,126 @@ describe('supplier-service marketplace (e2e)', () => {
     expect(Number(so.discount)).toBe(443); // 10% once: taxable 3987, not 1950 x 0.81 + ...
   });
 
+  it('lets admins add, rename and deactivate categories; deactivated ones take no new products', async () => {
+    const admin = { Authorization: `Bearer ${issueTestToken({ sub: 'adm', roles: ['ADMIN'] })}` };
+    const categories = '/api/v1/admin/marketplace/categories';
+    await api().get(categories).set(as(BHARAT)).expect(403);
+
+    const created = await api()
+      .post(categories)
+      .set(admin)
+      .send({ code: 'BAKERY', name: 'Bakery Supplies' })
+      .expect(201);
+    expect(created.body.slug).toBe('bakery-supplies');
+    const dup = await api().post(categories).set(admin).send({ code: 'BAKERY', name: 'Other' });
+    expect(dup.status).toBe(409);
+    expect(dup.body.code).toBe('DUPLICATE_CATEGORY');
+    const renamed = await api()
+      .patch(`${categories}/${created.body.id}`)
+      .set(admin)
+      .send({ name: 'Bakery' })
+      .expect(200);
+    expect(renamed.body).toMatchObject({ code: 'BAKERY', name: 'Bakery', slug: 'bakery-supplies' });
+
+    const listing = (sku: string) => ({
+      categoryCode: 'BAKERY',
+      name: 'Yeast',
+      sku,
+      unit: 'KG',
+      price: 120,
+      gstRate: 5,
+    });
+    const yeast = await api()
+      .post('/api/v1/seller/products')
+      .set(as(BHARAT))
+      .send(listing('YEAST-1'))
+      .expect(201);
+
+    await api()
+      .patch(`${categories}/${created.body.id}`)
+      .set(admin)
+      .send({ isActive: false })
+      .expect(200);
+    const all = await api().get(categories).set(admin).expect(200);
+    expect(all.body.map((c: { code: string }) => c.code).sort()).toEqual(['BAKERY', 'GRAINS']);
+    const visible = await api().get('/api/v1/marketplace/categories').expect(200);
+    expect(visible.body.map((c: { code: string }) => c.code)).toEqual(['GRAINS']);
+    const refused = await api()
+      .post('/api/v1/seller/products')
+      .set(as(BHARAT))
+      .send(listing('YEAST-2'))
+      .expect(400);
+    expect(refused.body.code).toBe('INVALID_CATEGORY');
+    // products already in it can still be edited (the edit form sends their category back)
+    await api()
+      .patch(`/api/v1/seller/products/${yeast.body.id}`)
+      .set(as(BHARAT))
+      .send({ categoryCode: 'BAKERY', price: 110 })
+      .expect(200);
+  });
+
+  it('books slots, restocks on buyer cancellation and records the rating on the order', async () => {
+    const rice = await product(BHARAT, 'RICE-25', 1000);
+    await prisma.product.update({
+      where: { id: rice.id },
+      data: { stockQty: 4, stockStatus: 'LOW_STOCK' },
+    });
+    const day = new Date(Date.now() + 7 * 86_400_000).toISOString().slice(0, 10);
+    const slot = await prisma.deliverySlot.create({
+      data: {
+        tenantId: BHARAT,
+        dayOfWeek: new Date(`${day}T00:00:00Z`).getUTCDay(),
+        startTime: '10:00',
+        endTime: '12:00',
+        capacity: 1,
+      },
+    });
+    const buy = (quantity: number, booking: object = {}) =>
+      order(CAFE, { items: [{ productId: rice.id, quantity }], ...booking });
+    const seller = (id: string, action: string) =>
+      api().post(`/api/v1/seller/orders/${id}/${action}`).set(as(BHARAT)).send({}).expect(200);
+    const stock = async () => {
+      const p = await prisma.product.findUniqueOrThrow({ where: { id: rice.id } });
+      return [Number(p.stockQty), p.stockStatus];
+    };
+
+    // the slot takes one order; the buyer view then shows it full
+    const first = await buy(4, { deliverySlotId: slot.id, deliveryDate: day }).expect(201);
+    const slots = await api()
+      .get(`/api/v1/marketplace/sellers/${BHARAT}/slots`)
+      .query({ date: day });
+    expect(slots.body).toEqual([
+      expect.objectContaining({ id: slot.id, booked: 1, available: false, reason: 'Slot is full' }),
+    ]);
+    const full = await buy(1, { deliverySlotId: slot.id, deliveryDate: day }).expect(422);
+    expect(full.body.code).toBe('SLOT_UNAVAILABLE');
+
+    // confirming reserves the stock; the buyer cancelling puts it back with a fresh status
+    await seller(first.body.id, 'confirm');
+    expect(await stock()).toEqual([0, 'OUT_OF_STOCK']);
+    await api()
+      .post(`/api/v1/marketplace/orders/${first.body.id}/cancel`)
+      .set(as(CAFE))
+      .send({ reason: 'Ordered twice' })
+      .expect(200);
+    expect(await stock()).toEqual([4, 'LOW_STOCK']);
+
+    const second = await buy(2).expect(201);
+    await seller(second.body.id, 'confirm');
+    await seller(second.body.id, 'dispatch');
+    await seller(second.body.id, 'deliver');
+    await api()
+      .post(`/api/v1/marketplace/orders/${second.body.id}/rating`)
+      .set(as(CAFE))
+      .send({ rating: 4 })
+      .expect(201);
+    const mine = await api().get('/api/v1/marketplace/orders').set(as(CAFE)).expect(200);
+    const ratingOf = Object.fromEntries(
+      mine.body.data.map((o: { id: string; rating: number | null }) => [o.id, o.rating]),
+    );
+    expect(ratingOf).toEqual({ [first.body.id]: null, [second.body.id]: 4 });
+  });
+
   it("keeps a seller's dealers inside its own territories", async () => {
     const foreign = await prisma.territory.create({
       data: { tenantId: BHARAT, name: 'Bengaluru South' },

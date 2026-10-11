@@ -7,8 +7,10 @@ import { TenantDirectory } from '../common/tenant-directory.service';
 import {
   BulkProductsDto,
   CatalogQueryDto,
+  CategoryDto,
   PriceTiersDto,
   ProductDto,
+  UpdateCategoryDto,
   UpdateProductDto,
 } from './dto/product.dto';
 
@@ -40,10 +42,33 @@ export class ProductsService {
     });
   }
 
-  private async categoryId(code: string) {
+  /** A deactivated category takes no new products; ones already in it may keep it. */
+  private async categoryId(code: string, currentId?: string) {
     const cat = await this.prisma.productCategory.findUnique({ where: { code } });
-    if (!cat) throw badRequest(`Unknown category ${code}`, 'INVALID_CATEGORY');
+    if (!cat || (!cat.isActive && cat.id !== currentId))
+      throw badRequest(`Unknown category ${code}`, 'INVALID_CATEGORY');
     return cat.id;
+  }
+
+  // ─── admin: category reference data ───────────────────────────────────────
+  adminCategories() {
+    return this.prisma.productCategory.findMany({
+      orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+      include: { _count: { select: { products: true } } },
+    });
+  }
+
+  async createCategory(dto: CategoryDto) {
+    if (await this.prisma.productCategory.findUnique({ where: { code: dto.code } }))
+      throw conflict(`Category ${dto.code} already exists`, 'DUPLICATE_CATEGORY');
+    return this.prisma.productCategory.create({ data: { ...dto, slug: slugify(dto.name) } });
+  }
+
+  /** Rename, reorder or (de)activate; the code and slug stay fixed because products and links use them. */
+  async updateCategory(id: string, dto: UpdateCategoryDto) {
+    if (!(await this.prisma.productCategory.findUnique({ where: { id } })))
+      throw notFound('Category', id);
+    return this.prisma.productCategory.update({ where: { id }, data: dto });
   }
 
   private async ensureSellerMetrics(tenantId: string) {
@@ -109,7 +134,9 @@ export class ProductsService {
       where: { id },
       data: {
         ...data,
-        ...(categoryCode ? { categoryId: await this.categoryId(categoryCode) } : {}),
+        ...(categoryCode
+          ? { categoryId: await this.categoryId(categoryCode, product.categoryId) }
+          : {}),
         attributes: dto.attributes as Prisma.InputJsonValue | undefined,
         stockStatus: stockStatusFor(stockQty, threshold),
       },

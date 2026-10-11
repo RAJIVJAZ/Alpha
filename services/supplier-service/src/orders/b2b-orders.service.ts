@@ -367,6 +367,22 @@ export class B2bOrdersService {
       });
       if (to === 'CANCELLED' || to === 'REJECTED')
         await this.releaseCredit(tx, order, Number(order.total));
+      // confirmation reserved the confirmed quantities, so cancelling after it gives them back
+      if (
+        to === 'CANCELLED' &&
+        ['CONFIRMED', 'PARTIALLY_CONFIRMED', 'PACKED'].includes(order.status)
+      )
+        for (const i of order.items) {
+          if (!i.confirmedQty || Number(i.confirmedQty) <= 0) continue;
+          const p = await tx.product.update({
+            where: { id: i.productId },
+            data: { stockQty: { increment: Number(i.confirmedQty) } },
+          });
+          await tx.product.update({
+            where: { id: i.productId },
+            data: { stockStatus: stockStatusFor(Number(p.stockQty), Number(p.lowStockThreshold)) },
+          });
+        }
       await this.emit(tx, updated, undefined, { note, ...extra });
       return { before: order, after: updated };
     });
@@ -551,13 +567,9 @@ export class B2bOrdersService {
 
   /** Cancellation by the buyer (or a cancelled PO) before dispatch; restocks confirmed quantities. */
   async cancel(id: string, actor: { buyerTenantId?: string; reason: string }) {
-    const order = await this.prisma.b2bOrder.findUnique({
-      where: { id },
-      include: { items: true },
-    });
+    const order = await this.prisma.b2bOrder.findUnique({ where: { id } });
     if (!order || (actor.buyerTenantId && order.buyerTenantId !== actor.buyerTenantId))
       throw notFound('B2B order', id);
-    const wasReserved = ['CONFIRMED', 'PARTIALLY_CONFIRMED', 'PACKED'].includes(order.status);
     const { after } = await this.transition(
       id,
       null,
@@ -565,16 +577,6 @@ export class B2bOrdersService {
       { cancelledAt: new Date() },
       actor.reason,
     );
-    if (wasReserved) {
-      for (const i of order.items) {
-        if (i.confirmedQty && Number(i.confirmedQty) > 0) {
-          await this.prisma.product.update({
-            where: { id: i.productId },
-            data: { stockQty: { increment: Number(i.confirmedQty) } },
-          });
-        }
-      }
-    }
     return after;
   }
 
@@ -683,8 +685,18 @@ export class B2bOrdersService {
         _count: { _all: true },
       }),
     ]);
+    const ratings = await this.prisma.sellerRating.findMany({
+      where: { b2bOrderId: { in: rows.map((r) => r.id) } },
+      select: { b2bOrderId: true, rating: true },
+    });
+    const rated = new Map(ratings.map((r) => [r.b2bOrderId, r.rating]));
     return {
-      ...paginate(rows, total, page, pageSize),
+      ...paginate(
+        rows.map((r) => ({ ...r, rating: rated.get(r.id) ?? null })),
+        total,
+        page,
+        pageSize,
+      ),
       statusCounts: Object.fromEntries(counts.map((c) => [c.status, c._count._all])),
     };
   }

@@ -70,7 +70,10 @@ A deploy, step by step (`deploy.yml`):
    commit, and fail if a placeholder or an unpinned image is left.
 3. Apply the namespace and ExternalSecrets, and wait for the secrets to sync.
 4. Delete the previous `db-migrate` Job, apply the new one and wait for it; on failure
-   print its logs and stop. Migrations always run before new code.
+   print its logs and stop. Migrations always run before new code. They also insert the
+   reference data every environment needs (the marketplace categories); the demo seed is
+   never needed in production. Admins manage categories in admin-web under Content →
+   Marketplace categories.
 5. Apply the whole overlay and wait for every Deployment to roll out.
 
 Production promotes an image that already passed staging: run CD with

@@ -370,7 +370,7 @@ export const MARKETPLACE_CATEGORIES = [
   { code: 'PACKAGING', name: 'Packaging' },
   { code: 'SPICES', name: 'Spices & Masalas' },
   { code: 'BEVERAGES', name: 'Beverages' },
-  { code: 'FROZEN', name: 'Frozen Foods' },
+  { code: 'FROZEN', name: 'Frozen Products' },
 ] as const;
 
 export interface ProductDef {

@@ -6,9 +6,11 @@ import type { AccessTokenClaims } from '@foodgrid/types';
 import {
   BulkProductsDto,
   CatalogQueryDto,
+  CategoryDto,
   PriceTiersDto,
   ProductDto,
   StockUpdateDto,
+  UpdateCategoryDto,
   UpdateProductDto,
 } from './dto/product.dto';
 import { ProductsService } from './products.service';
@@ -39,6 +41,31 @@ export class CatalogController {
   @Get('products/:idOrSlug')
   detail(@Param('idOrSlug') id: string) {
     return this.products.detail(id);
+  }
+}
+
+@ApiTags('admin')
+@ApiBearerAuth()
+@RequirePermissions(Permissions.PlatformContent)
+@Controller('admin/marketplace/categories')
+export class AdminCategoriesController {
+  constructor(private readonly products: ProductsService) {}
+
+  @Get()
+  @ApiOperation({ summary: 'All marketplace categories, including deactivated ones' })
+  list() {
+    return this.products.adminCategories();
+  }
+
+  @Post()
+  create(@Body() dto: CategoryDto) {
+    return this.products.createCategory(dto);
+  }
+
+  @Patch(':id')
+  @ApiOperation({ summary: 'Rename, reorder or deactivate (deactivated: no new products)' })
+  update(@Param('id') id: string, @Body() dto: UpdateCategoryDto) {
+    return this.products.updateCategory(id, dto);
   }
 }
 

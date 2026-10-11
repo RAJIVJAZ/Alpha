@@ -11,7 +11,11 @@ import { LogisticsController, SellerSlotsController } from './logistics/logistic
 import { LogisticsService } from './logistics/logistics.service';
 import { B2bOrdersService } from './orders/b2b-orders.service';
 import { BuyerOrdersController, SellerOrdersController } from './orders/b2b-orders.controller';
-import { CatalogController, SellerProductsController } from './products/products.controller';
+import {
+  AdminCategoriesController,
+  CatalogController,
+  SellerProductsController,
+} from './products/products.controller';
 import { ProductsService } from './products/products.service';
 import { QuotesService } from './quotes/quotes.service';
 import { SERVICE_NAME, SUBSCRIBED_STREAMS } from './service.config';
@@ -21,6 +25,7 @@ import { SERVICE_NAME, SUBSCRIBED_STREAMS } from './service.config';
   controllers: [
     CatalogController,
     SellerProductsController,
+    AdminCategoriesController,
     LogisticsController,
     SellerSlotsController,
     DealersController,

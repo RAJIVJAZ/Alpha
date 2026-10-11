@@ -21,6 +21,7 @@ import { Thumb } from '../components/thumb';
 import { api } from '../lib/api';
 import { formatDateTime, formatNumber, formatPercent, humanize } from '../lib/format';
 import { useApi, useApiMutation } from '../lib/hooks';
+import { MarketplaceCategories } from './categories';
 
 interface Campaign {
   id: string;
@@ -267,17 +268,24 @@ function ComposeDialog({ onClose }: { onClose: () => void }) {
 export function ContentManager() {
   return (
     <>
-      <PageHeader title="Content" description="Pages and banners shown in the apps" />
+      <PageHeader
+        title="Content"
+        description="Pages, banners and marketplace categories shown in the apps"
+      />
       <Tabs defaultValue="banners">
         <TabsList>
           <TabsTrigger value="banners">Banners</TabsTrigger>
           <TabsTrigger value="pages">Pages</TabsTrigger>
+          <TabsTrigger value="categories">Marketplace categories</TabsTrigger>
         </TabsList>
         <TabsContent value="banners">
           <Banners />
         </TabsContent>
         <TabsContent value="pages">
           <Pages />
+        </TabsContent>
+        <TabsContent value="categories">
+          <MarketplaceCategories />
         </TabsContent>
       </Tabs>
     </>

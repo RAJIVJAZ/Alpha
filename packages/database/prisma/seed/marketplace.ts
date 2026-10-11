@@ -13,8 +13,11 @@ export async function seedMarketplace(ctx: SeedContext) {
 
   const categoryIds = new Map<string, string>();
   for (const [i, c] of MARKETPLACE_CATEGORIES.entries()) {
-    const cat = await prisma.productCategory.create({
-      data: {
+    // the categories migration already inserts these on every database
+    const cat = await prisma.productCategory.upsert({
+      where: { code: c.code },
+      update: {},
+      create: {
         code: c.code,
         name: c.name,
         slug: slugify(c.name),

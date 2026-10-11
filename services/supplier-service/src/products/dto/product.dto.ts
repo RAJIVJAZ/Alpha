@@ -12,9 +12,11 @@ import {
   IsOptional,
   IsString,
   IsUrl,
+  Matches,
   Max,
   MaxLength,
   Min,
+  MinLength,
   ValidateNested,
 } from 'class-validator';
 import { BUYER_SEGMENTS, BuyerSegment, STOCK_UNITS, StockUnit } from '@foodgrid/types';
@@ -107,6 +109,22 @@ export class PriceTiersDto {
   @ValidateNested({ each: true })
   @Type(() => PriceTierDto)
   tiers!: PriceTierDto[];
+}
+
+export class CategoryDto {
+  @ApiProperty({ example: 'BAKERY', description: 'Stable code products and filters use' })
+  @Matches(/^[A-Z][A-Z0-9_]{1,29}$/, { message: 'code must be 2-30 capitals, digits or _' })
+  code!: string;
+  @ApiProperty({ example: 'Bakery Supplies' })
+  @IsString()
+  @MinLength(2)
+  @MaxLength(60)
+  name!: string;
+  @ApiPropertyOptional() @IsOptional() @IsInt() @Min(0) @Max(999) sortOrder?: number;
+  @ApiPropertyOptional() @IsOptional() @IsUrl({ require_tld: false }) imageUrl?: string;
+}
+export class UpdateCategoryDto extends PartialType(OmitType(CategoryDto, ['code'] as const)) {
+  @ApiPropertyOptional() @IsOptional() @IsBoolean() isActive?: boolean;
 }
 
 export class CatalogQueryDto extends PageQueryDto {
