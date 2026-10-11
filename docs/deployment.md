@@ -171,7 +171,14 @@ Build with `--dart-define=API_URL=https://<gateway-domain>/api/v1` (see each app
 ### Limits of this setup
 
 - The gateway is the Node gateway from `scripts/dev-gateway.ts`: it routes, proxies the
-  tracking socket and re-resolves service addresses on every request, but it has none of
-  nginx's per-IP rate limit on OTP and password login.
-- The admin console has no IP allow-list here (the production Kubernetes ingress has one).
+  tracking socket, re-resolves service addresses on every request, passes the client IP
+  on in `X-Forwarded-For` and, like nginx, rate limits OTP requests and password logins
+  per IP (10 a minute, bursts of 5). Its limits live in memory, so run one gateway
+  replica. The client IP is the first `X-Forwarded-For` hop, which a caller can set;
+  auth-service's own per-phone and per-account limits apply regardless.
+- After the first deploy, make a change in admin-web and check that its entry in the
+  audit log shows your own IP; if it shows a Railway or Vercel address, per-IP limits
+  are shared by everyone.
+- The admin console has no IP allow-list here (the production Kubernetes ingress has
+  one); add one with the Vercel Firewall if you need it.
 - Uploads need S3-compatible storage outside Railway.

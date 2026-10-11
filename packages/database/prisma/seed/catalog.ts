@@ -2771,7 +2771,7 @@ export const MERCHANTS: MerchantDef[] = [
         role: 'PROCUREMENT_MANAGER',
       },
     ],
-    commissionRate: 16,
+    commissionRate: 14,
     outlets: [
       {
         key: 'spicegarden-koramangala',

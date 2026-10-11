@@ -96,5 +96,12 @@ export function computeSettlementLine(
   };
 }
 
-/** Default commission when no rule matches (percent). */
-export const DEFAULT_COMMISSION = { ratePct: 18, fixedFee: 0, minFee: null, maxFee: null };
+/** Default commission when no rule matches (percent): consumer food orders. */
+export const DEFAULT_COMMISSION = { ratePct: 15, fixedFee: 0, minFee: null, maxFee: null };
+
+/** Default commission on B2B marketplace sales (raw material from suppliers and wholesalers). */
+export const DEFAULT_B2B_COMMISSION = { ratePct: 5, fixedFee: 0, minFee: null, maxFee: null };
+
+/** The fallback for a tenant type when no commission rule matches. */
+export const defaultCommissionFor = (tenantType: string) =>
+  tenantType === 'SUPPLIER' ? DEFAULT_B2B_COMMISSION : DEFAULT_COMMISSION;

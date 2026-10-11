@@ -386,7 +386,8 @@ sequenceDiagram
   wallet, others to the instrument (or to the wallet on request).
 - **Settlements.** Delivered and completed orders accrue a settlement line and the
   customer's GST invoice, using the most specific active commission rule (outlet, then
-  tenant, then tenant type, then priority). A business's commission override (admin
+  tenant, then tenant type, then priority). With no matching rule, consumer orders pay
+  15% and B2B marketplace sales 5%. A business's commission override (admin
   Businesses screen) is a tenant-wide rule like any other; every rule created or changed
   is first written to the admin audit log (user-service `internal/audit-logs`), and the
   change is refused if that fails. The commission charged

@@ -22,8 +22,8 @@ const MARKETPLACE_CATEGORY: Record<string, string> = {
   FROZEN: 'FROZEN',
 };
 /** Commission on B2B goods sales (mirrors the seeded commission rules). */
-const B2B_COMMISSION_PCT: Partial<Record<SellerKey, number>> = { bharat: 2.5 };
-const DEFAULT_B2B_COMMISSION_PCT = 3;
+const B2B_COMMISSION_PCT: Partial<Record<SellerKey, number>> = { bharat: 4 };
+const DEFAULT_B2B_COMMISSION_PCT = 5;
 /** POs above this total wait for the owner (ProcurementSettings.autoApproveBelow). */
 const autoApproveLimit = (merchantKey: string) => (merchantKey === 'spicegarden' ? 2000 : 3000);
 
