@@ -365,7 +365,10 @@ describe('supplier-service marketplace (e2e)', () => {
       .expect(200);
     expect(await stock()).toEqual([4, 'LOW_STOCK']);
 
-    const second = await buy(2).expect(201);
+    // a retried checkout (same Idempotency-Key) does not place a second order
+    const checkout = () => buy(2).set('Idempotency-Key', `checkout-${rice.id}`);
+    const second = await checkout().expect(201);
+    expect((await checkout().expect(201)).body.id).toBe(second.body.id);
     await seller(second.body.id, 'confirm');
     await seller(second.body.id, 'dispatch');
     await seller(second.body.id, 'deliver');

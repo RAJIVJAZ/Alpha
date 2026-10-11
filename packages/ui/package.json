@@ -12,6 +12,7 @@
     "./client": "./src/client.ts",
     "./merchant": "./src/merchant/index.ts",
     "./seller": "./src/seller/index.ts",
+    "./marketplace": "./src/marketplace/index.ts",
     "./admin": "./src/admin/index.ts",
     "./rider": "./src/rider/index.ts",
     "./customer": "./src/customer/index.ts",

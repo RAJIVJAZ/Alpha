@@ -16,9 +16,13 @@ export function useCan(permission: string): boolean {
 /** Sales and revenue (pos/summary, analytics reports) need reports:read. */
 export const useCanSeeSales = () => useCan('reports:read');
 
-/** The nav without the sales-report entry when the member's role can't see sales. */
-export function useNavForRole(nav: NavSection[], salesHref: string): NavSection[] {
-  const canSeeSales = useCanSeeSales();
-  if (canSeeSales) return nav;
-  return nav.map((s) => ({ ...s, items: s.items.filter((i) => i.href !== salesHref) }));
+/** The nav without the entries (href → permission) the member's role can't use. */
+export function useNavForRole(nav: NavSection[], gates: Record<string, string>): NavSection[] {
+  const { data: session } = useSession();
+  const granted =
+    session?.memberships.find((m) => m.tenantId === session.activeTenantId)?.permissions ?? [];
+  return nav.map((s) => ({
+    ...s,
+    items: s.items.filter((i) => !gates[i.href] || granted.includes(gates[i.href]!)),
+  }));
 }

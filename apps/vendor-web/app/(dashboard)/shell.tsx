@@ -10,6 +10,7 @@ import {
   MapPinned,
   Package,
   QrCode,
+  ShoppingBasket,
   ShoppingCart,
   Store,
   Truck,
@@ -35,6 +36,7 @@ const NAV: Record<VendorKind, NavSection[]> = {
         { label: 'Inventory', href: '/inventory', icon: Package },
         { label: 'Procurement', href: '/procurement', icon: ShoppingCart },
         { label: 'Purchase orders', href: '/purchase-orders', icon: Truck },
+        { label: 'Marketplace', href: '/marketplace', icon: ShoppingBasket },
       ],
     },
     {
@@ -57,6 +59,10 @@ const NAV: Record<VendorKind, NavSection[]> = {
         { label: 'Payouts', href: '/payouts', icon: Wallet },
       ],
     },
+    {
+      title: 'Buying',
+      items: [{ label: 'Marketplace', href: '/marketplace', icon: ShoppingBasket }],
+    },
   ],
   WHOLESALER: [
     {
@@ -75,6 +81,10 @@ const NAV: Record<VendorKind, NavSection[]> = {
         { label: 'Payouts', href: '/payouts', icon: Wallet },
       ],
     },
+    {
+      title: 'Buying',
+      items: [{ label: 'Marketplace', href: '/marketplace', icon: ShoppingBasket }],
+    },
   ],
 };
 
@@ -85,7 +95,10 @@ const SUBTITLE: Record<VendorKind, string> = {
 };
 
 export function Shell({ kind, children }: { kind: VendorKind; children: React.ReactNode }) {
-  const nav = useNavForRole(NAV[kind], '/sales');
+  const nav = useNavForRole(NAV[kind], {
+    '/sales': 'reports:read',
+    '/marketplace': 'procurement:read',
+  });
   const shell = (
     <AppShell product="FoodGrid" subtitle={SUBTITLE[kind]} nav={nav}>
       {children}

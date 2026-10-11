@@ -11,6 +11,7 @@ import {
   Package,
   QrCode,
   Receipt,
+  ShoppingBasket,
   ShoppingCart,
   Truck,
   Users,
@@ -36,6 +37,7 @@ const NAV: NavSection[] = [
       { label: 'Costing', href: '/costing', icon: Receipt },
       { label: 'Procurement', href: '/procurement', icon: ShoppingCart },
       { label: 'Purchase orders', href: '/purchase-orders', icon: Truck },
+      { label: 'Marketplace', href: '/marketplace', icon: ShoppingBasket },
     ],
   },
   {
@@ -51,7 +53,10 @@ const NAV: NavSection[] = [
 ];
 
 export function Shell({ children }: { children: React.ReactNode }) {
-  const nav = useNavForRole(NAV, '/reports');
+  const nav = useNavForRole(NAV, {
+    '/reports': 'reports:read',
+    '/marketplace': 'procurement:read',
+  });
   return (
     <OutletProvider>
       <AppShell product="FoodGrid" subtitle="Restaurant" nav={nav}>

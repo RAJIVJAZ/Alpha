@@ -199,8 +199,6 @@ function OrderDetail({ id }: { id: string }) {
     );
   const o = order.data;
   if (!o) return <DialogTitle className="sr-only">Loading order</DialogTitle>;
-  const a = o.deliveryAddress;
-  const t = o.trackingInfo;
 
   return (
     <div className="grid gap-5">
@@ -255,6 +253,48 @@ function OrderDetail({ id }: { id: string }) {
         ) : null}
       </div>
 
+      <OrderSummary order={o} />
+
+      {dialog === 'confirm' ? (
+        <ConfirmOrderDialog
+          order={o}
+          loading={act.isPending}
+          onClose={() => setDialog(null)}
+          onSubmit={(body) => act.mutate({ action: 'confirm', body })}
+        />
+      ) : null}
+      {dialog === 'dispatch' ? (
+        <DispatchDialog
+          loading={act.isPending}
+          onClose={() => setDialog(null)}
+          onSubmit={(body) => act.mutate({ action: 'dispatch', body })}
+        />
+      ) : null}
+      <RejectDialog
+        open={dialog === 'reject'}
+        loading={act.isPending}
+        onClose={() => setDialog(null)}
+        onSubmit={(reason) => act.mutate({ action: 'reject', body: { reason } })}
+      />
+      <ConfirmDialog
+        open={dialog === 'deliver'}
+        onOpenChange={(v) => (!v ? setDialog(null) : undefined)}
+        title={`Mark ${o.orderNumber} delivered?`}
+        description={`${o.buyerName} will be asked to record the goods receipt.`}
+        confirmLabel="Mark delivered"
+        loading={act.isPending}
+        onConfirm={() => act.mutate({ action: 'deliver' })}
+      />
+    </div>
+  );
+}
+
+/** Delivery address, tracking, lines, totals and timeline of a B2B order (seller and buyer sheets). */
+export function OrderSummary({ order: o }: { order: SellerOrder }) {
+  const a = o.deliveryAddress;
+  const t = o.trackingInfo;
+  return (
+    <>
       {a ? (
         <div className="grid gap-0.5 text-sm">
           <p className="flex items-center gap-1 font-medium">
@@ -329,7 +369,7 @@ function OrderDetail({ id }: { id: string }) {
       </dl>
       {o.notes ? (
         <p className="text-sm">
-          <span className="text-muted-foreground">Buyer note: </span>
+          <span className="text-muted-foreground">Note: </span>
           {o.notes}
         </p>
       ) : null}
@@ -358,38 +398,7 @@ function OrderDetail({ id }: { id: string }) {
           ))}
         </ol>
       </section>
-
-      {dialog === 'confirm' ? (
-        <ConfirmOrderDialog
-          order={o}
-          loading={act.isPending}
-          onClose={() => setDialog(null)}
-          onSubmit={(body) => act.mutate({ action: 'confirm', body })}
-        />
-      ) : null}
-      {dialog === 'dispatch' ? (
-        <DispatchDialog
-          loading={act.isPending}
-          onClose={() => setDialog(null)}
-          onSubmit={(body) => act.mutate({ action: 'dispatch', body })}
-        />
-      ) : null}
-      <RejectDialog
-        open={dialog === 'reject'}
-        loading={act.isPending}
-        onClose={() => setDialog(null)}
-        onSubmit={(reason) => act.mutate({ action: 'reject', body: { reason } })}
-      />
-      <ConfirmDialog
-        open={dialog === 'deliver'}
-        onOpenChange={(v) => (!v ? setDialog(null) : undefined)}
-        title={`Mark ${o.orderNumber} delivered?`}
-        description={`${o.buyerName} will be asked to record the goods receipt.`}
-        confirmLabel="Mark delivered"
-        loading={act.isPending}
-        onConfirm={() => act.mutate({ action: 'deliver' })}
-      />
-    </div>
+    </>
   );
 }
 

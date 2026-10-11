@@ -1,8 +1,18 @@
-import { Body, Controller, Get, HttpCode, Param, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  Param,
+  Post,
+  Query,
+  UseInterceptors,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Permissions } from '@foodgrid/auth';
 import { CurrentUser, RequirePermissions, RequireTenant, TenantId } from '@foodgrid/auth/nest';
 import type { AccessTokenClaims } from '@foodgrid/types';
+import { IdempotencyInterceptor } from '@foodgrid/utils/server';
 import { B2bOrdersService } from './b2b-orders.service';
 import {
   ConfirmB2bOrderDto,
@@ -23,6 +33,7 @@ export class BuyerOrdersController {
 
   @Post()
   @RequirePermissions(Permissions.ProcurementManage)
+  @UseInterceptors(IdempotencyInterceptor)
   @ApiOperation({ summary: 'Place a B2B order directly from the marketplace' })
   place(@CurrentUser() user: AccessTokenClaims, @Body() dto: PlaceB2bOrderDto) {
     return this.orders.place({ ...dto, buyerTenantId: user.tenantId! });
