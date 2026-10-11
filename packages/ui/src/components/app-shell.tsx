@@ -34,7 +34,7 @@ export interface NavSection {
   items: NavItem[];
 }
 
-async function signOut() {
+export async function signOut() {
   await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' }).catch(() => null);
   window.location.assign('/login');
 }

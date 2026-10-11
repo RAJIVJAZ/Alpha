@@ -84,6 +84,7 @@ The seed prints these when it finishes. Staff and merchant accounts share the pa
 | ----------------------- | ------------------------------------------------------- | ------------------------------- |
 | Customer                | `+919845000001` (OTP)                                   | customer-web, customer-mobile   |
 | Riders                  | `+919740010101`, `…102`, … (OTP)                        | rider-web, rider-mobile         |
+| Rider applicant         | any other number (OTP): signs in to the application     | rider-web, rider-mobile         |
 | Restaurant owner / chef | `owner@spicegarden.demo`, `chef@spicegarden.demo`       | restaurant-web, merchant-mobile |
 | Food cart               | `owner@annapurna.demo`                                  | vendor-web, merchant-mobile     |
 | Supplier                | `owner@bharat.demo`                                     | supplier-web                    |

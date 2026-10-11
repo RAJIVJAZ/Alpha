@@ -194,3 +194,42 @@ describe('auth route handler: switch-tenant', () => {
     expect(mockJar.get(REFRESH_COOKIE)).toBe('rt1');
   });
 });
+
+describe('auth route handler: refresh', () => {
+  const routes = createAuthRoutes();
+  const refresh = () =>
+    routes.POST({ json: async () => ({}) } as unknown as NextRequest, {
+      params: Promise.resolve({ action: 'refresh' }),
+    });
+  const original = global.fetch;
+
+  beforeEach(() => {
+    mockJar.clear();
+    process.env.API_URL = 'http://gw.test/api/v1';
+  });
+  afterAll(() => {
+    global.fetch = original;
+  });
+
+  it('stores a token that carries a role granted since sign-in', async () => {
+    const rider = jwt({ sub: 'u1', roles: ['CUSTOMER', 'RIDER'] });
+    mockJar.set(ACCESS_COOKIE, jwt({ sub: 'u1', roles: ['CUSTOMER'] })).set(REFRESH_COOKIE, 'rt1');
+    const calls = gateway({ 'auth/refresh': [{ body: session(rider, 'rt2') }] });
+
+    const res = await refresh();
+
+    expect(res.status).toBe(204);
+    expect(calls[0]!.body).toEqual({ refreshToken: 'rt1' });
+    expect(mockJar.get(ACCESS_COOKIE)).toBe(rider);
+    expect(mockJar.get(REFRESH_COOKIE)).toBe('rt2');
+  });
+
+  it('answers 401 without a session or when the refresh token is rejected', async () => {
+    expect((await refresh()).status).toBe(401);
+
+    mockJar.set(REFRESH_COOKIE, 'revoked');
+    gateway({ 'auth/refresh': [{ status: 401, body: { code: 'REFRESH_INVALID' } }] });
+    expect((await refresh()).status).toBe(401);
+    expect(mockJar.get(REFRESH_COOKIE)).toBe('revoked');
+  });
+});

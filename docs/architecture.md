@@ -309,7 +309,10 @@ Permissions (`packages/auth/src/permissions.ts`):
 
 Each web app admits only its audience at sign-in: admin-web the staff roles,
 restaurant-web `RESTAURANT` tenants, vendor-web `FOOD_CART`, `WHOLESALER` and
-`RETAILER`, supplier-web `SUPPLIER`, rider-web the `RIDER` role.
+`RETAILER`, supplier-web `SUPPLIER`. rider-web and rider-mobile let any account
+sign in but open only the rider application (`/apply`, `POST /riders/onboarding`)
+until the account has the `RIDER` role, which approval adds; the application
+then renews the token (`POST /api/auth/refresh` on the web) to pick the role up.
 
 ## Authentication
 

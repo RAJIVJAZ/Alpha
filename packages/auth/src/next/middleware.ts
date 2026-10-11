@@ -19,8 +19,12 @@ export interface AuthMiddlewareOptions {
   /** Paths (exact or prefix with trailing *) that need no session. */
   publicPaths?: string[];
   loginPath?: string;
-  /** Extra gate on decoded claims; false sends the user to the login page. */
-  allow?: (claims: Record<string, unknown>) => boolean;
+  /**
+   * Extra gate on decoded claims: true lets the request through, false sends
+   * the user to the login page, and a path sends them there instead (e.g. a
+   * sign-up page, which must then be allowed itself).
+   */
+  allow?: (claims: Record<string, unknown>, path: string) => boolean | string;
 }
 
 const matches = (path: string, pattern: string) =>
@@ -48,7 +52,16 @@ export function createAuthMiddleware(opts: AuthMiddlewareOptions = {}) {
       access = renewed?.accessToken;
     }
     const claims = access && !isExpired(access, 0) ? decodeClaims(access) : null;
-    if (!claims || (opts.allow && !opts.allow(claims))) {
+    const verdict = claims ? (opts.allow?.(claims, path) ?? true) : false;
+    if (typeof verdict === 'string') {
+      const url = req.nextUrl.clone();
+      url.pathname = verdict;
+      url.search = '';
+      const res = NextResponse.redirect(url);
+      if (renewed) writeSessionCookies(res.cookies, renewed);
+      return res;
+    }
+    if (!claims || !verdict) {
       const url = req.nextUrl.clone();
       url.pathname = loginPath;
       url.search = `?next=${encodeURIComponent(path + req.nextUrl.search)}`;

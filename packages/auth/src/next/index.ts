@@ -113,7 +113,7 @@ const claimsOf = (accessToken: string) =>
 
 const bearer = (token: string) => ({ authorization: `Bearer ${token}` });
 
-/** Login (OTP / password), logout, tenant switching and session lookup for one app. */
+/** Login (OTP / password / Google), logout, token refresh, tenant switching and session lookup for one app. */
 export function createAuthRoutes(opts: AuthRoutesOptions = {}) {
   const verdictFor = (tokens: AuthTokens) => opts.authorize?.(claimsOf(tokens.accessToken)) ?? true;
   const denied = (message: string) =>
@@ -205,6 +205,15 @@ export function createAuthRoutes(opts: AuthRoutesOptions = {}) {
       }
       case 'switch-tenant':
         return switchTenant(input.tenantId);
+      case 'refresh': {
+        // a new access token re-reads the account, e.g. a role granted since sign-in
+        const refreshToken = jar.get(REFRESH_COOKIE)?.value;
+        const renewed = refreshToken ? await refreshTokens(refreshToken, await clientMeta()) : null;
+        if (!renewed)
+          return json(401, { statusCode: 401, code: 'UNAUTHENTICATED', message: 'Not signed in' });
+        writeSessionCookies(jar, renewed);
+        return new NextResponse(null, { status: 204 });
+      }
       default:
         return json(404, { statusCode: 404, code: 'NOT_FOUND', message: 'Unknown auth action' });
     }

@@ -17,6 +17,11 @@ export interface RiderProfile {
   totalDeliveries: number;
   upiId: string | null;
   bankAccount: { holder?: string; ifsc?: string; last4?: string } | null;
+  licenseNumber: string | null;
+  /** Application documents uploaded to the kyc folder. */
+  documents: { kind: string; url: string }[];
+  /** The reviewer's note when the application was rejected or changes were requested. */
+  rejectionReason: string | null;
 }
 
 export interface Offer {
