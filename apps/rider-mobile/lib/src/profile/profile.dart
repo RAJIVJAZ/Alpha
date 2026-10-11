@@ -38,6 +38,9 @@ class RiderProfile {
     this.bankAccount,
     this.currentLat,
     this.currentLng,
+    this.licenseNumber,
+    this.documents = const {},
+    this.rejectionReason,
   });
 
   final String id;
@@ -57,6 +60,13 @@ class RiderProfile {
   final BankAccount? bankAccount;
   final double? currentLat;
   final double? currentLng;
+  final String? licenseNumber;
+
+  /// Application documents: kind (DRIVING_LICENSE, ID_PROOF) → uploaded URL.
+  final Map<String, String> documents;
+
+  /// The reviewer's note when the application was rejected or changes were requested.
+  final String? rejectionReason;
 
   String get firstName => name.trim().split(RegExp(r'\s+')).first;
   bool get isActive => status == 'ACTIVE';
@@ -79,6 +89,12 @@ class RiderProfile {
         bankAccount: BankAccount.fromJson(j['bankAccount']),
         currentLat: numOrNull(j['currentLat']),
         currentLng: numOrNull(j['currentLng']),
+        licenseNumber: strOrNull(j['licenseNumber']),
+        documents: {
+          for (final d in jsonList(j['documents']))
+            if (strOrNull(d['kind']) != null && strOrNull(d['url']) != null) d['kind'].toString(): d['url'].toString(),
+        },
+        rejectionReason: strOrNull(j['rejectionReason']),
       );
 }
 

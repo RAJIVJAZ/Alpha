@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:foodgrid_core/foodgrid_core.dart';
 import 'package:go_router/go_router.dart';
 
+import 'apply/apply_screen.dart';
 import 'demand/demand_screen.dart';
 import 'duty/duty_screen.dart';
 import 'earnings/earnings_screen.dart';
@@ -10,27 +11,25 @@ import 'performance/performance_screen.dart';
 import 'shell/home_shell.dart';
 import 'trips/trips_screen.dart';
 
-/// Only delivery partners may use this app.
-String? authorizeRider(Claims claims) => claims.hasRole('RIDER') ? null : 'This number is not registered as a FoodGrid rider.';
-
 class RiderLoginScreen extends StatelessWidget {
   const RiderLoginScreen({super.key});
 
   @override
   Widget build(BuildContext context) => const LoginScreen(
         title: 'FoodGrid Rider',
-        subtitle: 'Sign in with the mobile number you registered as a delivery partner.',
-        authorize: authorizeRider,
+        subtitle: 'Sign in with your mobile number. New to FoodGrid? Sign in and apply to deliver.',
+        allowGoogle: true,
       );
 }
 
-/// Where the session says the rider should be, or null to stay at [location].
+/// Where the session says the user should be, or null to stay at [location].
+/// Accounts without the RIDER role apply to become a delivery partner.
 String? sessionRedirect(AsyncValue<Session?> session, String location) {
   if (session.isRestoring) return location == '/splash' ? null : '/splash';
   final s = session.value;
-  final signedIn = s != null && authorizeRider(s.claims) == null;
-  if (!signedIn) return location == '/login' ? null : '/login';
-  if (location == '/login' || location == '/splash') return '/duty';
+  if (s == null) return location == '/login' ? null : '/login';
+  if (!s.claims.hasRole('RIDER')) return location == '/apply' ? null : '/apply';
+  if (location == '/login' || location == '/splash' || location == '/apply') return '/duty';
   return null;
 }
 
@@ -45,6 +44,7 @@ final routerProvider = Provider<GoRouter>((ref) {
     routes: [
       materialRoute('/splash', (_, _) => const SplashView()),
       materialRoute('/login', (_, _) => const RiderLoginScreen()),
+      materialRoute('/apply', (_, _) => const ApplyScreen()),
       StatefulShellRoute.indexedStack(
         pageBuilder: (context, state, shell) => materialPage(state, HomeShell(shell: shell)),
         branches: [

@@ -1,5 +1,8 @@
 import 'package:foodgrid_core/foodgrid_core.dart';
 
+/// Applying needs a phone number: customers and restaurants call riders on it.
+const phoneRequiredMessage = 'Sign out and sign in with your mobile number to apply. Customers and restaurants call riders on it.';
+
 /// Rider-facing wording for the delivery flow's business errors; anything
 /// else keeps the server's own message.
 String riderMessage(Object error) {
@@ -15,6 +18,8 @@ String riderMessage(Object error) {
       'OTP_UNAVAILABLE' => 'This order has no delivery code. Call support to close it.',
       'INVALID_PROOF_PHOTO' => 'The photo did not upload to FoodGrid. Retake it in the app, or remove it and complete with the code.',
       'COD_NOT_COLLECTED' => 'Collect the cash and tick the box before completing this cash-on-delivery order.',
+      'PHONE_REQUIRED' => phoneRequiredMessage,
+      'INVALID_DOCUMENT' => 'A document photo did not upload to FoodGrid. Retake it and submit again.',
       'PAYOUT_PENDING' => 'You already have a cash-out in progress. You can request another once it is paid.',
       _ => error.message,
     };

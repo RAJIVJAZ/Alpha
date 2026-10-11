@@ -128,8 +128,11 @@ void main() {
       expect(sessionRedirect(AsyncData(session(['RIDER'])), '/earnings'), isNull);
     });
 
-    test('a restored session without the rider role is not let in', () {
-      expect(sessionRedirect(AsyncData(session(['CUSTOMER'])), '/duty'), '/login');
+    test('a session without the rider role goes to the application, and back once approved', () {
+      expect(sessionRedirect(AsyncData(session(['CUSTOMER'])), '/duty'), '/apply');
+      expect(sessionRedirect(AsyncData(session(['CUSTOMER'])), '/login'), '/apply');
+      expect(sessionRedirect(AsyncData(session(['CUSTOMER'])), '/apply'), isNull);
+      expect(sessionRedirect(AsyncData(session(['RIDER'])), '/apply'), '/duty');
     });
   });
 }

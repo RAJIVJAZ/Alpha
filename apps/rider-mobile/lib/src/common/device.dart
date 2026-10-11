@@ -79,7 +79,7 @@ Future<void> openExternal(BuildContext context, WidgetRef ref, Uri uri) async {
   }
 }
 
-/// A proof-of-delivery photo ready to upload.
+/// A photo (delivery proof, application document) ready to upload.
 class PickedPhoto {
   const PickedPhoto({required this.bytes, required this.fileName, required this.contentType});
   final Uint8List bytes;

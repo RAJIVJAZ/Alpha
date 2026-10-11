@@ -4,8 +4,6 @@ import 'package:foodgrid_core/foodgrid_core.dart';
 
 import 'helpers.dart';
 
-Map<String, dynamic> meJson({List<String> roles = const ['RIDER']}) => {'id': 'u-rider', 'name': 'Ishaan Bhat', 'phone': '+919740010101', 'roles': roles, 'memberships': []};
-
 Future<TestRig> signedInRig() async {
   final rig = TestRig();
   await rig.tokens.write(Tokens(riderToken(), 'refresh-1'));
@@ -30,15 +28,16 @@ void main() {
     expect(find.byType(NavigationBar), findsNothing);
   });
 
-  testWidgets('a number without the RIDER role is refused and signed straight out', (tester) async {
+  testWidgets('a number without the RIDER role signs in and is sent to apply', (tester) async {
     final rig = TestRig();
     rig.api
       ..on('POST', '/auth/otp/request', (_) => {'phone': '+91******0199', 'resendAfterSeconds': 30, 'devCode': '123456'})
       ..on('POST', '/auth/otp/verify', (_) => {
-            'tokens': {'accessToken': riderToken(roles: ['CUSTOMER']), 'refreshToken': 'r1'},
+            'tokens': {'accessToken': riderToken(roles: ['CUSTOMER'], phone: '+919740010199'), 'refreshToken': 'r1'},
             'user': meJson(roles: ['CUSTOMER']),
           })
-      ..on('POST', '/auth/logout', (_) => {'ok': true});
+      ..on('GET', '/auth/me', (_) => meJson(roles: ['CUSTOMER']))
+      ..on('GET', '/riders/me', (_) => throw const ApiError(404, 'NOT_FOUND', 'Rider profile not found'));
 
     await rig.pumpApp(tester);
     await tester.enterText(find.byType(TextField), '9740010199');
@@ -50,9 +49,9 @@ void main() {
     await tester.tap(find.text('Verify and sign in'));
     await settle(tester);
 
-    expect(find.text('This number is not registered as a FoodGrid rider.'), findsOneWidget);
-    expect(rig.api.called('POST', '/auth/logout'), hasLength(1));
-    expect(await rig.tokens.read(), isNull);
+    expect(find.text('Deliver with FoodGrid'), findsOneWidget);
+    expect(find.text('Submit application'), findsOneWidget);
+    expect(rig.api.called('POST', '/auth/logout'), isEmpty);
     expect(find.byType(NavigationBar), findsNothing);
   });
 

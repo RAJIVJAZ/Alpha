@@ -45,7 +45,8 @@ class FakeApi implements HttpClientAdapter {
 
   @override
   Future<ResponseBody> fetch(RequestOptions o, Stream<Uint8List>? requestStream, Future<void>? cancelFuture) async {
-    final path = o.path.startsWith('/') ? o.path : '/${o.path}';
+    // absolute URLs are uploads to object storage
+    final path = o.path.startsWith('/') || o.path.startsWith('http') ? o.path : '/${o.path}';
     final call = Call(o.method, path, Map.of(o.queryParameters), o.data, Map.of(o.headers));
     calls.add(call);
     final route = _routes['${o.method} $path'];
@@ -77,7 +78,9 @@ class ApiError implements Exception {
   final String message;
 }
 
-ApiClient fakeClient(FakeApi api, {TokenStore? tokens}) => ApiClient(config: testConfig, tokens: tokens ?? MemoryTokenStore(), dio: Dio()..httpClientAdapter = api);
+/// Token refreshes and presigned uploads use the second client, so it is faked too.
+ApiClient fakeClient(FakeApi api, {TokenStore? tokens}) =>
+    ApiClient(config: testConfig, tokens: tokens ?? MemoryTokenStore(), dio: Dio()..httpClientAdapter = api, refreshDio: Dio()..httpClientAdapter = api);
 
 /// Location without GPS: a fixed fix, and a stream the test can drive.
 class FakeLocation extends LocationService {
@@ -170,14 +173,17 @@ String jwt(Map<String, dynamic> claims) {
   return '${part({'alg': 'none'})}.${part(claims)}.sig';
 }
 
-String riderToken({List<String> roles = const ['RIDER']}) => jwt({
+String riderToken({List<String> roles = const ['RIDER'], String? phone}) => jwt({
       'sub': 'u-rider',
       'roles': roles,
+      'phone': ?phone,
       'name': 'Ishaan Bhat',
       'exp': DateTime.now().add(const Duration(hours: 1)).millisecondsSinceEpoch ~/ 1000,
     });
 
 // ─── fixtures shaped like the live gateway's responses ─────────────────────
+
+Map<String, dynamic> meJson({List<String> roles = const ['RIDER']}) => {'id': 'u-rider', 'name': 'Ishaan Bhat', 'phone': '+919740010101', 'roles': roles, 'memberships': []};
 
 Map<String, dynamic> profileJson({bool online = true, bool onDelivery = false, double rating = 4.6, String status = 'ACTIVE'}) => {
       'id': 'r1',

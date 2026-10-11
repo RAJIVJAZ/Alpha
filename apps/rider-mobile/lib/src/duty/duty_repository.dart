@@ -22,6 +22,9 @@ class DutyRepository {
 
   Future<RiderProfile> profile() async => RiderProfile.fromJson(await _api.get<Json>('riders/me'));
 
+  /// Applies (or applies again) to become a delivery partner.
+  Future<void> apply(Json application) => _api.post<dynamic>('riders/onboarding', body: application);
+
   Future<void> goOnline(Fix fix) => _api.post<dynamic>('riders/me/online', body: fixBody(fix));
 
   Future<void> goOffline() => _api.post<dynamic>('riders/me/offline');

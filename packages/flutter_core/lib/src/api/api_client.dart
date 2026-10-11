@@ -129,10 +129,11 @@ class ApiClient {
 
   Future<T> delete<T>(String path) => _send<T>('DELETE', path);
 
-  /// Raw upload to a presigned URL (no API headers).
+  /// Raw upload to a presigned URL, on the client without the bearer token
+  /// (object storage must never see it).
   Future<void> putBytes(String url, List<int> bytes, {required Map<String, String> headers}) async {
     try {
-      await Dio().put<void>(url, data: Stream.fromIterable([bytes]), options: Options(headers: {...headers, Headers.contentLengthHeader: bytes.length}));
+      await _refreshDio.put<void>(url, data: Stream.fromIterable([bytes]), options: Options(headers: {...headers, Headers.contentLengthHeader: bytes.length}));
     } on DioException catch (e) {
       throw ApiException.fromDio(e);
     }
