@@ -711,6 +711,7 @@
             "bearer": []
           }
         ],
+        "summary": "Sync the weather forecast now (also runs every 3 hours)",
         "tags": [
           "ai"
         ]

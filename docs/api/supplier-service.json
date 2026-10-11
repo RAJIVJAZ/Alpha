@@ -463,6 +463,92 @@
         ]
       }
     },
+    "/api/v1/admin/marketplace/categories": {
+      "get": {
+        "operationId": "AdminCategories_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "All marketplace categories, including deactivated ones",
+        "tags": [
+          "admin"
+        ]
+      },
+      "post": {
+        "operationId": "AdminCategories_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CategoryDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/marketplace/categories/{id}": {
+      "patch": {
+        "operationId": "AdminCategories_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCategoryDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Rename, reorder or deactivate (deactivated: no new products)",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
     "/api/v1/seller/delivery-zones": {
       "get": {
         "operationId": "Logistics_zones",
@@ -1875,6 +1961,48 @@
         "required": [
           "tiers"
         ]
+      },
+      "CategoryDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "BAKERY",
+            "description": "Stable code products and filters use"
+          },
+          "name": {
+            "type": "string",
+            "example": "Bakery Supplies"
+          },
+          "sortOrder": {
+            "type": "number"
+          },
+          "imageUrl": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "name"
+        ]
+      },
+      "UpdateCategoryDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Bakery Supplies"
+          },
+          "sortOrder": {
+            "type": "number"
+          },
+          "imageUrl": {
+            "type": "string"
+          },
+          "isActive": {
+            "type": "boolean"
+          }
+        }
       },
       "ZoneDto": {
         "type": "object",

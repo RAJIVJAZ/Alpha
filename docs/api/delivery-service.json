@@ -540,7 +540,7 @@
             "bearer": []
           }
         ],
-        "summary": "Complete with customer OTP or photo proof (upload via /media/presign)",
+        "summary": "Complete with the customer's OTP (optional photo uploaded via /media/presign)",
         "tags": [
           "rider"
         ]
@@ -1282,14 +1282,15 @@
         "properties": {
           "otp": {
             "type": "string",
-            "description": "4-digit OTP shown in the customer app"
+            "description": "4-digit OTP shown in the customer app (always required)"
           },
           "proofPhotoUrl": {
             "type": "string",
-            "description": "Proof photo (required for contact-less drops without OTP)"
+            "description": "Optional handover photo: a delivery-proof upload from POST /media/presign"
           },
           "proofSignatureUrl": {
-            "type": "string"
+            "type": "string",
+            "description": "Optional signature image, uploaded like the photo"
           },
           "note": {
             "type": "string"
@@ -1298,7 +1299,10 @@
             "type": "boolean",
             "description": "Cash collected for COD orders"
           }
-        }
+        },
+        "required": [
+          "otp"
+        ]
       },
       "FailDeliveryDto": {
         "type": "object",
@@ -1392,7 +1396,8 @@
             }
           },
           "minRating": {
-            "type": "number"
+            "type": "number",
+            "description": "Required for RATING: deliveries count while at or above it"
           },
           "startsAt": {
             "type": "string"
@@ -1460,7 +1465,8 @@
             }
           },
           "minRating": {
-            "type": "number"
+            "type": "number",
+            "description": "Required for RATING: deliveries count while at or above it"
           },
           "startsAt": {
             "type": "string"

@@ -2130,6 +2130,26 @@
         ]
       }
     },
+    "/api/v1/internal/outlets/cities": {
+      "get": {
+        "operationId": "Internal_activeCities",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Cities with active outlets and their centre (ai-service weather)",
+        "tags": [
+          "internal"
+        ],
+        "security": [
+          {
+            "service-token": []
+          }
+        ]
+      }
+    },
     "/api/v1/internal/outlets/{id}": {
       "get": {
         "operationId": "Internal_outlet",

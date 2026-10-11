@@ -57,7 +57,9 @@ export async function createServiceApp(module: unknown, opts: ServiceBootstrapOp
 export async function bootstrapService(module: unknown, opts: ServiceBootstrapOptions) {
   const app = await createServiceApp(module, opts);
   const port = Number(process.env.PORT ?? opts.defaultPort);
-  await app.listen(port, '0.0.0.0');
+  // no host: Node listens on IPv6 and IPv4 where the machine has IPv6 (Railway's private
+  // network is IPv6), IPv4 only where it does not
+  await (process.env.HOST ? app.listen(port, process.env.HOST) : app.listen(port));
   new Logger('Bootstrap').log(`${opts.name} listening on :${port} (docs at /docs)`);
   return app;
 }

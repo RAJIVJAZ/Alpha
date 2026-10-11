@@ -6,6 +6,7 @@ export const API_ROUTES: readonly (readonly [prefix: string, env: string])[] = [
   ['/api/v1/admin/delivery-zones', 'DELIVERY_SERVICE_URL'],
   ['/api/v1/admin/push-campaigns', 'NOTIFICATION_SERVICE_URL'],
   ['/api/v1/meal-subscriptions', 'ORDER_SERVICE_URL'],
+  ['/api/v1/admin/marketplace', 'SUPPLIER_SERVICE_URL'],
   ['/api/v1/admin/settlements', 'PAYMENT_SERVICE_URL'],
   ['/api/v1/admin/audit-logs', 'USER_SERVICE_URL'],
   ['/api/v1/admin/deliveries', 'DELIVERY_SERVICE_URL'],

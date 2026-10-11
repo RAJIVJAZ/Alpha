@@ -14,11 +14,11 @@ All routes are prefixed with `/api/v1`. Routes under `/api/v1/internal/*` are se
 | delivery-service | 33 | 4 | [delivery-service.json](./delivery-service.json) |
 | inventory-service | 24 | 5 | [inventory-service.json](./inventory-service.json) |
 | notification-service | 13 | 2 | [notification-service.json](./notification-service.json) |
-| order-service | 83 | 9 | [order-service.json](./order-service.json) |
+| order-service | 83 | 10 | [order-service.json](./order-service.json) |
 | payment-service | 31 | 2 | [payment-service.json](./payment-service.json) |
 | procurement-service | 18 | 0 | [procurement-service.json](./procurement-service.json) |
-| supplier-service | 38 | 4 | [supplier-service.json](./supplier-service.json) |
-| user-service | 41 | 7 | [user-service.json](./user-service.json) |
+| supplier-service | 41 | 4 | [supplier-service.json](./supplier-service.json) |
+| user-service | 41 | 8 | [user-service.json](./user-service.json) |
 
 ## FoodGrid Ads Service
 
@@ -52,7 +52,7 @@ Demand forecasting, dynamic pricing, inventory optimisation, supplier recommenda
 | GET | `/api/v1/admin/ai/signals` | bearer |  |
 | POST | `/api/v1/admin/ai/signals` | bearer |  |
 | DELETE | `/api/v1/admin/ai/signals/{id}` | bearer |  |
-| POST | `/api/v1/admin/ai/signals/weather/sync` | bearer |  |
+| POST | `/api/v1/admin/ai/signals/weather/sync` | bearer | Sync the weather forecast now (also runs every 3 hours) |
 | GET | `/api/v1/ai/outlet-scores` | bearer | Restaurant performance score history |
 | POST | `/api/v1/ai/pricing/menu-suggestions` | bearer | Generate price suggestions from sales history, elasticity and plate cost |
 | GET | `/api/v1/ai/pricing/suggestions` | bearer |  |
@@ -129,7 +129,7 @@ Riders, dispatch & offers, live tracking, navigation routes, proof of delivery, 
 | GET | `/api/v1/deliveries/{id}` | bearer |  |
 | POST | `/api/v1/deliveries/{id}/arrived-drop` | bearer |  |
 | POST | `/api/v1/deliveries/{id}/arrived-pickup` | bearer |  |
-| POST | `/api/v1/deliveries/{id}/complete` | bearer | Complete with customer OTP or photo proof (upload via /media/presign) |
+| POST | `/api/v1/deliveries/{id}/complete` | bearer | Complete with the customer's OTP (optional photo uploaded via /media/presign) |
 | POST | `/api/v1/deliveries/{id}/fail` | bearer |  |
 | POST | `/api/v1/deliveries/{id}/picked-up` | bearer |  |
 | POST | `/api/v1/deliveries/offers/{offerId}/accept` | bearer |  |
@@ -238,6 +238,7 @@ Outlets, menus, search, cart, checkout, order lifecycle, KDS, POS, QR ordering, 
 | GET | `/api/v1/internal/outlets/{id}/item-sales` | service token | Daily item quantities for production planning |
 | GET | `/api/v1/internal/outlets/{id}/menu-prices` | service token | Selling prices for costing (inventory-service) |
 | POST | `/api/v1/internal/outlets/batch` | service token | Outlet names for read models (analytics) |
+| GET | `/api/v1/internal/outlets/cities` | service token | Cities with active outlets and their centre (ai-service weather) |
 | GET | `/api/v1/kds/tickets` | bearer | Kitchen display board (oldest first, priority tickets on top) |
 | POST | `/api/v1/kds/tickets/{id}/bump` | bearer | Clear the ticket from the screen (served / handed over) |
 | POST | `/api/v1/kds/tickets/{id}/ready` | bearer | Station finished; order turns READY when all stations are done |
@@ -380,6 +381,9 @@ B2B marketplace for suppliers, wholesalers and retailers: catalog, bulk pricing,
 
 | Method | Path | Auth | Summary |
 | --- | --- | --- | --- |
+| GET | `/api/v1/admin/marketplace/categories` | bearer | All marketplace categories, including deactivated ones |
+| POST | `/api/v1/admin/marketplace/categories` | bearer |  |
+| PATCH | `/api/v1/admin/marketplace/categories/{id}` | bearer | Rename, reorder or deactivate (deactivated: no new products) |
 | GET | `/api/v1/internal/marketplace/orders/{id}` | service token |  |
 | GET | `/api/v1/internal/marketplace/orders/{id}/payable` | service token |  |
 | GET | `/api/v1/internal/marketplace/products/{id}` | service token |  |
@@ -445,7 +449,7 @@ Profiles, addresses, business tenants & staff, admin user management, approvals,
 | GET | `/api/v1/admin/stats` | bearer | User / tenant / approval counters for the admin home |
 | GET | `/api/v1/admin/tenants` | bearer |  |
 | GET | `/api/v1/admin/tenants/{id}` | bearer |  |
-| PATCH | `/api/v1/admin/tenants/{id}` | bearer | Suspend / reactivate a business or override its commission |
+| PATCH | `/api/v1/admin/tenants/{id}` | bearer | Suspend or reactivate a business |
 | GET | `/api/v1/admin/users` | bearer | User management: search users |
 | GET | `/api/v1/admin/users/{id}` | bearer |  |
 | PATCH | `/api/v1/admin/users/{id}/roles` | bearer |  |
@@ -453,6 +457,7 @@ Profiles, addresses, business tenants & staff, admin user management, approvals,
 | GET | `/api/v1/cms/banners` | public | Active banners for a placement / city |
 | GET | `/api/v1/cms/pages/{slug}` | public | Published CMS page (terms, privacy, FAQ ...) |
 | POST | `/api/v1/internal/approvals` | service token | Submit an entity to the admin approval queue |
+| POST | `/api/v1/internal/audit-logs` | service token | Record another service's admin action in the audit log |
 | GET | `/api/v1/internal/tenants/{id}` | service token |  |
 | GET | `/api/v1/internal/tenants/{id}/members` | service token | Active members (optionally filtered by role) — used for notifications |
 | POST | `/api/v1/internal/tenants/batch` | service token | Tenant names for read models (analytics) |
@@ -461,7 +466,7 @@ Profiles, addresses, business tenants & staff, admin user management, approvals,
 | POST | `/api/v1/internal/users/batch` | service token |  |
 | POST | `/api/v1/media/presign` | bearer | Get a presigned S3 URL to upload an image / KYC document / delivery proof |
 | POST | `/api/v1/tenants` | bearer | Onboard a new business (restaurant, food cart, supplier, wholesaler, retailer) |
-| GET | `/api/v1/tenants/current` | bearer | My business (PAN, KYC and commission only for settings / finance) |
+| GET | `/api/v1/tenants/current` | bearer | My business (PAN and KYC only for settings / finance) |
 | PATCH | `/api/v1/tenants/current` | bearer |  |
 | POST | `/api/v1/tenants/current/kyc` | bearer | Submit / resubmit KYC documents and identifier changes (GSTIN, PAN …) for approval |
 | GET | `/api/v1/tenants/current/members` | bearer | Staff management: list members |

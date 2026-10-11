@@ -63,6 +63,10 @@
       "service": "order-service"
     },
     {
+      "prefix": "/api/v1/admin/marketplace",
+      "service": "supplier-service"
+    },
+    {
       "prefix": "/api/v1/admin/settlements",
       "service": "payment-service"
     },

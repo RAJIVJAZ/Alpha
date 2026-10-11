@@ -19,7 +19,7 @@ interface Table {
 const table = JSON.parse(
   readFileSync(path.resolve(__dirname, '../infrastructure/gateway/routes.json'), 'utf8'),
 ) as Table;
-const PORT = Number(process.env.GATEWAY_PORT ?? 8080);
+const PORT = Number(process.env.GATEWAY_PORT ?? process.env.PORT ?? 8080);
 
 function target(url: string) {
   const pathname = url.split('?')[0]!;

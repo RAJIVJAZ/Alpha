@@ -13,3 +13,4 @@ docs/api
 docs/database
 infrastructure/gateway/routes.json
 infrastructure/kubernetes/base
+infrastructure/railway

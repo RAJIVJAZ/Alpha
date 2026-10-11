@@ -302,7 +302,7 @@
             "bearer": []
           }
         ],
-        "summary": "My business (PAN, KYC and commission only for settings / finance)",
+        "summary": "My business (PAN and KYC only for settings / finance)",
         "tags": [
           "tenants"
         ]
@@ -824,7 +824,7 @@
             "bearer": []
           }
         ],
-        "summary": "Suspend / reactivate a business or override its commission",
+        "summary": "Suspend or reactivate a business",
         "tags": [
           "admin"
         ]
@@ -881,6 +881,22 @@
                 "APPROVED",
                 "REJECTED",
                 "CHANGES_REQUESTED"
+              ]
+            }
+          },
+          {
+            "name": "tenantType",
+            "required": false,
+            "in": "query",
+            "description": "Business applications of this type",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "RESTAURANT",
+                "FOOD_CART",
+                "SUPPLIER",
+                "WHOLESALER",
+                "RETAILER"
               ]
             }
           }
@@ -1584,6 +1600,36 @@
           }
         ]
       }
+    },
+    "/api/v1/internal/audit-logs": {
+      "post": {
+        "operationId": "Internal_recordAudit",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuditEntryDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Record another service's admin action in the audit log",
+        "tags": [
+          "internal"
+        ],
+        "security": [
+          {
+            "service-token": []
+          }
+        ]
+      }
     }
   },
   "info": {
@@ -2069,10 +2115,6 @@
               "SUSPENDED"
             ]
           },
-          "commissionRate": {
-            "type": "number",
-            "description": "Commission override in percent"
-          },
           "reason": {
             "type": "string"
           }
@@ -2388,6 +2430,36 @@
           "entityType",
           "entityId",
           "title"
+        ]
+      },
+      "AuditEntryDto": {
+        "type": "object",
+        "properties": {
+          "actorId": {
+            "type": "string"
+          },
+          "tenantId": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string",
+            "example": "commission_rule.update"
+          },
+          "entityType": {
+            "type": "string",
+            "example": "CommissionRule"
+          },
+          "entityId": {
+            "type": "string"
+          },
+          "changes": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "actorId",
+          "action",
+          "entityType"
         ]
       }
     }
