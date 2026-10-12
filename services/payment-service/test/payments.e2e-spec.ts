@@ -247,6 +247,35 @@ describe('payment-service (e2e)', () => {
       .send({ amount: 1 })
       .expect(403);
   });
+  it('refunds a payment nothing needs any more, once, for other services only', async () => {
+    const payment = await prisma.payment.create({
+      data: {
+        purpose: 'ORDER',
+        referenceId: 'ord_dup',
+        userId: CUSTOMER,
+        amount: 250,
+        provider: 'WALLET',
+        state: 'CAPTURED',
+      },
+    });
+    const refund = () =>
+      api()
+        .post(`/api/v1/internal/payments/${payment.id}/refund`)
+        .set('x-service-token', issueServiceToken('order-service'))
+        .send({ reason: 'Duplicate payment: the order was already paid' })
+        .expect(200);
+    await api()
+      .post(`/api/v1/internal/payments/${payment.id}/refund`)
+      .send({ reason: 'x' })
+      .expect(401);
+    expect((await refund()).body).toEqual({ refunded: true });
+    expect((await refund()).body).toEqual({ refunded: false }); // redelivered event
+    expect(await prisma.payment.findUniqueOrThrow({ where: { id: payment.id } })).toMatchObject({
+      state: 'REFUNDED',
+    });
+    expect(await prisma.refund.count({ where: { paymentId: payment.id } })).toBe(1);
+  });
+
   describe('concurrent finance actions move money once', () => {
     const finance = `Bearer ${issueTestToken({ sub: 'fin_1', roles: ['FINANCE'] })}`;
     const customerWallet = () =>

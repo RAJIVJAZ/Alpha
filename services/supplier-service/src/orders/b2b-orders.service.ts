@@ -346,6 +346,7 @@ export class B2bOrdersService {
         total: money(order.total.toString()),
         expectedDeliveryAt: order.expectedDeliveryAt?.toISOString() ?? null,
         trackingInfo: (order.trackingInfo as Record<string, unknown> | null) ?? null,
+        placedAt: order.createdAt.toISOString(),
         ...extra,
       },
     });
@@ -494,6 +495,7 @@ export class B2bOrdersService {
       });
       await this.emit(tx, updated, interState, {
         note: dto.note,
+        previousTotal: money(current.total.toString()),
         confirmedLines: [...confirmed.entries()].map(([productId, q]) => ({
           productId,
           confirmedQty: String(q),

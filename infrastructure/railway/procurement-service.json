@@ -12,7 +12,7 @@
   },
   "deploy": {
     "preDeployCommand": [
-      "pnpm --filter @foodgrid/database db:deploy"
+      "pnpm --filter @foodgrid/database db:deploy:retry"
     ],
     "startCommand": "env NODE_ENV=production node services/procurement-service/dist/main.js",
     "healthcheckPath": "/health/ready",

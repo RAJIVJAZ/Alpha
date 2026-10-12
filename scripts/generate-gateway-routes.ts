@@ -187,8 +187,9 @@ function railway() {
         ],
       },
       deploy: {
-        // migrate deploy is idempotent and takes a database lock, so every service can run it first
-        preDeployCommand: ['pnpm --filter @foodgrid/database db:deploy'],
+        // migrate deploy is idempotent and takes a database lock, so every service can run it
+        // first; the lock wait gives up after 10 s, so the first deploy's waiters retry
+        preDeployCommand: ['pnpm --filter @foodgrid/database db:deploy:retry'],
         // NODE_ENV only at runtime: set at build time it would skip the dev dependencies the build needs
         startCommand: `env NODE_ENV=production node services/${svc}/dist/main.js`,
         healthcheckPath: '/health/ready',

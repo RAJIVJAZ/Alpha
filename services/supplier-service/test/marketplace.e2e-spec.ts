@@ -1,8 +1,9 @@
 import type { INestApplication } from '@nestjs/common';
+import type Redis from 'ioredis';
 import request from 'supertest';
 import { PrismaService } from '@foodgrid/database/nest';
 import { EventTypes, type EventEnvelope, type PurchaseOrderEvent } from '@foodgrid/types';
-import { InternalHttpService } from '@foodgrid/utils/server';
+import { InternalHttpService, REDIS } from '@foodgrid/utils/server';
 import {
   createTestApp,
   FakeInternalHttp,
@@ -55,9 +56,7 @@ describe('supplier-service marketplace (e2e)', () => {
     prisma = app.get(PrismaService);
   });
 
-  beforeEach(async () => {
-    await truncateSchemas(prisma, ['marketplace', 'platform']);
-    http.reset();
+  const stubUsers = () =>
     http.on('GET', 'user', 'internal/tenants/:id', ({ params }) => ({
       id: params.id,
       legalName: null,
@@ -70,6 +69,11 @@ describe('supplier-service marketplace (e2e)', () => {
       lng: null,
       ...TENANTS[params.id],
     }));
+
+  beforeEach(async () => {
+    await truncateSchemas(prisma, ['marketplace', 'platform']);
+    http.reset();
+    stubUsers();
     categoryId = (
       await prisma.productCategory.create({ data: { code: 'GRAINS', name: 'Grains', slug: 'g' } })
     ).id;
@@ -259,6 +263,63 @@ describe('supplier-service marketplace (e2e)', () => {
     expect(unit).toEqual({ [oil.id]: 1950, [flour.id]: 620 });
     expect(Number(so.subtotal)).toBe(4430); // 1950 + 4 x 620
     expect(Number(so.discount)).toBe(443); // 10% once: taxable 3987, not 1950 x 0.81 + ...
+  });
+
+  it('retries an approval while user-service is down, and drops it once the PO is cancelled', async () => {
+    const redis = app.get<Redis>(REDIS);
+    await redis.del(`tenant-dir:${ANNAPURNA}`, `tenant-dir:${SPICE}`, 'po-cancelled:po_9');
+    const flour = await product(ANNAPURNA, 'FLOUR-09', 680);
+    const handlers = app.get(SupplierEventHandlers);
+    const po = (type: string): EventEnvelope<string, PurchaseOrderEvent> => ({
+      id: `evt_${type}`,
+      type,
+      source: 'procurement-service',
+      stream: 'procurement',
+      occurredAt: new Date().toISOString(),
+      tenantId: SPICE,
+      aggregateType: 'PurchaseOrder',
+      aggregateId: 'po_9',
+      version: 1,
+      data: {
+        purchaseOrderId: 'po_9',
+        poNumber: 'PO-9',
+        tenantId: SPICE,
+        buyerName: 'Spice Garden',
+        outletId: 'outlet_kora',
+        supplierTenantId: ANNAPURNA,
+        status: 'SENT_TO_SUPPLIER',
+        total: '1360.00',
+        paymentTerms: 'PREPAID',
+        expectedDeliveryAt: null,
+        deliveryAddress: { ...ADDRESS, lat: 12.93, lng: 77.58 },
+        items: [
+          {
+            productId: flour.id,
+            quantity: '2',
+            unitPrice: '680.00',
+            ingredientId: null,
+            name: 'x',
+            sku: 'x',
+            unit: 'x',
+            gstRate: '5',
+          },
+        ],
+      },
+    });
+    http.reset(); // user-service is down
+    await expect(handlers.onPoApproved(po(EventTypes.PurchaseOrderApproved))).rejects.toThrow(
+      /unavailable/,
+    );
+    // retried later, not reported to the buyer as a supplier rejection
+    expect(await prisma.outboxEvent.count({ where: { type: EventTypes.B2bOrderRejected } })).toBe(
+      0,
+    );
+
+    // the buyer cancels before the retry: the supplier never gets the order
+    await handlers.onPoCancelled(po(EventTypes.PurchaseOrderCancelled));
+    stubUsers();
+    await handlers.onPoApproved(po(EventTypes.PurchaseOrderApproved));
+    expect(await prisma.b2bOrder.count({ where: { sourcePurchaseOrderId: 'po_9' } })).toBe(0);
   });
 
   it('lets admins add, rename and deactivate categories; deactivated ones take no new products', async () => {

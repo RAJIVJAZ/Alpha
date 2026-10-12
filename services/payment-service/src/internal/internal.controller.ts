@@ -1,10 +1,11 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, Post } from '@nestjs/common';
 import { ApiProperty, ApiPropertyOptional, ApiTags } from '@nestjs/swagger';
 import { IsIn, IsNumber, IsOptional, IsString, Min } from 'class-validator';
 import { Internal } from '@foodgrid/auth/nest';
 import { PrismaService } from '@foodgrid/database/nest';
 import type { LedgerReason } from '@foodgrid/database';
-import { notFound } from '@foodgrid/utils';
+import { AppError, notFound } from '@foodgrid/utils';
+import { PaymentsService } from '../payments/payments.service';
 import { WalletLedgerService } from '../wallets/wallet-ledger.service';
 
 class InternalCreditDto {
@@ -22,6 +23,10 @@ class InternalCreditDto {
   @ApiPropertyOptional() @IsOptional() @IsString() referenceId?: string;
 }
 
+class InternalRefundDto {
+  @ApiProperty() @IsString() reason!: string;
+}
+
 @ApiTags('internal')
 @Internal()
 @Controller('internal/payments')
@@ -29,6 +34,7 @@ export class InternalController {
   constructor(
     private readonly prisma: PrismaService,
     private readonly ledger: WalletLedgerService,
+    private readonly payments: PaymentsService,
   ) {}
 
   @Get(':id')
@@ -36,6 +42,24 @@ export class InternalController {
     const p = await this.prisma.payment.findUnique({ where: { id }, include: { refunds: true } });
     if (!p) throw notFound('Payment', id);
     return p;
+  }
+
+  /**
+   * Full refund of a payment nothing needs any more (a second payment for an order already
+   * paid, a capture for a membership or subscription no longer awaiting payment). Safe to
+   * repeat: a payment already refunded, or with its refund in flight, is left alone.
+   */
+  @Post(':id/refund')
+  @HttpCode(200)
+  async refund(@Param('id') id: string, @Body() dto: InternalRefundDto) {
+    try {
+      await this.payments.refund(id, { reason: dto.reason }, 'system');
+      return { refunded: true };
+    } catch (err) {
+      if (err instanceof AppError && ['REFUND_EXCEEDS', 'NOT_REFUNDABLE'].includes(err.code))
+        return { refunded: false };
+      throw err;
+    }
   }
 
   @Post('wallets/credit')

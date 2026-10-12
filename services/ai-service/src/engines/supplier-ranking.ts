@@ -25,7 +25,7 @@ export interface SupplierOffer {
   fillRate: number;
   stockQty: number;
   /** Optional tier table so pack price can be re-evaluated at the final pack count. */
-  tiers?: { minQty: number; unitPrice: number }[];
+  tiers?: { minQty: number; maxQty?: number | null; unitPrice: number }[];
 }
 
 export interface RankedOffer {
@@ -71,7 +71,7 @@ function costOffer(o: SupplierOffer, quantity: number) {
   const needed = Math.ceil(quantity / o.baseQtyPerPack / step) * step;
   const packs = Math.max(o.moq, needed);
   const tier = (o.tiers ?? [])
-    .filter((t) => packs >= t.minQty)
+    .filter((t) => packs >= t.minQty && (t.maxQty == null || packs <= t.maxQty))
     .sort((a, b) => b.minQty - a.minQty)[0];
   const unitPrice = tier ? tier.unitPrice : o.unitPrice;
   const subtotal = round2(packs * unitPrice);

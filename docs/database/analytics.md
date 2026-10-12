@@ -139,6 +139,8 @@ Table `analytics."OrderFact"`
 | `gmv` | Decimal |  |  |  |
 | `subtotal` | Decimal |  |  |  |
 | `discount` | Decimal |  |  |  |
+| `merchantDiscount` | Decimal |  | 0 | The merchant-funded part of discount; net sales match the settlement's taxable value |
+| `packagingCharge` | Decimal |  | 0 |  |
 | `deliveryFee` | Decimal |  |  |  |
 | `tax` | Decimal |  |  |  |
 | `commission` | Decimal |  | 0 |  |

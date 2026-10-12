@@ -101,14 +101,23 @@ export const DEFAULT_TEMPLATES: Record<
   'procurement.po.approval': {
     PUSH: { title: 'PO {{poNumber}} needs approval', body: '{{supplier}} · ₹{{total}}' },
   },
+  // suppliers, wholesalers and retailers work on the web, so these also go by email
   'procurement.po.received_by_supplier': {
     PUSH: {
       title: 'New purchase order {{poNumber}}',
       body: 'From {{buyer}} · ₹{{total}} — confirm in the supplier dashboard.',
     },
+    EMAIL: {
+      title: 'FoodGrid: new purchase order {{poNumber}}',
+      body: '<p>New purchase order <b>{{poNumber}}</b> from {{buyer}} for ₹{{total}}.</p><p>Confirm it in the supplier dashboard.</p>',
+    },
   },
   'marketplace.order.update': {
     PUSH: { title: 'Order {{orderNumber}}: {{status}}', body: '{{note}}' },
+    EMAIL: {
+      title: 'FoodGrid: order {{orderNumber}} {{status}}',
+      body: '<p>Your marketplace order <b>{{orderNumber}}</b> is {{status}}.</p><p>{{note}}</p>',
+    },
   },
 
   'approval.decided': {

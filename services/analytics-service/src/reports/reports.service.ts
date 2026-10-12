@@ -16,7 +16,7 @@ export class ReportsService {
     const { from, to } = resolveRange(q, 30);
     const span = to.getTime() - from.getTime();
     const prevFrom = new Date(from.getTime() - span);
-    const [days, prev, b2b] = await Promise.all([
+    const [days, prev, b2b, active] = await Promise.all([
       this.prisma.dailyPlatformStats.findMany({
         where: { date: { gte: from, lte: to } },
         orderBy: { date: 'asc' },
@@ -29,21 +29,17 @@ export class ReportsService {
         where: { date: { gte: from, lte: to } },
         _sum: { gmv: true, orders: true },
       }),
+      // counted in the database: a 90-day range would otherwise load a row per customer
+      this.prisma.$queryRaw<{ n: bigint }[]>`
+        SELECT COUNT(DISTINCT "customerId") AS n FROM "analytics"."OrderFact"
+        WHERE date >= ${from}::date AND date <= ${to}::date
+          AND status IN ('DELIVERED','COMPLETED') AND "customerId" IS NOT NULL`,
     ]);
     const sum = (
       k: 'gmv' | 'revenue' | 'orders' | 'cancelledOrders' | 'newCustomers' | 'deliveries',
     ) => days.reduce((s, d) => s + num(d[k]), 0);
     const gmv = round2(sum('gmv'));
     const orders = sum('orders');
-    const uniqueCustomers = await this.prisma.orderFact.findMany({
-      where: {
-        date: { gte: from, lte: to },
-        status: { in: ['DELIVERED', 'COMPLETED'] },
-        customerId: { not: null },
-      },
-      distinct: ['customerId'],
-      select: { customerId: true },
-    });
     return {
       from,
       to,
@@ -54,7 +50,7 @@ export class ReportsService {
         orders,
         averageOrderValue: orders ? round2(gmv / orders) : 0,
         cancellationRatePct: pct(sum('cancelledOrders'), orders + sum('cancelledOrders')),
-        activeCustomers: uniqueCustomers.length,
+        activeCustomers: Number(active[0]?.n ?? 0),
         newCustomers: sum('newCustomers'),
         deliveries: sum('deliveries'),
         b2bGmv: round2(num(b2b._sum.gmv)),
@@ -247,7 +243,7 @@ export class ReportsService {
       outletId: q.outletIds && { in: q.outletIds },
       date: { gte: from, lte: to },
     };
-    const [days, byChannel, byPayment, hourly] = await Promise.all([
+    const [days, byChannel, byPayment, hourly, customers] = await Promise.all([
       this.prisma.dailyOutletStats.findMany({ where, orderBy: { date: 'asc' } }),
       this.prisma.orderFact.groupBy({
         by: ['channel'],
@@ -267,6 +263,25 @@ export class ReportsService {
         WHERE "tenantId" = ${q.tenantId} AND (${outletIds}::text[] IS NULL OR "outletId" = ANY(${outletIds}::text[]))
           AND date BETWEEN ${from}::date AND ${to}::date AND status IN ('DELIVERED','COMPLETED')
         GROUP BY 1, 2`,
+      // each customer once per range: repeat = ordered at these outlets before the range
+      this.prisma.$queryRaw<{ newCustomers: bigint; repeatCustomers: bigint }[]>`
+        WITH active AS (
+          SELECT DISTINCT "customerId" FROM "analytics"."OrderFact"
+          WHERE "tenantId" = ${q.tenantId} AND (${outletIds}::text[] IS NULL OR "outletId" = ANY(${outletIds}::text[]))
+            AND date BETWEEN ${from}::date AND ${to}::date AND status IN ('DELIVERED','COMPLETED')
+            AND "customerId" IS NOT NULL
+        )
+        SELECT COUNT(*) FILTER (WHERE NOT seen) AS "newCustomers",
+               COUNT(*) FILTER (WHERE seen) AS "repeatCustomers"
+        FROM (
+          SELECT a."customerId", EXISTS (
+            SELECT 1 FROM "analytics"."OrderFact" p
+            WHERE p."customerId" = a."customerId" AND p."tenantId" = ${q.tenantId}
+              AND (${outletIds}::text[] IS NULL OR p."outletId" = ANY(${outletIds}::text[]))
+              AND p.date < ${from}::date AND p.status IN ('DELIVERED','COMPLETED')
+          ) AS seen
+          FROM active a
+        ) t`,
     ]);
     const orders = days.reduce((s, d) => s + d.orders, 0);
     const gmv = days.reduce((s, d) => s + num(d.gmv), 0);
@@ -280,8 +295,8 @@ export class ReportsService {
         netSales: round2(days.reduce((s, d) => s + num(d.netSales), 0)),
         averageOrderValue: orders ? round2(gmv / orders) : 0,
         cancellationRatePct: pct(cancelled, orders + cancelled),
-        newCustomers: days.reduce((s, d) => s + d.newCustomers, 0),
-        repeatCustomers: days.reduce((s, d) => s + d.repeatCustomers, 0),
+        newCustomers: Number(customers[0]?.newCustomers ?? 0),
+        repeatCustomers: Number(customers[0]?.repeatCustomers ?? 0),
       },
       daily: days.map((d) => ({
         date: d.date.toISOString().slice(0, 10),

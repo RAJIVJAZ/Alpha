@@ -621,6 +621,8 @@ function addOrderRows(
     gmv: o.total,
     subtotal: o.subtotal,
     discount: r2(o.couponDiscount + o.membershipDiscount),
+    merchantDiscount: o.merchantDiscount,
+    packagingCharge: o.packagingCharge,
     deliveryFee: o.deliveryFee,
     tax: o.taxTotal,
     commission,

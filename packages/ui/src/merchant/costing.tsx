@@ -468,11 +468,13 @@ function PriceSuggestions({ outletId }: { outletId: string | null }) {
           : 'Prices look right — no changes suggested',
     },
   );
-  // Applying changes the live menu price first, then records the decision.
+  // Applying records the decision first (refused once the suggestion expired or was already
+  // decided in another tab), then changes the live menu price.
   const apply = useApiMutation(
     async (s: PricingSuggestion) => {
+      const decided = await api.post(`ai/pricing/suggestions/${s.id}/apply`);
       await api.patch(`merchant/items/${s.targetId}`, { price: Number(s.suggestedPrice) });
-      return api.post(`ai/pricing/suggestions/${s.id}/apply`);
+      return decided;
     },
     { invalidate: ['ai/pricing', 'inventory/costing', 'merchant/'], success: 'Menu price updated' },
   );

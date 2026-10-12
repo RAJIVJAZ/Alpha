@@ -565,6 +565,10 @@
           },
           "tenantId": {
             "type": "string"
+          },
+          "sensitive": {
+            "type": "boolean",
+            "description": "Carries a code: delivered, never stored in the log"
           }
         },
         "required": [

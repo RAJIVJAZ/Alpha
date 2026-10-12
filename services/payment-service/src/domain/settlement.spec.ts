@@ -1,6 +1,7 @@
 import {
   computeCommission,
   computeSettlementLine,
+  defaultCommissionFor,
   resolveCommissionRule,
   CommissionRuleLike,
 } from './settlement';
@@ -86,6 +87,14 @@ describe('commission rules', () => {
     expect(computeCommission({ ratePct: 18, fixedFee: 0, minFee: null, maxFee: null }, 500)).toBe(
       90,
     );
+  });
+});
+
+describe('defaultCommissionFor', () => {
+  it('charges 15% on food orders and 5% on B2B sales when no rule matches', () => {
+    expect(defaultCommissionFor('RESTAURANT').ratePct).toBe(15);
+    expect(defaultCommissionFor('FOOD_CART').ratePct).toBe(15);
+    expect(defaultCommissionFor('SUPPLIER').ratePct).toBe(5);
   });
 });
 

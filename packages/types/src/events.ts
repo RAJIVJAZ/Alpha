@@ -248,6 +248,8 @@ export interface PurchaseOrderEvent {
   buyerName: string;
   outletId: string;
   supplierTenantId: string;
+  /** Optional: events written before it was added carry only the id. */
+  supplierName?: string;
   status: PurchaseOrderStatus;
   total: Money;
   paymentTerms: string;
@@ -286,6 +288,10 @@ export interface B2bOrderEvent {
   trackingInfo?: Record<string, unknown> | null;
   confirmedLines?: { productId: string; confirmedQty: string }[];
   onTime?: boolean;
+  /** When the order was placed (analytics books GMV corrections on that day). */
+  placedAt?: string;
+  /** On a confirmation that re-billed the order: its total before. */
+  previousTotal?: Money;
 }
 
 /** Canonical event type names. */

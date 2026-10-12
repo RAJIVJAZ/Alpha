@@ -120,15 +120,18 @@ outbox relay, scheduled jobs, the tracking socket) that serverless functions can
    ```env
    DATABASE_URL=${{Postgres.DATABASE_URL}}
    REDIS_URL=${{Redis.REDIS_URL}}?family=0
-   JWT_PRIVATE_KEY_BASE64=   # pnpm keys:generate on your machine, then copy from .env
-   JWT_PUBLIC_KEY_BASE64=
+   JWT_PUBLIC_KEY_BASE64=    # pnpm keys:generate on your machine, then copy from .env
    INTERNAL_SERVICE_SECRET=  # any long random string
-   OTP_SECRET=               # another long random string
-   OTP_EXPOSE_IN_RESPONSE=false   # true only for a demo without SMS: the app shows the code
-   SMS_PROVIDER=console      # msg91 + MSG91_AUTH_KEY for real SMS
+   CUSTOMER_WEB_URL=https://foodgrid.in   # your storefront: table and cart QR codes link here
+   SMS_PROVIDER=msg91        # console only logs the code (see below)
+   MSG91_AUTH_KEY=
+   MSG91_TEMPLATE_ID=        # a flow linked to your DLT-approved login template: ##code##, ##minutes##
    PUSH_PROVIDER=fcm
    FCM_SERVICE_ACCOUNT_BASE64=    # Firebase service-account key, base64
    GOOGLE_CLIENT_IDS=        # Google web client id(s), comma separated
+   RAZORPAY_KEY_ID=          # required: payment-service does not start in production without them
+   RAZORPAY_KEY_SECRET=
+   RAZORPAY_WEBHOOK_SECRET=  # Razorpay dashboard → Webhooks → https://<gateway-domain>/api/v1/payments/webhooks/razorpay
    S3_MEDIA_BUCKET=          # S3-compatible storage for uploads (e.g. Cloudflare R2)
    S3_ENDPOINT=
    S3_FORCE_PATH_STYLE=true
@@ -140,17 +143,35 @@ outbox relay, scheduled jobs, the tracking socket) that serverless functions can
 
    then paste `infrastructure/railway/service-urls.env` (the private addresses of the
    services) into the same editor. Add the optional keys from `.env.example` you use
-   (Razorpay, OpenWeather, email). Do not set `NODE_ENV` here: it would make the build skip
-   the development dependencies; the start commands set it.
+   (OpenWeather). Do not set `NODE_ENV` here: it would make the build skip the development
+   dependencies; the start commands set it.
+
+   - **Login codes**: the services run in production mode, so a code is never returned in
+     the API response (`OTP_EXPOSE_IN_RESPONSE` only works locally). With
+     `SMS_PROVIDER=console` the code is only written to notification-service's log, which is
+     enough to try the apps yourself but not for customers.
+   - **Email** (email confirmation codes, approval decisions): `EMAIL_PROVIDER=ses`,
+     `SES_FROM_ADDRESS`, `SES_REGION` (e.g. `ap-south-1`), `SES_ACCESS_KEY_ID` and
+     `SES_SECRET_ACCESS_KEY` (an IAM user allowed only `ses:SendEmail`). The shared `AWS_*`
+     values are the storage keys and do not work for SES.
+   - **Uploads**: browsers upload photos straight to the bucket, so give it a CORS rule that
+     allows `PUT` and `GET` from your web domains (`https://foodgrid.in`,
+     `https://*.foodgrid.in`) with any header. In Cloudflare R2: the bucket → Settings →
+     CORS policy.
 
 4. On each **API service**, add one variable: `PORT` = its port (auth-service 4001,
    user-service 4002, order-service 4003, payment-service 4004, inventory-service 4005,
    procurement-service 4006, delivery-service 4007, supplier-service 4008,
    analytics-service 4009, ads-service 4010, notification-service 4011, ai-service 4012).
+   On **auth-service only**, also add `JWT_PRIVATE_KEY_BASE64` (from the same `.env`) and
+   `OTP_SECRET` (another long random string; auth-service refuses to start without it).
+   They sign every session and login code, so keep them off the other services, which
+   only verify tokens with the public key.
 5. On the **gateway**, Settings → Networking → **Generate Domain**. That URL is the API:
    `https://<gateway-domain>/api/v1`. No API service needs a public domain.
 6. Deploy. Each API service runs `prisma migrate deploy` before it starts (it is
-   idempotent and takes a lock), so the database schema is created on the first deploy.
+   idempotent and takes a lock; services that time out waiting for the lock while another
+   one migrates retry), so the database schema is created on the first deploy.
    Demo data (optional, never in production): from your machine,
    `DATABASE_URL=<Postgres public URL> pnpm db:seed`.
 
@@ -171,7 +192,14 @@ Build with `--dart-define=API_URL=https://<gateway-domain>/api/v1` (see each app
 ### Limits of this setup
 
 - The gateway is the Node gateway from `scripts/dev-gateway.ts`: it routes, proxies the
-  tracking socket and re-resolves service addresses on every request, but it has none of
-  nginx's per-IP rate limit on OTP and password login.
-- The admin console has no IP allow-list here (the production Kubernetes ingress has one).
+  tracking socket, re-resolves service addresses on every request, passes the client IP
+  on in `X-Forwarded-For` and, like nginx, rate limits OTP requests and password logins
+  per IP (10 a minute, bursts of 5). Its limits live in memory, so run one gateway
+  replica. The client IP is the first `X-Forwarded-For` hop, which a caller can set;
+  auth-service's own per-phone and per-account limits apply regardless.
+- After the first deploy, make a change in admin-web and check that its entry in the
+  audit log shows your own IP; if it shows a Railway or Vercel address, per-IP limits
+  are shared by everyone.
+- The admin console has no IP allow-list here (the production Kubernetes ingress has
+  one); add one with the Vercel Firewall if you need it.
 - Uploads need S3-compatible storage outside Railway.

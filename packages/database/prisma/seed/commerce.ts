@@ -171,7 +171,7 @@ export async function seedCommerce(ctx: SeedContext) {
         zoneKey,
         items,
         ingredientIds: new Map(),
-        commissionRate: m.commissionRate ?? (m.type === 'FOOD_CART' ? 10 : 18),
+        commissionRate: m.commissionRate ?? 15,
       };
       ctx.outlets.push(ref);
     }

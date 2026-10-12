@@ -12,6 +12,27 @@ export interface TierLike {
 }
 
 /**
+ * The tiers a buyer segment can get right now, at any quantity: its own and ALL tiers that
+ * are in their validity window, highest break first, segment-specific first at equal breaks.
+ */
+export function quotableTiers<T extends TierLike>(
+  tiers: T[],
+  segment: Segment,
+  at = new Date(),
+): T[] {
+  return tiers
+    .filter(
+      (t) =>
+        (t.segment === segment || t.segment === 'ALL') &&
+        (!t.validFrom || t.validFrom <= at) &&
+        (!t.validTo || t.validTo >= at),
+    )
+    .sort(
+      (a, b) => b.minQty - a.minQty || Number(b.segment !== 'ALL') - Number(a.segment !== 'ALL'),
+    );
+}
+
+/**
  * Bulk pricing: the applicable tier is the one with the highest minQty ≤ qty
  * for the buyer's segment (falling back to ALL); segment-specific tiers win
  * over generic ones at the same break. Without a tier the base price applies.
@@ -23,18 +44,10 @@ export function tierPrice(
   segment: Segment,
   at = new Date(),
 ): number {
-  const valid = tiers.filter(
-    (t) =>
-      (t.segment === segment || t.segment === 'ALL') &&
-      qty >= t.minQty &&
-      (t.maxQty == null || qty <= t.maxQty) &&
-      (!t.validFrom || t.validFrom <= at) &&
-      (!t.validTo || t.validTo >= at),
+  const tier = quotableTiers(tiers, segment, at).find(
+    (t) => qty >= t.minQty && (t.maxQty == null || qty <= t.maxQty),
   );
-  valid.sort(
-    (a, b) => b.minQty - a.minQty || Number(b.segment !== 'ALL') - Number(a.segment !== 'ALL'),
-  );
-  return valid[0]?.unitPrice ?? basePrice;
+  return tier?.unitPrice ?? basePrice;
 }
 
 /** Catalogue price of a product row (Prisma decimals) for a buyer segment at a quantity. */

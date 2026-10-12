@@ -1,5 +1,6 @@
 import {
   allocateFefo,
+  batchRemainingOnReceipt,
   crossedReorderLevel,
   recipeRequirements,
   stockState,
@@ -8,6 +9,15 @@ import {
 import { menuCostRow, recipeCost } from './costing';
 
 const d = (s: string) => new Date(s);
+
+describe('batchRemainingOnReceipt', () => {
+  it('nets a receipt off stock that went negative', () => {
+    expect(batchRemainingOnReceipt(0, 10)).toBe(10);
+    expect(batchRemainingOnReceipt(-2, 10)).toBe(8);
+    expect(batchRemainingOnReceipt(-12, 10)).toBe(0);
+    expect(batchRemainingOnReceipt(4, 0.5)).toBe(0.5);
+  });
+});
 
 describe('FEFO allocation', () => {
   const batches = [

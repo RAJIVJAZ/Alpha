@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '@foodgrid/database/nest';
 import { dateOnly, istDate, notFound, round2, Unit } from '@foodgrid/utils';
 import { InternalHttpService } from '@foodgrid/utils/server';
+import { assertOutletAccess, OutletActor, outletScope } from '../common/outlet-access';
 import { menuCostRow, recipeCost } from '../domain/costing';
 
 interface MenuPrice {
@@ -21,7 +22,8 @@ export class CostingService {
     private readonly internal: InternalHttpService,
   ) {}
 
-  async report(tenantId: string, outletId: string) {
+  async report(tenantId: string, outletId: string, user?: OutletActor) {
+    assertOutletAccess(user, outletId);
     const outlet = await this.internal
       .get<{ tenantId: string }>('order', `internal/outlets/${outletId}`)
       .catch(() => null);
@@ -65,8 +67,8 @@ export class CostingService {
   }
 
   /** Daily snapshot for food-cost trend charts. */
-  async snapshot(tenantId: string, outletId: string) {
-    const report = await this.report(tenantId, outletId);
+  async snapshot(tenantId: string, outletId: string, user?: OutletActor) {
+    const report = await this.report(tenantId, outletId, user);
     const date = dateOnly(istDate());
     let written = 0;
     for (const row of report.items) {
@@ -95,9 +97,11 @@ export class CostingService {
     return { outletId, written };
   }
 
-  trend(tenantId: string, menuItemId: string) {
-    return this.prisma
-      .forTenant(tenantId)
-      .costSnapshot.findMany({ where: { menuItemId }, orderBy: { date: 'asc' }, take: 120 });
+  trend(tenantId: string, menuItemId: string, user?: OutletActor) {
+    return this.prisma.forTenant(tenantId).costSnapshot.findMany({
+      where: { menuItemId, ...outletScope(user) },
+      orderBy: { date: 'asc' },
+      take: 120,
+    });
   }
 }

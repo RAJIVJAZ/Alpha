@@ -2,7 +2,7 @@ import type { INestApplication } from '@nestjs/common';
 import type Redis from 'ioredis';
 import request from 'supertest';
 import { PrismaService } from '@foodgrid/database/nest';
-import { addDays, dateOnly, istDate } from '@foodgrid/utils';
+import { addDays, AppError, dateOnly, istDate } from '@foodgrid/utils';
 import { InternalHttpService, REDIS } from '@foodgrid/utils/server';
 import {
   createTestApp,
@@ -28,6 +28,15 @@ const owner = (tenantId = TENANT) =>
     tenantType: 'RESTAURANT',
     tenantRole: 'OWNER',
     outletIds: [],
+  })}`;
+const manager = (outletIds: string[]) =>
+  `Bearer ${issueTestToken({
+    sub: 'manager_1',
+    roles: ['CUSTOMER'],
+    tenantId: TENANT,
+    tenantType: 'RESTAURANT',
+    tenantRole: 'MANAGER',
+    outletIds,
   })}`;
 const service = () => issueServiceToken('procurement-service');
 
@@ -504,6 +513,44 @@ describe('ai-service models and signals (e2e)', () => {
       'outlet_other',
     ]);
     await api().get('/api/v1/admin/ai/outlet-scores').set('Authorization', owner()).expect(403);
+
+    // a manager of another outlet sees none of this outlet's scores
+    const scoped = await api()
+      .get('/api/v1/ai/outlet-scores')
+      .set('Authorization', manager(['outlet_2']))
+      .expect(200);
+    expect(scoped.body).toEqual([]);
+    await api()
+      .get('/api/v1/ai/outlet-scores')
+      .query({ outletId: OUTLET })
+      .set('Authorization', manager(['outlet_2']))
+      .expect(403);
+
+    // the grade filter lists an outlet under its latest grade only
+    await api()
+      .post('/api/v1/internal/ai/outlets/score')
+      .set('x-service-token', issueServiceToken('analytics-service'))
+      .send({
+        tenantId: TENANT,
+        outletId: OUTLET,
+        periodStart: day(-14),
+        periodEnd: day(-8),
+        metrics: weak,
+      })
+      .expect(200);
+    const oldGrade = first.body.grade;
+    const byOldGrade = await api()
+      .get('/api/v1/admin/ai/outlet-scores')
+      .query({ grade: oldGrade })
+      .set('Authorization', admin())
+      .expect(200);
+    expect(byOldGrade.body.map((s: { outletId: string }) => s.outletId)).not.toContain(OUTLET);
+    const byA = await api()
+      .get('/api/v1/admin/ai/outlet-scores')
+      .query({ grade: 'A' })
+      .set('Authorization', admin())
+      .expect(200);
+    expect(byA.body.map((s: { outletId: string }) => s.outletId)).toEqual([OUTLET]);
   });
 
   it('scores order risk, queues the doubtful ones for review and records the outcome', async () => {
@@ -659,11 +706,55 @@ describe('ai-service models and signals (e2e)', () => {
       .post(`/api/v1/ai/pricing/suggestions/${list.body[0].id}/apply`)
       .set('Authorization', owner(OTHER_TENANT))
       .expect(404);
+    // a manager of another outlet can neither see nor decide this outlet's suggestions
+    const scoped = await api()
+      .get('/api/v1/ai/pricing/suggestions')
+      .set('Authorization', manager(['outlet_2']))
+      .expect(200);
+    expect(scoped.body).toEqual([]);
+    await api()
+      .post(`/api/v1/ai/pricing/suggestions/${list.body[0].id}/dismiss`)
+      .set('Authorization', manager(['outlet_2']))
+      .expect(403);
+    await api()
+      .post('/api/v1/ai/pricing/menu-suggestions')
+      .query({ outletId: OUTLET })
+      .set('Authorization', manager(['outlet_2']))
+      .expect(403);
     const applied = await api()
       .post(`/api/v1/ai/pricing/suggestions/${list.body[0].id}/apply`)
       .set('Authorization', owner())
       .expect(200);
     expect(applied.body.status).toBe('APPLIED');
+    // decided once: a second tab gets a conflict
+    await api()
+      .post(`/api/v1/ai/pricing/suggestions/${list.body[0].id}/apply`)
+      .set('Authorization', owner())
+      .expect(409);
+    // a suggestion past its validity is neither listed nor applicable
+    const stale = await prisma.pricingSuggestion.create({
+      data: {
+        tenantId: TENANT,
+        targetType: 'MENU_ITEM',
+        targetId: 'item_soup',
+        targetName: 'Tomato Soup',
+        currentPrice: 150,
+        suggestedPrice: 159,
+        changePct: 6,
+        reason: 'old',
+        confidence: 0.4,
+        factors: { outletId: OUTLET },
+        validUntil: new Date(Date.now() - 60_000),
+      },
+    });
+    expect(
+      (await api().get('/api/v1/ai/pricing/suggestions').set('Authorization', owner()).expect(200))
+        .body,
+    ).toEqual([]);
+    await api()
+      .post(`/api/v1/ai/pricing/suggestions/${stale.id}/apply`)
+      .set('Authorization', owner())
+      .expect(409);
 
     // every model call above is in the audit trail the admin dashboard reads
     const runs = await eventually(async () => {
@@ -676,6 +767,50 @@ describe('ai-service models and signals (e2e)', () => {
     expect(runs).toEqual([
       { kind: 'DYNAMIC_PRICING', success: true, runs: 1, avgMs: expect.any(Number) },
     ]);
+  });
+
+  it("keeps each outlet's price suggestions when another outlet is analysed", async () => {
+    http
+      .on('GET', 'order', 'internal/outlets/:id', ({ params }) => ({
+        id: params.id,
+        tenantId: TENANT,
+      }))
+      .on('GET', 'order', 'internal/outlets/:id/menu-prices', ({ params }) =>
+        params.id === OUTLET
+          ? [{ id: 'item_thali', name: 'Veg Thali', price: '200.00', isAvailable: true }]
+          : [{ id: 'item_dosa', name: 'Masala Dosa', price: '120.00', isAvailable: true }],
+      )
+      .on('GET', 'order', 'internal/outlets/:id/item-sales', [])
+      .on('GET', 'inventory', 'internal/inventory/outlets/:id/plate-costs', [
+        { menuItemId: 'item_thali', foodCost: 100 },
+        { menuItemId: 'item_dosa', foodCost: 60 },
+      ]);
+    const analyse = (outletId: string) =>
+      api()
+        .post('/api/v1/ai/pricing/menu-suggestions')
+        .query({ outletId })
+        .set('Authorization', owner());
+    await analyse(OUTLET).expect(201);
+    await analyse('outlet_two').expect(201);
+    const open = await api()
+      .get('/api/v1/ai/pricing/suggestions')
+      .set('Authorization', owner())
+      .expect(200);
+    expect(open.body.map((s: { targetId: string }) => s.targetId).sort()).toEqual([
+      'item_dosa',
+      'item_thali',
+    ]);
+
+    // with plate costs unavailable nothing is replaced, and the merchant is told
+    http.on('GET', 'inventory', 'internal/inventory/outlets/:id/plate-costs', () => {
+      throw new AppError('UPSTREAM_UNAVAILABLE', 'inventory-service is unavailable', 503);
+    });
+    await analyse(OUTLET).expect(503);
+    const still = await api()
+      .get('/api/v1/ai/pricing/suggestions')
+      .set('Authorization', owner())
+      .expect(200);
+    expect(still.body).toHaveLength(2);
   });
 });
 

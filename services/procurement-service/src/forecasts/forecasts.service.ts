@@ -5,6 +5,7 @@ import { dateOnly, istDate } from '@foodgrid/utils';
 import { ClientsService, StockStatus } from '../clients/clients.service';
 import { assertOutletAccess, hasOutletAccess, OutletActor } from '../common/outlet-access';
 import { SettingsService } from '../settings/settings.service';
+import { MAX_HORIZON_DAYS } from '../purchase-orders/dto/po.dto';
 
 const CONCURRENCY = 5;
 
@@ -34,7 +35,10 @@ export class ForecastsService {
     for (let i = 0; i < ingredients.length; i += CONCURRENCY) {
       const chunk = ingredients.slice(i, i + CONCURRENCY);
       const results = await Promise.allSettled(
-        chunk.map((ing) => this.forecastIngredient(ing, settings.forecastHorizonDays)),
+        // settings saved before the 90-day limit still forecast
+        chunk.map((ing) =>
+          this.forecastIngredient(ing, Math.min(settings.forecastHorizonDays, MAX_HORIZON_DAYS)),
+        ),
       );
       for (const r of results) {
         if (r.status === 'fulfilled') ok++;

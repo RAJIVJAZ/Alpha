@@ -96,6 +96,44 @@ describe('analytics-service merchant reports honour outlet scope (e2e)', () => {
     await api().get(`/api/v1/analytics/outlet/sales?outletId=${KORA}`).set(as(scoped)).expect(200);
   });
 
+  it('counts each customer once in new and repeat customers across the range', async () => {
+    const fact = (orderId: string, customerId: string, daysAgo: number) => {
+      const date = new Date(`${new Date().toISOString().slice(0, 10)}T00:00:00Z`);
+      date.setUTCDate(date.getUTCDate() - daysAgo);
+      return prisma.orderFact.create({
+        data: {
+          orderId,
+          orderNumber: orderId,
+          date,
+          hour: 13,
+          tenantId: TENANT,
+          outletId: KORA,
+          customerId,
+          outletType: 'RESTAURANT',
+          channel: 'APP',
+          orderType: 'DELIVERY',
+          status: 'DELIVERED',
+          itemsCount: 1,
+          gmv: 300,
+          subtotal: 300,
+          discount: 0,
+          deliveryFee: 0,
+          tax: 0,
+          placedAt: date,
+        },
+      });
+    };
+    // a new regular who orders on three days, and a customer from two months ago who is back
+    for (const d of [1, 2, 3]) await fact(`ord_new_${d}`, 'cust_new', d);
+    await fact('ord_old', 'cust_back', 60);
+    await fact('ord_back', 'cust_back', 2);
+    const sales = await api()
+      .get(`/api/v1/analytics/outlet/sales?outletId=${KORA}`)
+      .set(as(owner))
+      .expect(200);
+    expect(sales.body.kpis).toMatchObject({ newCustomers: 1, repeatCustomers: 1 });
+  });
+
   it('still shows every outlet to unscoped members', async () => {
     const profit = await api()
       .get('/api/v1/analytics/outlet/profitability')

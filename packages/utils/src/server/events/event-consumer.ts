@@ -24,6 +24,11 @@ interface RegisteredHandler {
 
 type StreamEntry = [id: string, fields: string[]];
 
+/** Entries idle this long are re-claimed from a consumer that stopped (crashed or hung). */
+const RECLAIM_IDLE_MS = 30_000;
+/** A batch still being worked through re-claims its rest this often, so it never looks idle. */
+const TOUCH_MS = 10_000;
+
 /**
  * Redis Streams consumer-group worker. One consumer group per service; each
  * replica is a separate consumer. Failed messages stay pending and are
@@ -39,6 +44,9 @@ export class EventConsumer implements OnApplicationBootstrap, OnApplicationShutd
   private running = false;
   private reclaimTimer?: NodeJS.Timeout;
   private loopPromise?: Promise<void>;
+  /** Entries this process holds (read and not yet handled), as `${key} ${id}`. */
+  private readonly held = new Set<string>();
+  private reclaiming = false;
 
   constructor(
     private readonly discovery: DiscoveryService,
@@ -128,8 +136,16 @@ export class EventConsumer implements OnApplicationBootstrap, OnApplicationShutd
           ...this.keys.map(() => '>'),
         )) as [string, StreamEntry[]][] | null;
         if (!res) continue;
-        for (const [key, entries] of res) {
-          for (const entry of entries) await this.process(key, entry);
+        const batch = res.flatMap(([key, entries]) => entries.map((entry) => ({ key, entry })));
+        for (const b of batch) this.held.add(`${b.key} ${b.entry[0]}`);
+        let touched = Date.now();
+        for (let i = 0; i < batch.length; i++) {
+          // a slow batch must not look abandoned: re-claim what is left of it to ourselves
+          if (Date.now() - touched > TOUCH_MS) {
+            await this.touch(batch.slice(i));
+            touched = Date.now();
+          }
+          await this.process(batch[i]!.key, batch[i]!.entry);
         }
       } catch (err) {
         if (!this.running) break;
@@ -139,17 +155,31 @@ export class EventConsumer implements OnApplicationBootstrap, OnApplicationShutd
     }
   }
 
-  private async process(key: string, [entryId, fields]: StreamEntry) {
-    const raw = fieldValue(fields, 'envelope');
-    if (!raw) {
-      await this.redis.xack(key, this.group, entryId);
-      return;
+  /** Resets the idle time of entries still waiting in our batch (JUSTID: no delivery counted). */
+  private async touch(rest: { key: string; entry: StreamEntry }[]) {
+    const byKey = new Map<string, string[]>();
+    for (const { key, entry } of rest) byKey.set(key, [...(byKey.get(key) ?? []), entry[0]]);
+    for (const [key, ids] of byKey) {
+      await this.redis
+        .xclaim(key, this.group, this.consumerName, 0, ...ids, 'JUSTID')
+        .catch((err: Error) => this.logger.warn(`Could not hold ${key} entries: ${err.message}`));
     }
+  }
+
+  private async process(key: string, [entryId, fields]: StreamEntry) {
+    this.held.add(`${key} ${entryId}`);
     try {
+      const raw = fieldValue(fields, 'envelope');
+      if (!raw) {
+        await this.redis.xack(key, this.group, entryId);
+        return;
+      }
       await this.dispatch(JSON.parse(raw) as EventEnvelope);
       await this.redis.xack(key, this.group, entryId);
     } catch (err) {
       this.logger.warn(`Event ${entryId} on ${key} failed: ${(err as Error).message}`);
+    } finally {
+      this.held.delete(`${key} ${entryId}`);
     }
   }
 
@@ -182,50 +212,59 @@ export class EventConsumer implements OnApplicationBootstrap, OnApplicationShutd
   }
 
   private async reclaim() {
-    for (const key of this.keys) {
-      try {
-        const pending = (await this.redis.xpending(
+    // one pass at a time: a slow pass must not overlap the next tick
+    if (this.reclaiming) return;
+    this.reclaiming = true;
+    try {
+      for (const key of this.keys) await this.reclaimFrom(key);
+    } finally {
+      this.reclaiming = false;
+    }
+  }
+
+  private async reclaimFrom(key: string) {
+    try {
+      const pending = (await this.redis.xpending(
+        key,
+        this.group,
+        'IDLE',
+        RECLAIM_IDLE_MS,
+        '-',
+        '+',
+        50,
+      )) as [string, string, number, number][];
+      for (const [id, , , deliveries] of pending) {
+        // still in our own batch or being handled here: not abandoned
+        if (this.held.has(`${key} ${id}`)) continue;
+        const claimed = (await this.redis.xclaim(
           key,
           this.group,
-          'IDLE',
-          30_000,
-          '-',
-          '+',
-          50,
-        )) as [string, string, number, number][];
-        for (const [id, , , deliveries] of pending) {
-          const claimed = (await this.redis.xclaim(
+          this.consumerName,
+          RECLAIM_IDLE_MS,
+          id,
+        )) as StreamEntry[];
+        const entry = claimed[0];
+        if (!entry) continue;
+        if (deliveries >= MAX_DELIVERIES) {
+          await this.redis.xadd(
+            DEAD_LETTER_STREAM,
+            '*',
+            'stream',
             key,
+            'group',
             this.group,
-            this.consumerName,
-            30_000,
+            'entryId',
             id,
-          )) as StreamEntry[];
-          const entry = claimed[0];
-          if (!entry) continue;
-          if (deliveries >= MAX_DELIVERIES) {
-            await this.redis.xadd(
-              DEAD_LETTER_STREAM,
-              '*',
-              'stream',
-              key,
-              'group',
-              this.group,
-              'entryId',
-              id,
-              ...entry[1],
-            );
-            await this.redis.xack(key, this.group, id);
-            this.logger.error(
-              `Moved ${id} from ${key} to dead-letter after ${deliveries} attempts`,
-            );
-            continue;
-          }
-          await this.process(key, entry);
+            ...entry[1],
+          );
+          await this.redis.xack(key, this.group, id);
+          this.logger.error(`Moved ${id} from ${key} to dead-letter after ${deliveries} attempts`);
+          continue;
         }
-      } catch (err) {
-        this.logger.error(`Reclaim failed for ${key}: ${(err as Error).message}`);
+        await this.process(key, entry);
       }
+    } catch (err) {
+      this.logger.error(`Reclaim failed for ${key}: ${(err as Error).message}`);
     }
   }
 }

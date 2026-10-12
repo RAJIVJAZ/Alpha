@@ -647,7 +647,9 @@
             ]
           },
           "forecastHorizonDays": {
-            "type": "number"
+            "type": "number",
+            "minimum": 3,
+            "maximum": 90
           },
           "serviceLevel": {
             "type": "number"

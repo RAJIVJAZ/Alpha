@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@foodgrid/database/nest';
 import { canConvert, convertUnit, Unit } from '@foodgrid/utils';
 import { TenantDirectory } from '../common/tenant-directory.service';
-import { Segment, tierPrice } from '../domain/b2b-pricing';
+import { quotableTiers, Segment, tierPrice } from '../domain/b2b-pricing';
 import { deliveryChargeFor, findZone } from '../domain/logistics';
 
 export interface QuoteRequest {
@@ -137,12 +137,12 @@ export class QuotesService {
         onTimeRate: m?.onTimeRate ?? 1,
         fillRate: m?.fillRate ?? 1,
         stockQty: Number(p.stockQty),
-        tiers: tiers
-          .filter((t) => t.segment === seg || t.segment === 'ALL')
-          .map((t) => ({
-            minQty: t.minQty,
-            unitPrice: Math.round(t.unitPrice * (1 - dealerDiscount / 100) * 100) / 100,
-          })),
+        // the ranking reprices other pack counts from these: only tiers the buyer can get today
+        tiers: quotableTiers(tiers, seg).map((t) => ({
+          minQty: t.minQty,
+          maxQty: t.maxQty,
+          unitPrice: Math.round(t.unitPrice * (1 - dealerDiscount / 100) * 100) / 100,
+        })),
       });
     }
     return offers;

@@ -22,10 +22,18 @@ import { maskPhone, normalizePhone } from './domain/phone';
 import { generateReferralCode } from './domain/referral';
 import { ClientMeta, SessionService } from './session.service';
 
+/** The OTP hashing pepper; the development default must never sign codes in production. */
+function otpSecret(): string {
+  if (process.env.OTP_SECRET) return process.env.OTP_SECRET;
+  if (process.env.NODE_ENV === 'production')
+    throw new Error('OTP_SECRET is required in production');
+  return 'dev-otp-secret';
+}
+
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
-  private readonly otpSecret = process.env.OTP_SECRET ?? 'dev-otp-secret';
+  private readonly otpSecret = otpSecret();
   private readonly testNumbers = new Set(
     (process.env.OTP_TEST_NUMBERS ?? '')
       .split(',')
@@ -60,10 +68,14 @@ export class AuthService {
 
     // Delivery is best-effort: a notification outage must not leak the code or block login retries.
     this.internal
-      .post('notification', 'internal/notifications/sms', {
+      .post<{ status: string }>('notification', 'internal/notifications/sms', {
         phone,
         templateKey: 'auth.otp',
         data: { code, minutes: OTP_TTL_SECONDS / 60 },
+      })
+      .then((r) => {
+        if (r?.status !== 'SENT')
+          this.logger.warn(`OTP SMS to ${maskPhone(phone)} not sent: ${r?.status ?? 'no status'}`);
       })
       .catch((err: Error) =>
         this.logger.warn(`OTP SMS to ${maskPhone(phone)} not sent: ${err.message}`),

@@ -5,6 +5,7 @@ import type { IngredientView } from '@foodgrid/types';
 import { conflict, normalizePage, notFound, paginate, round2 } from '@foodgrid/utils';
 import { stockState } from '../domain/stock';
 import { InternalHttpService } from '@foodgrid/utils/server';
+import { assertOutletAccess, OutletActor, outletScope } from '../common/outlet-access';
 import { StockService } from '../stock/stock.service';
 import {
   IngredientDto,
@@ -53,7 +54,8 @@ export class IngredientsService {
     private readonly internal: InternalHttpService,
   ) {}
 
-  async create(tenantId: string, userId: string, dto: IngredientDto) {
+  async create(tenantId: string, userId: string, dto: IngredientDto, user?: OutletActor) {
+    assertOutletAccess(user, dto.outletId);
     const outlet = await this.internal
       .get<{ id: string; tenantId: string }>('order', `internal/outlets/${dto.outletId}`)
       .catch(() => null);
@@ -89,9 +91,9 @@ export class IngredientsService {
     });
   }
 
-  async list(tenantId: string, q: ListIngredientsDto) {
+  async list(tenantId: string, q: ListIngredientsDto, user?: OutletActor) {
     const where: Prisma.IngredientWhereInput = {
-      outletId: q.outletId,
+      ...outletScope(user, q.outletId),
       category: q.category,
       isActive: true,
       ...(q.q
@@ -111,7 +113,7 @@ export class IngredientsService {
     return paginate(views.slice(skip, skip + pageSize), views.length, page, pageSize);
   }
 
-  async get(tenantId: string, id: string) {
+  async get(tenantId: string, id: string, user?: OutletActor) {
     const ing = await this.prisma.forTenant(tenantId).ingredient.findUnique({
       where: { id },
       include: {
@@ -124,21 +126,22 @@ export class IngredientsService {
       },
     });
     if (!ing) throw notFound('Ingredient', id);
+    assertOutletAccess(user, ing.outletId);
     return { ...ing, view: toIngredientView(ing) };
   }
 
-  async update(tenantId: string, id: string, dto: UpdateIngredientDto) {
+  async update(tenantId: string, id: string, dto: UpdateIngredientDto, user?: OutletActor) {
     const ing = await this.prisma.forTenant(tenantId).ingredient.findUnique({ where: { id } });
     if (!ing) throw notFound('Ingredient', id);
+    assertOutletAccess(user, ing.outletId);
     return this.prisma.ingredient.update({ where: { id }, data: dto });
   }
 
   /** Inventory dashboard: value and health per category, expiring batches. */
-  async summary(tenantId: string, outletId?: string) {
+  async summary(tenantId: string, outletId?: string, user?: OutletActor) {
     const db = this.prisma.forTenant(tenantId);
-    const ingredients = await db.ingredient.findMany({
-      where: { isActive: true, ...(outletId ? { outletId } : {}) },
-    });
+    const scope = outletScope(user, outletId);
+    const ingredients = await db.ingredient.findMany({ where: { isActive: true, ...scope } });
     const byCategory = new Map<
       string,
       { category: string; items: number; value: number; low: number; out: number }
@@ -163,7 +166,7 @@ export class IngredientsService {
       where: {
         remainingQty: { gt: 0 },
         expiresAt: { lte: soon },
-        ...(outletId ? { ingredient: { outletId } } : {}),
+        ...('outletId' in scope ? { ingredient: scope } : {}),
       },
       include: { ingredient: { select: { name: true, unit: true } } },
       orderBy: { expiresAt: 'asc' },

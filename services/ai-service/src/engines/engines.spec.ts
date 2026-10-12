@@ -126,6 +126,19 @@ describe('supplier ranking', () => {
       stockQty: 0,
     },
   ];
+  it('reprices with a bulk tier only inside its quantity range', () => {
+    const tiered: SupplierOffer = {
+      ...base,
+      productId: 'tiered',
+      supplierTenantId: 's5',
+      supplierName: 'Tiered',
+      unitPrice: 1000,
+      tiers: [{ minQty: 1, maxQty: 5, unitPrice: 800 }],
+    };
+    // 12 packs is above the tier's 5-pack cap: the quoted price applies
+    expect(rankSuppliers([tiered], 300, 'LOWEST_COST')[0]!.unitPrice).toBe(1000);
+    expect(rankSuppliers([tiered], 100, 'LOWEST_COST')[0]!.unitPrice).toBe(800);
+  });
   it('picks a different winner per strategy and never an out-of-stock offer', () => {
     const best = bestByStrategy(offers, 100);
     expect(best.LOWEST_COST?.productId).toBe('cheap');
@@ -180,6 +193,34 @@ describe('dynamic pricing', () => {
     expect(s.suggestedPrice).toBeLessThanOrEqual(220);
     expect(s.suggestedPrice).toBeGreaterThanOrEqual(180);
     expect(String(s.suggestedPrice).endsWith('9')).toBe(true);
+  });
+  it('keeps charm prices inside the guardrail and in the direction of the target', () => {
+    for (const price of [20, 25, 30, 40, 50, 52, 105, 150, 205, 999]) {
+      // a plate cost this high needs a rise (60% margin floor above the 10% band)
+      const rise = suggestMenuPrice({
+        id: 'x',
+        name: 'Dish',
+        price,
+        unitCost: price * 0.45,
+        history: [],
+      });
+      expect(rise.suggestedPrice).toBeGreaterThan(price);
+      expect(rise.suggestedPrice).toBeLessThanOrEqual(price * 1.1);
+      // a cheap plate may go either way, but never past the band
+      const any = suggestMenuPrice({ id: 'x', name: 'Dish', price, unitCost: 10, history: [] });
+      expect(any.suggestedPrice).toBeGreaterThanOrEqual(price * 0.9);
+      expect(any.suggestedPrice).toBeLessThanOrEqual(price * 1.1);
+    }
+    // a cut (elastic demand, cheap plate) stays a cut and within 10%
+    const history = [80, 90, 100, 110, 120].map((p) => ({ price: p, quantity: 1e6 * p ** -3 }));
+    const cut = suggestMenuPrice({ id: 'y', name: 'Dish', price: 100, unitCost: 20, history });
+    expect(cut.suggestedPrice).toBeLessThan(100);
+    expect(cut.suggestedPrice).toBeGreaterThanOrEqual(90);
+    // charm endings survive where the band has room
+    expect(
+      suggestMenuPrice({ id: 'z', name: 'Dish', price: 150, unitCost: 70, history: [] })
+        .suggestedPrice,
+    ).toBe(159);
   });
   it('marks down stock that will expire unsold', () => {
     expect(

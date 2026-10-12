@@ -747,7 +747,7 @@ function SettingsForm() {
             ))}
           </Select>
         </Field>
-        <Field label="Forecast horizon (days)">
+        <Field label="Forecast horizon (days)" hint="3–90">
           <Input
             inputMode="numeric"
             value={String(form.forecastHorizonDays)}

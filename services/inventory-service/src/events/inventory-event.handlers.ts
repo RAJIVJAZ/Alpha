@@ -100,8 +100,17 @@ export class InventoryEventHandlers {
   @OnDomainEvent(EventTypes.PurchaseOrderReceived)
   async receivePurchaseOrder(env: EventEnvelope<string, PurchaseOrderReceivedEvent>) {
     const po = env.data;
+    // A PO can be received in several goods receipts (PARTIALLY_RECEIVED -> RECEIVED), one event
+    // each; key on the event so each receipt is booked once, even if it is redelivered after the
+    // commit but before the consumer records it as processed.
+    const receipt = `PO ${po.poNumber} · receipt ${env.id}`;
     const already = await this.prisma.stockMovement.count({
-      where: { referenceType: 'PURCHASE_ORDER', referenceId: po.purchaseOrderId },
+      where: {
+        tenantId: po.tenantId,
+        referenceType: 'PURCHASE_ORDER',
+        referenceId: po.purchaseOrderId,
+        reason: receipt,
+      },
     });
     if (already) return;
     await this.prisma.$transaction(async (tx) => {
@@ -120,7 +129,7 @@ export class InventoryEventHandlers {
             referenceType: 'PURCHASE_ORDER',
             referenceId: po.purchaseOrderId,
             supplierTenantId: po.supplierTenantId,
-            reason: `PO ${po.poNumber}`,
+            reason: receipt,
           },
         );
       }

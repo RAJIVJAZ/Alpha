@@ -20,7 +20,7 @@ import { InternalHttpService, OutboxService } from '@foodgrid/utils/server';
 import {
   CommissionRuleLike,
   computeSettlementLine,
-  DEFAULT_COMMISSION,
+  defaultCommissionFor,
   resolveCommissionRule,
 } from '../domain/settlement';
 import { GstService, PLATFORM } from '../gst/gst.service';
@@ -94,7 +94,7 @@ export class SettlementsService {
     );
     return (
       resolveCommissionRule(rules, { tenantId, outletId, tenantType, at: new Date() }) ??
-      DEFAULT_COMMISSION
+      defaultCommissionFor(tenantType)
     );
   }
 
