@@ -55,10 +55,9 @@ export class AnalyticsJobsService implements OnApplicationBootstrap {
 
   async scoreOutlets() {
     const { from, to } = lastCompleteWeek();
-    const outlets = await this.prisma.orderFact.findMany({
+    const outlets = await this.prisma.orderFact.groupBy({
+      by: ['outletId'],
       where: { date: { gte: from, lte: to } },
-      distinct: ['outletId'],
-      select: { outletId: true },
     });
     let scored = 0;
     for (const { outletId } of outlets) {

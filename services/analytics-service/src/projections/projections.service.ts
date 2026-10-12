@@ -1,13 +1,21 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@foodgrid/database';
 import { PrismaService } from '@foodgrid/database/nest';
-import type { OrderStatusChangedEvent } from '@foodgrid/types';
+import { ORDER_STATUSES, type OrderStatusChangedEvent } from '@foodgrid/types';
 import { dateOnly, istDate, istParts, round2 } from '@foodgrid/utils';
+
+const TERMINAL: string[] = ['DELIVERED', 'COMPLETED', 'CANCELLED', 'REJECTED'];
+/** Lifecycle rank; terminal statuses share the top rank so nothing ever replaces them. */
+const rank = (s: string) =>
+  TERMINAL.includes(s) ? ORDER_STATUSES.length : ORDER_STATUSES.indexOf(s as never);
+/** Stored statuses an event with status `s` may move a fact forward from. */
+const behind = (s: string) => ORDER_STATUSES.filter((x) => rank(x) < rank(s));
 
 /**
  * Maintains the analytics read models. Facts are upserted idempotently and
  * daily aggregates are recomputed from facts for the affected day, so
- * redelivered or out-of-order events can never double count.
+ * redelivered or out-of-order events can never double count, and a late
+ * event never moves a fact's status backwards.
  */
 @Injectable()
 export class ProjectionsService {
@@ -28,12 +36,13 @@ export class ProjectionsService {
       customerId: o.customerId,
       channel: o.channel,
       orderType: o.type,
-      status: o.status,
       paymentMethod: o.paymentMethod,
       itemsCount: o.items.reduce((s, i) => s + i.quantity, 0),
       gmv: Number(o.total),
       subtotal: Number(o.subtotal),
       discount,
+      merchantDiscount: Number(o.merchantDiscount ?? 0),
+      packagingCharge: Number(o.packagingCharge ?? 0),
       deliveryFee: Number(o.deliveryFee),
       tax: Number(o.taxTotal),
       prepMins: o.prepMins ?? undefined,
@@ -41,6 +50,9 @@ export class ProjectionsService {
       promisedMins: o.promisedMins ?? undefined,
       riderId: o.riderId ?? undefined,
       placedAt,
+    };
+    const progress = {
+      status: o.status,
       ...(o.status === 'DELIVERED' || o.status === 'COMPLETED' ? { deliveredAt: new Date() } : {}),
     };
     const existing = await this.prisma.orderFact.findUnique({ where: { orderId: o.orderId } });
@@ -59,8 +71,21 @@ export class ProjectionsService {
       o.channel === 'POS' ? 0 : round2(commission + Number(o.deliveryFee) + Number(o.platformFee));
     await this.prisma.orderFact.upsert({
       where: { orderId: o.orderId },
-      create: { orderId: o.orderId, ...data, isFirstOrder, commission, platformRevenue },
+      create: {
+        orderId: o.orderId,
+        ...data,
+        ...progress,
+        isFirstOrder,
+        commission,
+        platformRevenue,
+      },
       update: data,
+    });
+    // status only moves forward: a late, reclaimed or concurrent older event never replaces a
+    // newer or terminal one (Postgres re-checks the WHERE under the row lock)
+    await this.prisma.orderFact.updateMany({
+      where: { orderId: o.orderId, status: { in: behind(o.status) } },
+      data: progress,
     });
     await this.recomputeOutletDay(o.outletId, date);
     await this.recomputePlatformDay(date);
@@ -85,7 +110,9 @@ export class ProjectionsService {
 
   async setFoodCost(orderId: string, foodCost: number) {
     const fact = await this.prisma.orderFact.findUnique({ where: { orderId } });
-    if (!fact) return;
+    // stock.consumed follows order.accepted, but while catching up the inventory stream is read
+    // ahead of the order stream; failing makes the consumer redeliver it once the fact exists
+    if (!fact) throw new Error(`No order fact for ${orderId} yet`);
     await this.prisma.orderFact.update({ where: { orderId }, data: { foodCost } });
     await this.recomputeOutletDay(fact.outletId, fact.date);
   }
@@ -99,11 +126,12 @@ export class ProjectionsService {
         COUNT(*) FILTER (WHERE f.status IN ('DELIVERED','COMPLETED')),
         COUNT(*) FILTER (WHERE f.status IN ('CANCELLED','REJECTED')),
         COALESCE(SUM(f.gmv) FILTER (WHERE f.status IN ('DELIVERED','COMPLETED')), 0),
-        COALESCE(SUM(f.subtotal - f.discount) FILTER (WHERE f.status IN ('DELIVERED','COMPLETED')), 0),
+        -- net sales: what the merchant sells, as settlement taxes and commissions it
+        COALESCE(SUM(f.subtotal + f."packagingCharge" - f."merchantDiscount") FILTER (WHERE f.status IN ('DELIVERED','COMPLETED')), 0),
         COALESCE(SUM(f.discount) FILTER (WHERE f.status IN ('DELIVERED','COMPLETED')), 0),
         COALESCE(SUM(f.commission) FILTER (WHERE f.status IN ('DELIVERED','COMPLETED')), 0),
         COALESCE(SUM(f."foodCost") FILTER (WHERE f.status IN ('DELIVERED','COMPLETED')), 0),
-        COALESCE(SUM(f.subtotal - f.discount - f.commission - f."foodCost") FILTER (WHERE f.status IN ('DELIVERED','COMPLETED')), 0),
+        COALESCE(SUM(f.subtotal + f."packagingCharge" - f."merchantDiscount" - f.commission - f."foodCost") FILTER (WHERE f.status IN ('DELIVERED','COMPLETED')), 0),
         AVG(f."prepMins") FILTER (WHERE f."prepMins" IS NOT NULL),
         COUNT(DISTINCT f."customerId") FILTER (WHERE f."isFirstOrder" AND f.status IN ('DELIVERED','COMPLETED')),
         COUNT(DISTINCT f."customerId") FILTER (WHERE NOT f."isFirstOrder" AND f.status IN ('DELIVERED','COMPLETED')),
@@ -138,8 +166,29 @@ export class ProjectionsService {
         deliveries = EXCLUDED.deliveries, "updatedAt" = now()`;
   }
 
-  async incrementPlatform(date: Date, field: 'newCustomers' | 'b2bOrders', by = 1, b2bGmv = 0) {
-    await this.prisma.dailyPlatformStats.upsert({
+  /**
+   * Runs counter updates (blind increments) once per event and handler: they commit together
+   * with the consumer's own processed-event row, so a handler retried after a crash, before the
+   * consumer recorded it, finds the row and adds nothing twice.
+   */
+  async once(
+    mark: { consumer: string; eventId: string; eventType: string },
+    apply: (tx: Prisma.TransactionClient) => Promise<unknown>,
+  ) {
+    await this.prisma.$transaction(async (tx) => {
+      const { count } = await tx.processedEvent.createMany({ data: [mark], skipDuplicates: true });
+      if (count) await apply(tx);
+    });
+  }
+
+  async incrementPlatform(
+    db: Prisma.TransactionClient,
+    date: Date,
+    field: 'newCustomers' | 'b2bOrders',
+    by = 1,
+    b2bGmv = 0,
+  ) {
+    await db.dailyPlatformStats.upsert({
       where: { date },
       create: { date, [field]: by, b2bGmv },
       update: { [field]: { increment: by }, b2bGmv: { increment: b2bGmv } },
@@ -147,6 +196,7 @@ export class ProjectionsService {
   }
 
   async riderDelivered(
+    db: Prisma.TransactionClient,
     riderId: string,
     at: Date,
     earnings: number,
@@ -154,7 +204,7 @@ export class ProjectionsService {
     deliveryMins: number | null,
   ) {
     const date = dateOnly(istDate(at));
-    const current = await this.prisma.dailyRiderStats.findUnique({
+    const current = await db.dailyRiderStats.findUnique({
       where: { riderId_date: { riderId, date } },
     });
     const n = (current?.deliveries ?? 0) + 1;
@@ -162,7 +212,7 @@ export class ProjectionsService {
       deliveryMins == null
         ? (current?.avgDeliveryMins ?? null)
         : ((current?.avgDeliveryMins ?? deliveryMins) * (n - 1) + deliveryMins) / n;
-    await this.prisma.dailyRiderStats.upsert({
+    await db.dailyRiderStats.upsert({
       where: { riderId_date: { riderId, date } },
       create: { riderId, date, deliveries: 1, earnings, distanceKm, avgDeliveryMins: deliveryMins },
       update: {
@@ -175,6 +225,7 @@ export class ProjectionsService {
   }
 
   async supplierEvent(
+    db: Prisma.TransactionClient,
     tenantId: string,
     at: Date,
     patch: {
@@ -187,7 +238,7 @@ export class ProjectionsService {
     },
   ) {
     const date = dateOnly(istDate(at));
-    await this.prisma.dailySupplierStats.upsert({
+    await db.dailySupplierStats.upsert({
       where: { tenantId_date: { tenantId, date } },
       create: {
         tenantId,
