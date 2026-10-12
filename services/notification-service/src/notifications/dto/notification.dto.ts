@@ -51,6 +51,10 @@ export class InternalSendDto {
   @ApiPropertyOptional() @IsOptional() @IsString() body?: string;
   @ApiPropertyOptional() @IsOptional() @IsObject() data?: Record<string, unknown>;
   @ApiPropertyOptional() @IsOptional() @IsString() tenantId?: string;
+  @ApiPropertyOptional({ description: 'Carries a code: delivered, never stored in the log' })
+  @IsOptional()
+  @IsBoolean()
+  sensitive?: boolean;
 }
 
 export class InternalSmsDto {

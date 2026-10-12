@@ -416,6 +416,7 @@ export class PurchaseOrdersService {
         buyerName: buyer,
         outletId: po.outletId,
         supplierTenantId: po.supplierTenantId,
+        supplierName: po.supplierName,
         status: po.status,
         total: money(po.total.toString()),
         paymentTerms: po.paymentTerms,

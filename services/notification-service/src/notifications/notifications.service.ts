@@ -1,7 +1,15 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '@foodgrid/database/nest';
 import type { AppKind, NotificationChannel, Prisma } from '@foodgrid/database';
-import { istParts, hhmmToMinutes, normalizePage, paginate, type PageQuery } from '@foodgrid/utils';
+import { canAccessOutlet } from '@foodgrid/auth';
+import {
+  AppError,
+  istParts,
+  hhmmToMinutes,
+  normalizePage,
+  paginate,
+  type PageQuery,
+} from '@foodgrid/utils';
 import { businessCounter, InternalHttpService } from '@foodgrid/utils/server';
 import {
   EMAIL_PROVIDER,
@@ -23,10 +31,14 @@ export interface SendInput {
   title?: string;
   body?: string;
   data?: Record<string, unknown>;
+  /** Rich-push image (FCM notification.image). */
+  imageUrl?: string;
   tenantId?: string | null;
   campaignId?: string;
   /** Marketing messages respect opt-outs and quiet hours; transactional ones don't. */
   marketing?: boolean;
+  /** Carries a secret (login or verification code): delivered, but never stored in the log. */
+  sensitive?: boolean;
 }
 
 const sent = businessCounter('notifications_sent_total', 'Notifications dispatched', [
@@ -105,21 +117,30 @@ export class NotificationsService {
 
     switch (input.channel) {
       case 'PUSH': {
-        const devices = input.userId
-          ? await this.prisma.deviceToken.findMany({
-              where: {
-                userId: input.userId,
-                isActive: true,
-                ...(input.app ? { app: input.app } : {}),
-              },
-            })
-          : [];
+        // a customer who turned push off still gets order updates in the app, not on the phone
+        const muted =
+          !!input.userId &&
+          !input.marketing &&
+          input.app === 'CUSTOMER' &&
+          (await this.prisma.notificationPreference.findUnique({ where: { userId: input.userId } }))
+            ?.pushEnabled === false;
+        const devices =
+          input.userId && !muted
+            ? await this.prisma.deviceToken.findMany({
+                where: {
+                  userId: input.userId,
+                  isActive: true,
+                  ...(input.app ? { app: input.app } : {}),
+                },
+              })
+            : [];
         const results = [];
         for (const d of devices) {
           const res = await this.push.send(d.token, {
             title: title ?? 'FoodGrid',
             body,
             data: Object.fromEntries(Object.entries(data).map(([k, v]) => [k, String(v)])),
+            ...(input.imageUrl ? { imageUrl: input.imageUrl } : {}),
           });
           if (res.invalidToken)
             await this.prisma.deviceToken.update({
@@ -130,23 +151,25 @@ export class NotificationsService {
             await this.record(input, title, body, data, d.token, res.ok ? 'SENT' : 'FAILED', res),
           );
         }
-        // always keep an in-app copy so the bell icon shows it
-        results.push(
-          await this.record(
-            { ...input, channel: 'IN_APP' },
-            title,
-            body,
-            data,
-            input.userId ?? '-',
-            'SENT',
-          ),
-        );
+        // an in-app copy for the bell icon; only the customer apps have an inbox, and one
+        // person's merchant or rider pushes must not land in their customer inbox
+        if (!input.app || input.app === 'CUSTOMER')
+          results.push(
+            await this.record(
+              { ...input, channel: 'IN_APP' },
+              title,
+              body,
+              data,
+              input.userId ?? '-',
+              'SENT',
+            ),
+          );
         return results;
       }
       case 'SMS': {
         const phone = input.recipient ?? (await this.lookupContact(input.userId, 'phone'));
         if (!phone) return [];
-        const res = await this.sms.send(phone, body);
+        const res = await this.sms.send(phone, body, data);
         return [
           await this.record(input, title, body, data, phone, res.ok ? 'SENT' : 'FAILED', res),
         ];
@@ -166,9 +189,13 @@ export class NotificationsService {
 
   private async lookupContact(userId: string | null | undefined, field: 'phone' | 'email') {
     if (!userId) return null;
+    // only a missing user means "no contact"; an outage throws so the event is retried
     const user = await this.internal
       .get<{ phone: string | null; email: string | null }>('user', `internal/users/${userId}`)
-      .catch(() => null);
+      .catch((err: unknown) => {
+        if (err instanceof AppError && err.status === 404) return null;
+        throw err;
+      });
     return user?.[field] ?? null;
   }
 
@@ -190,8 +217,8 @@ export class NotificationsService {
         channel: input.channel,
         templateKey: input.templateKey,
         title,
-        body,
-        data: data as Prisma.InputJsonValue,
+        body: input.sensitive ? '[redacted]' : body,
+        data: (input.sensitive ? {} : data) as Prisma.InputJsonValue,
         status,
         provider:
           input.channel === 'PUSH'
@@ -210,16 +237,24 @@ export class NotificationsService {
     });
   }
 
-  /** Sends to the active members of a business (e.g. new order → owners & cashiers). */
-  async toTenant(tenantId: string, roles: string[], input: Omit<SendInput, 'userId' | 'tenantId'>) {
-    const members = await this.internal
-      .get<{ userId: string; role: string }[]>('user', `internal/tenants/${tenantId}/members`, {
-        query: { roles: roles.join(',') },
-      })
-      .catch(() => [] as { userId: string; role: string }[]);
-    for (const m of members)
+  /**
+   * Sends to the active members of a business (e.g. new order → owners & cashiers); with an
+   * outlet, only to members who work there. A failed member lookup throws, so the event is
+   * retried rather than the notification lost.
+   */
+  async toTenant(
+    tenantId: string,
+    roles: string[],
+    input: Omit<SendInput, 'userId' | 'tenantId'>,
+    outletId?: string,
+  ) {
+    const members = await this.internal.get<
+      { userId: string; role: string; outletIds?: string[] }[]
+    >('user', `internal/tenants/${tenantId}/members`, { query: { roles: roles.join(',') } });
+    const targets = outletId ? members.filter((m) => canAccessOutlet(m, outletId)) : members;
+    for (const m of targets)
       await this.send({ ...input, userId: m.userId, tenantId, app: input.app ?? 'MERCHANT' });
-    return members.length;
+    return targets.length;
   }
 
   // ─── inbox & devices ──────────────────────────────────────────────────────

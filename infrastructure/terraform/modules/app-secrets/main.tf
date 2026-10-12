@@ -47,6 +47,7 @@ locals {
       MSG91_TEMPLATE_ID          = ""
       SMS_SENDER_ID              = ""
       SMS_DLT_ENTITY_ID          = ""
+      SMS_DLT_TEMPLATE_ID        = ""
       OPENWEATHER_API_KEY        = ""
     }
     auth = {

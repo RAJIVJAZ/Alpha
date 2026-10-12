@@ -19,7 +19,7 @@ import { Switch, Tabs, TabsContent, TabsList, TabsTrigger } from '../components/
 import { StatusBadge } from '../components/status';
 import { Thumb } from '../components/thumb';
 import { api } from '../lib/api';
-import { formatDateTime, formatNumber, formatPercent, humanize } from '../lib/format';
+import { formatDateTime, formatNumber, humanize } from '../lib/format';
 import { useApi, useApiMutation } from '../lib/hooks';
 import { MarketplaceCategories } from './categories';
 
@@ -36,7 +36,6 @@ interface Campaign {
   targetCount: number;
   sentCount: number;
   failedCount: number;
-  openCount: number;
   createdAt: string;
 }
 interface CmsPage {
@@ -117,12 +116,6 @@ export function PushCampaigns() {
         c.sentAt ? `${formatNumber(c.sentCount)} / ${formatNumber(c.targetCount)}` : '—',
     },
     {
-      key: 'open',
-      header: 'Opened',
-      align: 'right',
-      cell: (c) => (c.sentCount ? formatPercent((c.openCount / c.sentCount) * 100) : '—'),
-    },
-    {
       key: 'status',
       header: 'Status',
       cell: (c) => <StatusBadge status={c.status} label={humanize(c.status)} />,
@@ -144,6 +137,12 @@ export function PushCampaigns() {
               aria-label={`Cancel ${c.title}`}
             >
               <XCircle />
+            </Button>
+          </div>
+        ) : c.status === 'SENDING' ? (
+          <div className="flex justify-end">
+            <Button size="sm" variant="ghost" onClick={() => cancel.mutate(c.id)}>
+              <XCircle /> Stop
             </Button>
           </div>
         ) : null,

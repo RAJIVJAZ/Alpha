@@ -48,17 +48,22 @@ export class NotificationEventHandlers {
   @OnDomainEvent(EventTypes.OrderPlaced)
   async placed(env: EventEnvelope<string, OrderStatusChangedEvent>) {
     const o = env.data;
-    await this.n.toTenant(o.tenantId, MERCHANT_ORDER_ROLES, {
-      channel: 'PUSH',
-      templateKey: 'order.placed.merchant',
-      data: {
-        orderId: o.orderId,
-        orderNumber: o.orderNumber,
-        itemsCount: o.items.reduce((s, i) => s + i.quantity, 0),
-        total: o.total,
-        channel: 'orders',
+    await this.n.toTenant(
+      o.tenantId,
+      MERCHANT_ORDER_ROLES,
+      {
+        channel: 'PUSH',
+        templateKey: 'order.placed.merchant',
+        data: {
+          orderId: o.orderId,
+          orderNumber: o.orderNumber,
+          itemsCount: o.items.reduce((s, i) => s + i.quantity, 0),
+          total: o.total,
+          channel: 'orders',
+        },
       },
-    });
+      o.outletId,
+    );
     if (o.customerId)
       await this.n.send({
         channel: 'IN_APP',
@@ -148,17 +153,22 @@ export class NotificationEventHandlers {
   @OnDomainEvent(EventTypes.StockLow)
   stockLow(env: EventEnvelope<string, StockLowEvent>) {
     const s = env.data;
-    return this.n.toTenant(s.tenantId, MERCHANT_STOCK_ROLES, {
-      channel: 'PUSH',
-      templateKey: 'inventory.low',
-      data: {
-        ingredient: s.ingredientName,
-        stock: Number(s.currentStock).toFixed(1),
-        unit: s.unit,
-        ingredientId: s.ingredientId,
-        channel: 'inventory',
+    return this.n.toTenant(
+      s.tenantId,
+      MERCHANT_STOCK_ROLES,
+      {
+        channel: 'PUSH',
+        templateKey: 'inventory.low',
+        data: {
+          ingredient: s.ingredientName,
+          stock: Number(s.currentStock).toFixed(1),
+          unit: s.unit,
+          ingredientId: s.ingredientId,
+          channel: 'inventory',
+        },
       },
-    });
+      s.outletId,
+    );
   }
 
   @OnDomainEvent(EventTypes.PurchaseOrderSubmitted)
@@ -169,7 +179,7 @@ export class NotificationEventHandlers {
       templateKey: 'procurement.po.approval',
       data: {
         poNumber: p.poNumber,
-        supplier: p.supplierTenantId,
+        supplier: p.supplierName ?? 'Supplier',
         total: p.total,
         purchaseOrderId: p.purchaseOrderId,
       },
@@ -177,13 +187,15 @@ export class NotificationEventHandlers {
   }
 
   @OnDomainEvent(EventTypes.PurchaseOrderApproved)
-  poToSupplier(env: EventEnvelope<string, PurchaseOrderEvent>) {
+  async poToSupplier(env: EventEnvelope<string, PurchaseOrderEvent>) {
     const p = env.data;
-    return this.n.toTenant(p.supplierTenantId, ['OWNER', 'MANAGER'], {
-      channel: 'PUSH',
+    const input = {
       templateKey: 'procurement.po.received_by_supplier',
       data: { poNumber: p.poNumber, buyer: p.buyerName, total: p.total },
-    });
+    };
+    // suppliers have no merchant app: the email is what reaches them
+    await this.n.toTenant(p.supplierTenantId, ['OWNER', 'MANAGER'], { channel: 'PUSH', ...input });
+    await this.n.toTenant(p.supplierTenantId, ['OWNER', 'MANAGER'], { channel: 'EMAIL', ...input });
   }
 
   @OnDomainEvent(
@@ -192,17 +204,20 @@ export class NotificationEventHandlers {
     EventTypes.B2bOrderDispatched,
     EventTypes.B2bOrderDelivered,
   )
-  b2b(env: EventEnvelope<string, B2bOrderEvent>) {
+  async b2b(env: EventEnvelope<string, B2bOrderEvent>) {
     const b = env.data;
-    return this.n.toTenant(b.buyerTenantId, ['OWNER', 'MANAGER', 'PROCUREMENT_MANAGER'], {
-      channel: 'PUSH',
+    const roles = ['OWNER', 'MANAGER', 'PROCUREMENT_MANAGER'];
+    const input = {
       templateKey: 'marketplace.order.update',
       data: {
         orderNumber: b.orderNumber || 'PO',
         status: b.status.replace('_', ' ').toLowerCase(),
         note: b.note ?? '',
       },
-    });
+    };
+    // retailers and wholesalers buy on the web: email reaches them where the push cannot
+    await this.n.toTenant(b.buyerTenantId, roles, { channel: 'PUSH', ...input });
+    await this.n.toTenant(b.buyerTenantId, roles, { channel: 'EMAIL', ...input });
   }
 
   @OnDomainEvent(EventTypes.ApprovalDecided)

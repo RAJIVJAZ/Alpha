@@ -13,7 +13,8 @@ export interface DeliveryResult {
 
 export interface SmsProvider {
   readonly name: string;
-  send(phone: string, body: string): Promise<DeliveryResult>;
+  /** vars: the template's data (e.g. code, minutes) for gateways that send DLT templates. */
+  send(phone: string, body: string, vars?: Record<string, unknown>): Promise<DeliveryResult>;
 }
 export interface PushProvider {
   readonly name: string;
@@ -84,6 +85,15 @@ export class SnsSms implements SmsProvider {
                   },
                 }
               : {}),
+            // India: the registered DLT template the body matches (needed with the entity id)
+            ...(process.env.SMS_DLT_TEMPLATE_ID
+              ? {
+                  'AWS.MM.SMS.TemplateId': {
+                    DataType: 'String',
+                    StringValue: process.env.SMS_DLT_TEMPLATE_ID,
+                  },
+                }
+              : {}),
           },
         }),
       );
@@ -95,16 +105,24 @@ export class SnsSms implements SmsProvider {
 }
 
 // ─── MSG91 (popular Indian SMS gateway, OTP flow) ───────────────────────────
+/**
+ * Sends the MSG91 flow MSG91_TEMPLATE_ID, linked to a DLT-approved template. Flows fill only
+ * the variables they name, so the template's data goes as variables (the login code flow uses
+ * ##code## and ##minutes##); DLT rejects a whole message passed as one variable.
+ */
 export class Msg91Sms implements SmsProvider {
   readonly name = 'msg91';
-  async send(phone: string, body: string) {
+  async send(phone: string, body: string, vars?: Record<string, unknown>) {
+    const values = vars
+      ? Object.fromEntries(Object.entries(vars).map(([k, v]) => [k, String(v)]))
+      : { message: body };
     try {
       const res = await fetch('https://control.msg91.com/api/v5/flow/', {
         method: 'POST',
         headers: { authkey: process.env.MSG91_AUTH_KEY ?? '', 'Content-Type': 'application/json' },
         body: JSON.stringify({
           template_id: process.env.MSG91_TEMPLATE_ID,
-          recipients: [{ mobiles: phone.replace('+', ''), message: body }],
+          recipients: [{ mobiles: phone.replace('+', ''), ...values }],
         }),
         signal: AbortSignal.timeout(5000),
       });
@@ -184,7 +202,19 @@ export class FcmPush implements PushProvider {
 // ─── Amazon SES ─────────────────────────────────────────────────────────────
 export class SesEmail implements EmailProvider {
   readonly name = 'ses';
-  private readonly client = new SESv2Client({ region: process.env.AWS_REGION ?? 'ap-south-1' });
+  // SES_* when the AWS_* variables belong to other S3-compatible storage (e.g. R2 on Railway);
+  // otherwise AWS_REGION and the default credential chain (IRSA on Kubernetes)
+  private readonly client = new SESv2Client({
+    region: process.env.SES_REGION || process.env.AWS_REGION || 'ap-south-1',
+    ...(process.env.SES_ACCESS_KEY_ID && process.env.SES_SECRET_ACCESS_KEY
+      ? {
+          credentials: {
+            accessKeyId: process.env.SES_ACCESS_KEY_ID,
+            secretAccessKey: process.env.SES_SECRET_ACCESS_KEY,
+          },
+        }
+      : {}),
+  });
   async send(to: string, subject: string, html: string) {
     try {
       const res = await this.client.send(
@@ -204,12 +234,18 @@ export class SesEmail implements EmailProvider {
 export const providerFactories = [
   {
     provide: SMS_PROVIDER,
-    useFactory: (): SmsProvider =>
-      process.env.SMS_PROVIDER === 'sns'
-        ? new SnsSms()
-        : process.env.SMS_PROVIDER === 'msg91'
-          ? new Msg91Sms()
-          : new ConsoleSms(),
+    useFactory: (): SmsProvider => {
+      if (process.env.SMS_PROVIDER === 'sns') return new SnsSms();
+      if (process.env.SMS_PROVIDER === 'msg91') {
+        // without both every login code fails at MSG91; say so at boot (push and email still work)
+        if (!process.env.MSG91_AUTH_KEY || !process.env.MSG91_TEMPLATE_ID)
+          logger.error(
+            'SMS_PROVIDER=msg91 needs MSG91_AUTH_KEY and MSG91_TEMPLATE_ID: SMS will fail',
+          );
+        return new Msg91Sms();
+      }
+      return new ConsoleSms();
+    },
   },
   {
     provide: PUSH_PROVIDER,

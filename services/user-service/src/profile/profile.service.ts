@@ -90,6 +90,7 @@ export class ProfileService {
         recipient: email,
         title: 'Confirm your email',
         body: `Your FoodGrid code is ${code}. It expires in ${EMAIL_CODE_TTL_SECONDS / 60} minutes.`,
+        sensitive: true,
       })
       .catch((err: Error) =>
         this.logger.warn(`Email verification for ${userId} not sent: ${err.message}`),

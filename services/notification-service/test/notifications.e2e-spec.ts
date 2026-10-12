@@ -7,7 +7,9 @@ import {
   type EventEnvelope,
   type EventStream,
   type OrderStatusChangedEvent,
+  type PurchaseOrderEvent,
   type StockLowEvent,
+  type UserRegisteredEvent,
 } from '@foodgrid/types';
 import { InternalHttpService, REDIS } from '@foodgrid/utils/server';
 import {
@@ -21,6 +23,8 @@ import { AppModule } from '../src/app.module';
 import { NotificationEventHandlers } from '../src/events/notification-event.handlers';
 import { NotificationJobsService } from '../src/jobs/notification-jobs.service';
 import {
+  EMAIL_PROVIDER,
+  type EmailProvider,
   PUSH_PROVIDER,
   type PushProvider,
   SMS_PROVIDER,
@@ -58,6 +62,16 @@ const order = (o: Partial<OrderStatusChangedEvent> = {}) =>
     previousStatus: null,
     ...o,
   }) as OrderStatusChangedEvent;
+
+/** Polls until the check returns a value (background work), up to about 5 seconds. */
+async function waitFor<T>(check: () => Promise<T | null>): Promise<T> {
+  for (let i = 0; i < 100; i++) {
+    const value = await check();
+    if (value) return value;
+    await new Promise((r) => setTimeout(r, 50));
+  }
+  throw new Error('timed out waiting');
+}
 
 const envelope = <T>(
   type: string,
@@ -224,9 +238,11 @@ describe('notification-service inbox, devices, templates and campaigns (e2e)', (
       'Order confirmed ✅',
       'Order placed',
     ]);
-    expect((await inbox('cashier_1')).body.data.map((n: { title: string }) => n.title)).toEqual([
-      'New order #FG-1001',
-    ]);
+    // merchant pushes have no inbox: they stay out of the customer inbox of the same person
+    expect((await inbox('owner_1')).body).toMatchObject({ data: [], unread: 0 });
+    await handlers.welcome(
+      envelope(EventTypes.UserRegistered, { userId: 'cust_2' } as UserRegisteredEvent, 'identity'),
+    );
 
     const [latest] = list.body.data;
     const foreign = await api()
@@ -247,7 +263,70 @@ describe('notification-service inbox, devices, templates and campaigns (e2e)', (
     const after = await inbox('cust_1');
     expect(after.body.unread).toBe(0);
     expect(after.body.data.every((n: { status: string }) => n.status === 'READ')).toBe(true);
-    expect((await inbox('cashier_1')).body.unread).toBe(1);
+    expect((await inbox('cust_2')).body.unread).toBe(1);
+  });
+
+  it("tells only the staff who work at the order's outlet, and retries when staff cannot be loaded", async () => {
+    // no members route yet: user-service is down
+    await expect(handlers.placed(envelope(EventTypes.OrderPlaced, order()))).rejects.toThrow(
+      'user-service is unavailable',
+    );
+    expect(await prisma.notification.count()).toBe(0);
+
+    http.on('GET', 'user', 'internal/tenants/:id/members', [
+      { userId: 'owner_1', role: 'OWNER', outletIds: [] },
+      { userId: 'cashier_1', role: 'CASHIER', outletIds: ['outlet_1'] },
+      { userId: 'cashier_2', role: 'CASHIER', outletIds: ['outlet_2'] },
+    ]);
+    for (const id of ['owner_1', 'cashier_1', 'cashier_2'])
+      await registerDevice(id, `${id}-phone`, 'MERCHANT');
+    await handlers.placed(envelope(EventTypes.OrderPlaced, order()));
+    expect(push.mock.calls.map(([token]) => token).sort()).toEqual([
+      'cashier_1-phone',
+      'owner_1-phone',
+    ]);
+  });
+
+  it('keeps order updates off the phone of a customer who turned push off, but in the app', async () => {
+    await registerDevice('cust_1', 'cust-phone', 'CUSTOMER');
+    await registerDevice('cust_1', 'cust-merchant-phone', 'MERCHANT');
+    await api()
+      .put('/api/v1/notifications/preferences')
+      .set('Authorization', user('cust_1'))
+      .send({ pushEnabled: false })
+      .expect(200);
+    await handlers.accepted(envelope(EventTypes.OrderAccepted, order()));
+    expect(push).not.toHaveBeenCalled();
+    expect((await inbox('cust_1')).body.data[0]).toMatchObject({ title: 'Order confirmed ✅' });
+    // the switch is the customer app's: the same person's merchant pushes still arrive
+    http.on('GET', 'user', 'internal/tenants/:id/members', [{ userId: 'cust_1', role: 'OWNER' }]);
+    await handlers.placed(envelope(EventTypes.OrderPlaced, order({ customerId: null })));
+    expect(push).toHaveBeenCalledWith('cust-merchant-phone', expect.anything());
+  });
+
+  it('emails suppliers about approved purchase orders as well as pushing', async () => {
+    http.on('GET', 'user', 'internal/tenants/:id/members', [
+      { userId: 'sup_owner', role: 'OWNER' },
+    ]);
+    http.on('GET', 'user', 'internal/users/:id', { phone: null, email: 'owner@supplier.demo' });
+    const email = jest.spyOn(app.get<EmailProvider>(EMAIL_PROVIDER), 'send');
+    await handlers.poToSupplier(
+      envelope(
+        EventTypes.PurchaseOrderApproved,
+        {
+          poNumber: 'PO-7',
+          buyerName: 'Spice Garden',
+          total: '1200.00',
+          supplierTenantId: 'sup_1',
+        } as PurchaseOrderEvent,
+        'procurement',
+      ),
+    );
+    expect(email).toHaveBeenCalledWith(
+      'owner@supplier.demo',
+      'FoodGrid: new purchase order PO-7',
+      expect.stringContaining('Spice Garden'),
+    );
   });
 
   it('alerts the kitchen roles of a business when stock runs low', async () => {
@@ -369,25 +448,28 @@ describe('notification-service inbox, devices, templates and campaigns (e2e)', (
         body: 'Flat 40% off tonight',
         app: 'CUSTOMER',
         deepLink: 'foodgrid://offers',
+        imageUrl: 'https://cdn.foodgrid.in/feast.png',
       })
       .expect(201);
     expect(created.body).toMatchObject({ status: 'DRAFT', createdBy: 'admin_1' });
 
-    const sent = await api()
+    const started = await api()
       .post(`/api/v1/admin/push-campaigns/${created.body.id}/send`)
       .set('Authorization', admin())
       .expect(200);
-    expect(sent.body).toMatchObject({
-      status: 'SENT',
-      targetCount: 3,
-      sentCount: 1,
-      failedCount: 2,
+    expect(started.body).toMatchObject({ status: 'SENDING' });
+    // delivery runs in the background
+    const sent = await waitFor(async () => {
+      const c = await prisma.pushCampaign.findUniqueOrThrow({ where: { id: created.body.id } });
+      return c.status === 'SENT' ? c : null;
     });
+    expect(sent).toMatchObject({ targetCount: 3, sentCount: 1, failedCount: 2 });
     expect(push.mock.calls.map(([token]) => token).sort()).toEqual(['c1', 'c2-uninstalled']);
     expect(push).toHaveBeenCalledWith('c1', {
       title: 'Weekend feast',
       body: 'Flat 40% off tonight',
       data: { deepLink: 'foodgrid://offers', campaignId: created.body.id, channel: 'marketing' },
+      imageUrl: 'https://cdn.foodgrid.in/feast.png',
     });
     // the uninstalled app's token is switched off so the next campaign skips it
     expect(
@@ -451,6 +533,39 @@ describe('notification-service inbox, devices, templates and campaigns (e2e)', (
     expect(push).toHaveBeenCalledTimes(1);
   });
 
+  it('resumes a campaign whose pod stopped mid-send, without pushing anyone twice', async () => {
+    await registerDevice('cust_1', 'c1', 'CUSTOMER');
+    await registerDevice('cust_2', 'c2', 'CUSTOMER');
+    const campaign = await prisma.pushCampaign.create({
+      data: {
+        title: 'Lunch deals',
+        body: '20% off till 3pm',
+        app: 'CUSTOMER',
+        audience: {},
+        status: 'SENDING',
+        createdBy: 'admin_1',
+      },
+    });
+    // cust_1 was pushed before the pod stopped
+    await prisma.notification.create({
+      data: {
+        userId: 'cust_1',
+        recipient: 'c1',
+        channel: 'PUSH',
+        body: '20% off till 3pm',
+        status: 'SENT',
+        provider: 'console',
+        campaignId: campaign.id,
+      },
+    });
+    await prisma.$executeRaw`UPDATE "notifications"."PushCampaign" SET "updatedAt" = now() - interval '10 minutes' WHERE id = ${campaign.id}`;
+    await app.get(NotificationJobsService).scheduled();
+    expect(push.mock.calls.map(([token]) => token)).toEqual(['c2']);
+    expect(
+      await prisma.pushCampaign.findUniqueOrThrow({ where: { id: campaign.id } }),
+    ).toMatchObject({ status: 'SENT', targetCount: 2, sentCount: 2, failedCount: 0 });
+  });
+
   it('sends login codes by SMS for other services only', async () => {
     const otp = {
       phone: '+919800000001',
@@ -464,9 +579,13 @@ describe('notification-service inbox, devices, templates and campaigns (e2e)', (
       .send(otp)
       .expect(200);
     expect(res.body).toEqual({ status: 'SENT' });
+    // the code is delivered but never kept in the notification log
+    const logged = await prisma.notification.findFirstOrThrow({ where: { channel: 'SMS' } });
+    expect(logged).toMatchObject({ recipient: '+919800000001', body: '[redacted]', data: {} });
     expect(sms).toHaveBeenCalledWith(
       '+919800000001',
       '482913 is your FoodGrid login code. It expires in 5 minutes. Do not share it with anyone.',
+      { code: '482913', minutes: 5 },
     );
     // a template with no SMS copy sends nothing
     const none = await api()

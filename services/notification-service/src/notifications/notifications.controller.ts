@@ -106,6 +106,7 @@ export class InternalNotificationsController {
       recipient: dto.phone,
       templateKey: dto.templateKey,
       data: dto.data,
+      sensitive: true, // login codes
     });
     return { status: n?.status ?? 'SKIPPED' };
   }

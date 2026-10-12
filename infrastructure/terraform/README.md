@@ -149,11 +149,11 @@ Terraform writes the first version of each with every key the services read
 (`.env.example`, the services' config) and never touches the value again
 (`ignore_changes`), so operator edits stick.
 
-| Secret    | Written by Terraform                                   | Fill in yourself                                                                                                                                                     |
-| --------- | ------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `app`     | `DATABASE_URL`, `REDIS_URL`, `INTERNAL_SERVICE_SECRET` | `JWT_PUBLIC_KEY_BASE64` (required), `FCM_SERVICE_ACCOUNT_BASE64`, `MSG91_AUTH_KEY`, `MSG91_TEMPLATE_ID`, `SMS_SENDER_ID`, `SMS_DLT_ENTITY_ID`, `OPENWEATHER_API_KEY` |
-| `auth`    | `OTP_SECRET`                                           | `JWT_PRIVATE_KEY_BASE64` (required), `GOOGLE_CLIENT_IDS`; keep `OTP_TEST_NUMBERS` empty in production                                                                |
-| `payment` | -                                                      | `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`                                                                                                  |
+| Secret    | Written by Terraform                                   | Fill in yourself                                                                                                                                                                            |
+| --------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `app`     | `DATABASE_URL`, `REDIS_URL`, `INTERNAL_SERVICE_SECRET` | `JWT_PUBLIC_KEY_BASE64` (required), `FCM_SERVICE_ACCOUNT_BASE64`, `MSG91_AUTH_KEY`, `MSG91_TEMPLATE_ID`, `SMS_SENDER_ID`, `SMS_DLT_ENTITY_ID`, `SMS_DLT_TEMPLATE_ID`, `OPENWEATHER_API_KEY` |
+| `auth`    | `OTP_SECRET`                                           | `JWT_PRIVATE_KEY_BASE64` (required), `GOOGLE_CLIENT_IDS`; keep `OTP_TEST_NUMBERS` empty in production                                                                                       |
+| `payment` | -                                                      | `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`                                                                                                                         |
 
 `DATABASE_URL` uses the `foodgrid_app` role with a Terraform-generated password
 (`?schema=public&sslmode=require`; RDS forces TLS); `REDIS_URL` is
