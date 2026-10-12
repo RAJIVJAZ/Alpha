@@ -11,7 +11,9 @@ async function main() {
   adapter.connect();
   app.useWebSocketAdapter(adapter);
   const port = Number(process.env.PORT ?? SERVICE.defaultPort);
-  await app.listen(port, '0.0.0.0');
+  // like createServiceApp's other services: no fixed host, so Node binds IPv6 and IPv4 where the
+  // machine has IPv6 (Railway's private network); HOST still overrides it
+  await (process.env.HOST ? app.listen(port, process.env.HOST) : app.listen(port));
   new Logger('Bootstrap').log(
     `${SERVICE.name} listening on :${port} (websocket /ws, namespace /tracking)`,
   );

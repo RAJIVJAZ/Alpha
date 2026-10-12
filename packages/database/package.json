@@ -32,6 +32,7 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
+    "db:deploy:retry": "node scripts/migrate-deploy.mjs",
     "db:seed": "tsx prisma/seed/index.ts",
     "db:reset": "prisma migrate reset --force",
     "db:studio": "prisma studio",
