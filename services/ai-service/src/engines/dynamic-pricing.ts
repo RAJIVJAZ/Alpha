@@ -118,9 +118,15 @@ export function suggestMenuPrice(
     target = marginFloor;
     reason = `Raise to protect a ${minMarginPct}% gross margin (plate cost ₹${round2(item.unitCost)})`;
   }
-  // charm pricing: end in 9 for consumer menus
+  // charm pricing: end in 9 for consumer menus, but never past the guardrail or the other
+  // way from the target; low prices with no 9-ending inside the band take a whole rupee
   const bounded = clamp(target, lo, hi);
-  const suggested = Math.max(9, Math.round(bounded / 10) * 10 - 1);
+  const up = bounded >= item.price;
+  let suggested = Math.round(bounded / 10) * 10 - 1;
+  if (suggested > hi) suggested -= 10;
+  else if (suggested < lo) suggested += 10;
+  if (suggested < lo || suggested > hi || (up ? suggested <= item.price : suggested >= item.price))
+    suggested = up ? Math.floor(bounded) : Math.ceil(bounded);
   const confidence = est
     ? round2(clamp(0.3 + 0.5 * est.r2 + Math.min(0.2, est.n / 200), 0, 0.95))
     : 0.35;

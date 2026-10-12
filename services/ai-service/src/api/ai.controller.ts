@@ -1,10 +1,11 @@
 import { Body, Controller, Delete, Get, HttpCode, Param, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { Permissions } from '@foodgrid/auth';
+import { canAccessOutlet, Permissions } from '@foodgrid/auth';
 import { CurrentUser, RequirePermissions, RequireTenant, TenantId } from '@foodgrid/auth/nest';
 import { PrismaService } from '@foodgrid/database/nest';
 import type { FraudDecision, Prisma } from '@foodgrid/database';
-import { notFound, normalizePage, paginate } from '@foodgrid/utils';
+import type { AccessTokenClaims } from '@foodgrid/types';
+import { conflict, forbidden, notFound, normalizePage, paginate } from '@foodgrid/utils';
 import { InternalHttpService } from '@foodgrid/utils/server';
 import { ModelRunsService } from '../common/model-runs.service';
 import { PricePoint, suggestMenuPrice } from '../engines/dynamic-pricing';
@@ -18,6 +19,15 @@ interface ItemSale {
   quantity: number;
   avgPrice?: number;
 }
+
+/** Staff limited to some outlets (outletIds) reach only those outlets' pricing and scores. */
+function assertOutlet(user: AccessTokenClaims, outletId: string) {
+  if (!canAccessOutlet(user, outletId))
+    throw forbidden('You do not have access to this outlet', 'OUTLET_FORBIDDEN');
+}
+
+const suggestionOutlet = (s: { factors: Prisma.JsonValue }) =>
+  (s.factors as { outletId?: string } | null)?.outletId;
 
 @ApiTags('ai')
 @ApiBearerAuth()
@@ -37,7 +47,12 @@ export class AiController {
   @ApiOperation({
     summary: 'Generate price suggestions from sales history, elasticity and plate cost',
   })
-  async menuSuggestions(@TenantId() tenantId: string, @Query('outletId') outletId: string) {
+  async menuSuggestions(
+    @TenantId() tenantId: string,
+    @CurrentUser() user: AccessTokenClaims,
+    @Query('outletId') outletId: string,
+  ) {
+    assertOutlet(user, outletId);
     const outlet = await this.internal.get<{ tenantId: string }>(
       'order',
       `internal/outlets/${outletId}`,
@@ -51,12 +66,11 @@ export class AiController {
       this.internal.get<ItemSale[]>('order', `internal/outlets/${outletId}/item-sales`, {
         query: { days: 90 },
       }),
-      this.internal
-        .get<{ menuItemId: string; foodCost: number }[]>(
-          'inventory',
-          `internal/inventory/outlets/${outletId}/plate-costs`,
-        )
-        .catch(() => []),
+      // no plate costs means no suggestions: an inventory outage must not read as "prices are fine"
+      this.internal.get<{ menuItemId: string; foodCost: number }[]>(
+        'inventory',
+        `internal/inventory/outlets/${outletId}/plate-costs`,
+      ),
     ]);
     const costByItem = new Map(costs.map((c) => [c.menuItemId, c.foodCost]));
     const history = new Map<string, PricePoint[]>();
@@ -80,12 +94,18 @@ export class AiController {
         )
         .filter((s) => Math.abs(s.changePct) >= 2),
     );
-    await this.prisma.pricingSuggestion.updateMany({
-      where: { tenantId, targetType: 'MENU_ITEM', status: 'SUGGESTED' },
-      data: { status: 'EXPIRED' },
-    });
-    if (suggestions.length) {
-      await this.prisma.pricingSuggestion.createMany({
+    // replaces this outlet's open suggestions only (menu items belong to one outlet)
+    await this.prisma.$transaction([
+      this.prisma.pricingSuggestion.updateMany({
+        where: {
+          tenantId,
+          targetType: 'MENU_ITEM',
+          status: 'SUGGESTED',
+          targetId: { in: prices.map((p) => p.id) },
+        },
+        data: { status: 'EXPIRED' },
+      }),
+      this.prisma.pricingSuggestion.createMany({
         data: suggestions.map((s) => ({
           tenantId,
           targetType: 'MENU_ITEM' as const,
@@ -99,18 +119,26 @@ export class AiController {
           factors: { elasticity: s.elasticity, outletId } as Prisma.InputJsonValue,
           validUntil: new Date(Date.now() + 7 * 86_400_000),
         })),
-      });
-    }
+      }),
+    ]);
     return { generated: suggestions.length, suggestions };
   }
 
   @RequireTenant()
   @RequirePermissions(Permissions.PricingManage)
   @Get('ai/pricing/suggestions')
-  suggestions(@TenantId() tenantId: string) {
-    return this.prisma.pricingSuggestion.findMany({
-      where: { tenantId, status: 'SUGGESTED' },
+  async suggestions(@TenantId() tenantId: string, @CurrentUser() user: AccessTokenClaims) {
+    const open = await this.prisma.pricingSuggestion.findMany({
+      where: {
+        tenantId,
+        status: 'SUGGESTED',
+        OR: [{ validUntil: null }, { validUntil: { gt: new Date() } }],
+      },
       orderBy: { confidence: 'desc' },
+    });
+    return open.filter((s) => {
+      const outletId = suggestionOutlet(s);
+      return !outletId || canAccessOutlet(user, outletId);
     });
   }
 
@@ -120,16 +148,30 @@ export class AiController {
   @HttpCode(200)
   async decide(
     @TenantId() tenantId: string,
+    @CurrentUser() user: AccessTokenClaims,
     @Param('id') id: string,
     @Param('action') action: 'apply' | 'dismiss',
   ) {
     const s = await this.prisma.pricingSuggestion.findFirst({ where: { id, tenantId } });
     if (!s) throw notFound('Suggestion', id);
-    return this.prisma.pricingSuggestion.update({
-      where: { id },
+    const outletId = suggestionOutlet(s);
+    if (outletId) assertOutlet(user, outletId);
+    // only an open, unexpired suggestion can be decided, and only once (two tabs, a stale list)
+    const decided = await this.prisma.pricingSuggestion.updateMany({
+      where: {
+        id,
+        status: 'SUGGESTED',
+        OR: [{ validUntil: null }, { validUntil: { gt: new Date() } }],
+      },
       data:
         action === 'apply' ? { status: 'APPLIED', appliedAt: new Date() } : { status: 'DISMISSED' },
     });
+    if (!decided.count)
+      throw conflict(
+        'This suggestion is no longer open: run the analysis again',
+        'SUGGESTION_CLOSED',
+      );
+    return this.prisma.pricingSuggestion.findUniqueOrThrow({ where: { id } });
   }
 
   // ─── outlet performance scores ────────────────────────────────────────────
@@ -137,9 +179,21 @@ export class AiController {
   @RequirePermissions(Permissions.ReportsRead)
   @Get('ai/outlet-scores')
   @ApiOperation({ summary: 'Restaurant performance score history' })
-  outletScores(@TenantId() tenantId: string, @Query('outletId') outletId?: string) {
+  outletScores(
+    @TenantId() tenantId: string,
+    @CurrentUser() user: AccessTokenClaims,
+    @Query('outletId') outletId?: string,
+  ) {
+    if (outletId) assertOutlet(user, outletId);
     return this.prisma.outletScore.findMany({
-      where: { tenantId, outletId },
+      where: {
+        tenantId,
+        ...(outletId
+          ? { outletId }
+          : user.outletIds?.length
+            ? { outletId: { in: user.outletIds } }
+            : {}),
+      },
       orderBy: { periodEnd: 'desc' },
       take: 26,
     });
@@ -148,15 +202,12 @@ export class AiController {
   @RequirePermissions(Permissions.PlatformAnalytics)
   @Get('admin/ai/outlet-scores')
   async leaderboard(@Query('grade') grade?: string) {
+    // each outlet's latest score, then the grade: an outlet is listed under its current grade only
     const latest = await this.prisma.outletScore.findMany({
-      orderBy: { periodEnd: 'desc' },
-      take: 2000,
-      where: grade ? { grade } : {},
+      distinct: ['outletId'],
+      orderBy: [{ outletId: 'asc' }, { periodEnd: 'desc' }],
     });
-    const seen = new Set<string>();
-    return latest
-      .filter((s) => (seen.has(s.outletId) ? false : (seen.add(s.outletId), true)))
-      .sort((a, b) => b.score - a.score);
+    return latest.filter((s) => !grade || s.grade === grade).sort((a, b) => b.score - a.score);
   }
 
   // ─── fraud review queue ───────────────────────────────────────────────────

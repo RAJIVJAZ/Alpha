@@ -58,7 +58,7 @@ export interface Offer {
   onTimeRate: number;
   fillRate: number;
   stockQty: number;
-  tiers?: { minQty: number; unitPrice: number }[];
+  tiers?: { minQty: number; maxQty?: number | null; unitPrice: number }[];
 }
 
 export interface RankedOption {

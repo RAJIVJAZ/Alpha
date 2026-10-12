@@ -2,10 +2,39 @@ import {
   catalogueUnitPrice,
   computeB2bTotals,
   creditDays,
+  quotableTiers,
   tierPrice,
   validateQuantity,
 } from './b2b-pricing';
 import { deliveryChargeFor, findZone, slotBookable } from './logistics';
+
+describe('quotable tiers', () => {
+  it('keeps only tiers valid now for the segment, segment tier first at a break', () => {
+    const at = new Date('2026-10-11');
+    const tiers = [
+      { minQty: 10, maxQty: 49, unitPrice: 950, segment: 'ALL' as const },
+      { minQty: 50, maxQty: null, unitPrice: 900, segment: 'ALL' as const },
+      { minQty: 50, maxQty: null, unitPrice: 870, segment: 'DEALER' as const },
+      {
+        minQty: 20,
+        maxQty: null,
+        unitPrice: 800,
+        segment: 'ALL' as const,
+        validTo: new Date('2026-01-01'),
+      },
+      {
+        minQty: 30,
+        maxQty: null,
+        unitPrice: 820,
+        segment: 'ALL' as const,
+        validFrom: new Date('2027-01-01'),
+      },
+      { minQty: 5, maxQty: null, unitPrice: 990, segment: 'RETAILER' as const },
+    ];
+    expect(quotableTiers(tiers, 'DEALER', at).map((t) => t.unitPrice)).toEqual([870, 900, 950]);
+    expect(quotableTiers(tiers, 'RESTAURANT', at)[1]).toMatchObject({ minQty: 10, maxQty: 49 });
+  });
+});
 
 describe('bulk pricing tiers', () => {
   const tiers = [

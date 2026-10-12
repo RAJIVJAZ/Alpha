@@ -4,9 +4,11 @@ import {
   ArrayMinSize,
   IsArray,
   IsIn,
+  IsInt,
   IsNumber,
   IsOptional,
   IsString,
+  Max,
   MaxLength,
   Min,
   ValidateNested,
@@ -18,6 +20,9 @@ import {
   SupplierStrategy,
 } from '@foodgrid/types';
 import { PageQueryDto, ToArray } from '@foodgrid/utils/server';
+
+/** The longest demand forecast ai-service makes (its DemandForecastDto.horizonDays). */
+export const MAX_HORIZON_DAYS = 90;
 
 export class PoLineDto {
   @ApiProperty() @IsString() productId!: string;
@@ -102,7 +107,13 @@ export class SettingsDto {
   @IsOptional()
   @IsIn(SUPPLIER_STRATEGIES)
   defaultStrategy?: SupplierStrategy;
-  @ApiPropertyOptional() @IsOptional() @IsNumber() @Min(3) forecastHorizonDays?: number;
+  /** ai-service forecasts at most 90 days ahead. */
+  @ApiPropertyOptional({ minimum: 3, maximum: MAX_HORIZON_DAYS })
+  @IsOptional()
+  @IsInt()
+  @Min(3)
+  @Max(MAX_HORIZON_DAYS)
+  forecastHorizonDays?: number;
   @ApiPropertyOptional() @IsOptional() @IsNumber() @Min(0.5) serviceLevel?: number;
   @ApiPropertyOptional() @IsOptional() @IsNumber() @Min(1) reviewPeriodDays?: number;
 }
