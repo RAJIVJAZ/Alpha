@@ -15,7 +15,7 @@ All routes are prefixed with `/api/v1`. Routes under `/api/v1/internal/*` are se
 | inventory-service | 24 | 5 | [inventory-service.json](./inventory-service.json) |
 | notification-service | 13 | 2 | [notification-service.json](./notification-service.json) |
 | order-service | 83 | 10 | [order-service.json](./order-service.json) |
-| payment-service | 31 | 2 | [payment-service.json](./payment-service.json) |
+| payment-service | 31 | 3 | [payment-service.json](./payment-service.json) |
 | procurement-service | 18 | 0 | [procurement-service.json](./procurement-service.json) |
 | supplier-service | 41 | 4 | [supplier-service.json](./supplier-service.json) |
 | user-service | 41 | 8 | [user-service.json](./user-service.json) |
@@ -337,6 +337,7 @@ Razorpay/UPI/card payments, wallets & ledger, refunds, commissions, settlements,
 | GET | `/api/v1/gst/invoices` | bearer |  |
 | GET | `/api/v1/gst/summary` | bearer |  |
 | GET | `/api/v1/internal/payments/{id}` | service token |  |
+| POST | `/api/v1/internal/payments/{id}/refund` | service token |  |
 | POST | `/api/v1/internal/payments/wallets/credit` | service token |  |
 | GET | `/api/v1/payments` | bearer |  |
 | GET | `/api/v1/payments/{id}` | bearer |  |

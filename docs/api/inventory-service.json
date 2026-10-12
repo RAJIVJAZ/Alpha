@@ -1136,19 +1136,6 @@
               "OTHER"
             ]
           },
-          "unit": {
-            "type": "string",
-            "enum": [
-              "KG",
-              "G",
-              "L",
-              "ML",
-              "PCS",
-              "PACK",
-              "DOZEN",
-              "BOX"
-            ]
-          },
           "reorderLevel": {
             "type": "number"
           },
