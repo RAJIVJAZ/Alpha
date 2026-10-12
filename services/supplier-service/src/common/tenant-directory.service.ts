@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import Redis from 'ioredis';
 import { InternalHttpService, REDIS } from '@foodgrid/utils/server';
-import { notFound } from '@foodgrid/utils';
+import { AppError, notFound } from '@foodgrid/utils';
 
 export interface TenantInfo {
   id: string;
@@ -29,9 +29,13 @@ export class TenantDirectory {
     const key = `tenant-dir:${tenantId}`;
     const cached = await this.redis.get(key);
     if (cached) return JSON.parse(cached) as TenantInfo;
+    // only a missing business is "not found"; an outage throws so the caller can retry
     const t = await this.internal
       .get<TenantInfo>('user', `internal/tenants/${tenantId}`)
-      .catch(() => null);
+      .catch((err: unknown) => {
+        if (err instanceof AppError && err.status === 404) return null;
+        throw err;
+      });
     if (!t) throw notFound('Business', tenantId);
     const slim: TenantInfo = {
       id: t.id,

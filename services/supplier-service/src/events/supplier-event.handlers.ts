@@ -1,4 +1,5 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
+import Redis from 'ioredis';
 import { PrismaService } from '@foodgrid/database/nest';
 import {
   EventEnvelope,
@@ -8,7 +9,7 @@ import {
   TenantStatusChangedEvent,
 } from '@foodgrid/types';
 import { AppError } from '@foodgrid/utils';
-import { OnDomainEvent, OutboxService } from '@foodgrid/utils/server';
+import { OnDomainEvent, OutboxService, REDIS } from '@foodgrid/utils/server';
 import { TenantDirectory } from '../common/tenant-directory.service';
 import { B2bOrdersService } from '../orders/b2b-orders.service';
 
@@ -18,6 +19,10 @@ import { B2bOrdersService } from '../orders/b2b-orders.service';
  * - procurement.po.cancelled → cancels the linked sales order if not shipped.
  * - payment.captured (B2B order) → marks it paid and frees the dealer's credit.
  */
+/** A PO cancelled before its approval became an order; kept well past the event retries. */
+const cancelledPo = (purchaseOrderId: string) => `po-cancelled:${purchaseOrderId}`;
+const CANCELLED_TTL_SECONDS = 7 * 86_400;
+
 @Injectable()
 export class SupplierEventHandlers {
   private readonly logger = new Logger(SupplierEventHandlers.name);
@@ -27,6 +32,7 @@ export class SupplierEventHandlers {
     private readonly orders: B2bOrdersService,
     private readonly outbox: OutboxService,
     private readonly tenants: TenantDirectory,
+    @Inject(REDIS) private readonly redis: Redis,
   ) {}
 
   @OnDomainEvent(EventTypes.PurchaseOrderApproved)
@@ -38,6 +44,8 @@ export class SupplierEventHandlers {
       })
     )
       return;
+    // cancelled while this approval waited for a retry: the supplier must never see it
+    if (await this.redis.exists(cancelledPo(po.purchaseOrderId))) return;
     const lines = po.items.filter((i) => i.productId);
     const address = po.deliveryAddress;
     try {
@@ -60,10 +68,14 @@ export class SupplierEventHandlers {
         paymentTerms: (po.paymentTerms as 'PREPAID') ?? 'PREPAID',
         notes: po.notes ?? `PO ${po.poNumber}`,
       });
+      // the cancellation may have landed while the order was being placed
+      if (await this.redis.exists(cancelledPo(po.purchaseOrderId)))
+        await this.cancelForPo(po.purchaseOrderId);
     } catch (err) {
-      // Business rule failures (MOQ, stock, serviceability) are reported back
-      // to procurement as a supplier rejection instead of retrying forever.
-      if (!(err instanceof AppError)) throw err;
+      // Business rule failures (MOQ, stock, serviceability) are reported back to procurement
+      // as a supplier rejection instead of retrying forever; an outage (5xx, a service
+      // unreachable) is retried, since the supplier never saw the order.
+      if (!(err instanceof AppError) || err.status >= 500) throw err;
       this.logger.warn(`PO ${po.poNumber} could not become a sales order: ${err.message}`);
       await this.prisma.$transaction((tx) =>
         this.outbox.enqueue(tx, {
@@ -89,8 +101,14 @@ export class SupplierEventHandlers {
 
   @OnDomainEvent(EventTypes.PurchaseOrderCancelled)
   async onPoCancelled(env: EventEnvelope<string, PurchaseOrderEvent>) {
+    // recorded first, so an approval still being retried (or placing right now) sees it
+    await this.redis.set(cancelledPo(env.data.purchaseOrderId), '1', 'EX', CANCELLED_TTL_SECONDS);
+    await this.cancelForPo(env.data.purchaseOrderId);
+  }
+
+  private async cancelForPo(purchaseOrderId: string) {
     const order = await this.prisma.b2bOrder.findUnique({
-      where: { sourcePurchaseOrderId: env.data.purchaseOrderId },
+      where: { sourcePurchaseOrderId: purchaseOrderId },
     });
     if (!order || !['PLACED', 'CONFIRMED', 'PARTIALLY_CONFIRMED', 'PACKED'].includes(order.status))
       return;
