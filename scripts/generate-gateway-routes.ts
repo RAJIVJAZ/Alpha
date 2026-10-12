@@ -8,7 +8,8 @@
  * Writes:
  *   infrastructure/gateway/routes.json     consumed by scripts/dev-gateway.ts and Helm
  *   infrastructure/docker/nginx/gateway.conf   nginx config for docker-compose
- *   vercel.json                            the six web apps on Vercel (one project, routed by subdomain)
+ *   apps/<app>/vercel.json                 the six web apps on Vercel (one project per app)
+ *   vercel.json                            keeps a project at the repository root from building
  *   infrastructure/railway/*               the API services and the gateway on Railway
  *   packages/auth/src/next/api-routes.ts   which service owns an API path (web apps on Vercel)
  *
@@ -113,7 +114,7 @@ function main() {
     path.join(root, 'infrastructure', 'docker', 'nginx', 'gateway.conf'),
     nginx(routes),
   );
-  writeFileSync(path.join(root, 'vercel.json'), `${JSON.stringify(vercel(), null, 2)}\n`);
+  vercel();
   railway();
   writeFileSync(
     path.join(root, 'packages', 'auth', 'src', 'next', 'api-routes.ts'),
@@ -136,29 +137,32 @@ ${routes
 const envOf = (service: string) => `${service.replace(/-service$/, '').toUpperCase()}_SERVICE_URL`;
 
 /**
- * One Vercel project for the six web apps, picked by subdomain. They reach the API through
- * API_URL (the Railway gateway); the API services need long-running processes, so they
- * run on Railway, not on Vercel.
+ * One Vercel project per web app, each with its Root Directory set to apps/<app>: a
+ * deployment then holds one app's functions (Hobby allows 12 per deployment) and a push
+ * builds only that app and the packages it uses. They reach the API through API_URL (the
+ * Railway gateway); the API services need long-running processes, so they run on
+ * Railway, not on Vercel. A project left at the repository root would build every
+ * workspace, so the root vercel.json skips its builds.
  */
 function vercel() {
-  const services = Object.fromEntries(
-    Object.keys(WEB_APPS).map((app) => [
-      app,
-      {
-        root: `apps/${app}`,
-        framework: 'nextjs',
-        buildCommand: `cd ../.. && pnpm turbo run build --filter=@foodgrid/${app}...`,
-      },
-    ]),
-  );
-  const rewrites = Object.entries(WEB_APPS)
-    .sort(([, a], [, b]) => (a === null ? 1 : 0) - (b === null ? 1 : 0))
-    .map(([app, sub]) => ({
-      source: '/(.*)',
-      ...(sub ? { has: [{ type: 'host', value: `${sub}\\..+` }] } : {}),
-      destination: { service: app },
-    }));
-  return { $schema: 'https://openapi.vercel.sh/vercel.json', services, rewrites };
+  const schema = 'https://openapi.vercel.sh/vercel.json';
+  for (const app of Object.keys(WEB_APPS)) {
+    const config = {
+      $schema: schema,
+      framework: 'nextjs',
+      installCommand: 'cd ../.. && pnpm install --frozen-lockfile',
+      buildCommand: `cd ../.. && pnpm turbo run build --filter=@foodgrid/${app}...`,
+    };
+    writeFileSync(
+      path.join(root, 'apps', app, 'vercel.json'),
+      `${JSON.stringify(config, null, 2)}\n`,
+    );
+  }
+  const guard = {
+    $schema: schema,
+    ignoreCommand: `echo 'Deploy each web app from its own Vercel project (Root Directory apps/<app>), not from the repository root.' && exit 0`,
+  };
+  writeFileSync(path.join(root, 'vercel.json'), `${JSON.stringify(guard, null, 2)}\n`);
 }
 
 /**
