@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@foodgrid/database/nest';
 import { conflict, dateOnly, notFound, round2, Unit } from '@foodgrid/utils';
 import { InternalHttpService } from '@foodgrid/utils/server';
+import { assertOutletAccess, OutletActor, outletScope } from '../common/outlet-access';
 import { forecastItemDemand, plannedQuantity } from '../domain/production';
 import { recipeRequirements, round3 } from '../domain/stock';
 import { GeneratePlanDto, UpdatePlanItemDto } from './dto/production.dto';
@@ -25,11 +26,18 @@ export class ProductionService {
     private readonly internal: InternalHttpService,
   ) {}
 
-  async generate(tenantId: string, userId: string, dto: GeneratePlanDto) {
+  async generate(tenantId: string, userId: string, dto: GeneratePlanDto, user?: OutletActor) {
+    assertOutletAccess(user, dto.outletId);
+    // before reading its sales or its plans: the outlet must be this business's own
+    const outlet = await this.internal
+      .get<{ id: string; tenantId: string }>('order', `internal/outlets/${dto.outletId}`)
+      .catch(() => null);
+    if (!outlet || outlet.tenantId !== tenantId) throw notFound('Outlet', dto.outletId);
     const planDate = dateOnly(dto.date.slice(0, 10));
     const existing = await this.prisma.productionPlan.findUnique({
       where: { outletId_planDate: { outletId: dto.outletId, planDate } },
     });
+    if (existing && existing.tenantId !== tenantId) throw notFound('Outlet', dto.outletId);
     if (existing && existing.status !== 'DRAFT')
       throw conflict('A confirmed plan already exists for this date', 'PLAN_LOCKED');
 
@@ -81,21 +89,22 @@ export class ProductionService {
     });
   }
 
-  list(tenantId: string, outletId?: string) {
+  list(tenantId: string, outletId?: string, user?: OutletActor) {
     return this.prisma.forTenant(tenantId).productionPlan.findMany({
-      where: outletId ? { outletId } : {},
+      where: outletScope(user, outletId),
       orderBy: { planDate: 'desc' },
       take: 30,
       include: { _count: { select: { items: true } } },
     });
   }
 
-  async get(tenantId: string, id: string) {
+  async get(tenantId: string, id: string, user?: OutletActor) {
     const plan = await this.prisma.forTenant(tenantId).productionPlan.findUnique({
       where: { id },
       include: { items: { orderBy: { plannedQty: 'desc' } } },
     });
     if (!plan) throw notFound('Production plan', id);
+    assertOutletAccess(user, plan.outletId);
     return { ...plan, requirements: await this.requirements(tenantId, plan.items) };
   }
 
@@ -154,11 +163,18 @@ export class ProductionService {
       .sort((a, b) => b.shortage - a.shortage);
   }
 
-  async updateItem(tenantId: string, planId: string, itemId: string, dto: UpdatePlanItemDto) {
+  async updateItem(
+    tenantId: string,
+    planId: string,
+    itemId: string,
+    dto: UpdatePlanItemDto,
+    user?: OutletActor,
+  ) {
     const plan = await this.prisma
       .forTenant(tenantId)
       .productionPlan.findUnique({ where: { id: planId } });
     if (!plan) throw notFound('Production plan', planId);
+    assertOutletAccess(user, plan.outletId);
     if (['COMPLETED', 'CANCELLED'].includes(plan.status))
       throw conflict('Plan is closed', 'PLAN_CLOSED');
     return this.prisma.productionPlanItem.update({ where: { id: itemId, planId }, data: dto });
@@ -168,9 +184,11 @@ export class ProductionService {
     tenantId: string,
     id: string,
     status: 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED',
+    user?: OutletActor,
   ) {
     const plan = await this.prisma.forTenant(tenantId).productionPlan.findUnique({ where: { id } });
     if (!plan) throw notFound('Production plan', id);
+    assertOutletAccess(user, plan.outletId);
     const allowed: Record<string, string[]> = {
       DRAFT: ['CONFIRMED', 'CANCELLED'],
       CONFIRMED: ['IN_PROGRESS', 'CANCELLED'],

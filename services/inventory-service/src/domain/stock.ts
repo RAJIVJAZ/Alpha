@@ -41,6 +41,14 @@ export function allocateFefo(
   return { allocations, shortfall: round3(Math.max(0, remaining)) };
 }
 
+/**
+ * What a receipt adds to the batches: stock that went negative (orders are never blocked)
+ * was already consumed, so the shortfall is netted off and batches never exceed stock on hand.
+ */
+export function batchRemainingOnReceipt(before: number, quantity: number): number {
+  return round3(Math.max(0, Math.min(quantity, before + quantity)));
+}
+
 /** Moving weighted-average cost after a receipt. */
 export function weightedAverageCost(
   onHand: number,

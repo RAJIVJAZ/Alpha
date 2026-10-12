@@ -12,7 +12,14 @@ import {
   round2,
 } from '@foodgrid/utils';
 import { OutboxService, resolveIstRange } from '@foodgrid/utils/server';
-import { allocateFefo, crossedReorderLevel, round3, weightedAverageCost } from '../domain/stock';
+import { assertOutletAccess, OutletActor, outletScope } from '../common/outlet-access';
+import {
+  allocateFefo,
+  batchRemainingOnReceipt,
+  crossedReorderLevel,
+  round3,
+  weightedAverageCost,
+} from '../domain/stock';
 import { AdjustStockDto, MovementsQueryDto, ReceiveStockDto, WastageDto } from './dto/stock.dto';
 
 type Tx = Prisma.TransactionClient;
@@ -81,7 +88,7 @@ export class StockService {
         ingredientId: ing.id,
         batchNumber: line.batchNumber,
         quantity: line.quantity,
-        remainingQty: line.quantity,
+        remainingQty: batchRemainingOnReceipt(before, line.quantity),
         unitCost: line.unitCost,
         expiresAt,
         purchaseOrderId: ref.referenceType === 'PURCHASE_ORDER' ? ref.referenceId : undefined,
@@ -226,7 +233,21 @@ export class StockService {
   }
 
   // ─── API operations ────────────────────────────────────────────────────────
-  async receive(tenantId: string, userId: string, dto: ReceiveStockDto) {
+  async receive(tenantId: string, userId: string, dto: ReceiveStockDto, user?: OutletActor) {
+    assertOutletAccess(user, dto.outletId);
+    const ingredients = await this.prisma.forTenant(tenantId).ingredient.findMany({
+      where: { id: { in: dto.lines.map((l) => l.ingredientId) } },
+      select: { id: true, outletId: true },
+    });
+    const outletOf = new Map(ingredients.map((i) => [i.id, i.outletId]));
+    for (const { ingredientId } of dto.lines) {
+      if (!outletOf.has(ingredientId)) throw notFound('Ingredient', ingredientId);
+      if (outletOf.get(ingredientId) !== dto.outletId)
+        throw badRequest(
+          `Ingredient ${ingredientId} is not stocked at this outlet`,
+          'INVALID_INGREDIENT',
+        );
+    }
     return this.prisma.$transaction(async (tx) => {
       const movements = [];
       for (const line of dto.lines) {
@@ -251,12 +272,16 @@ export class StockService {
   }
 
   /** Physical count: books the variance as ADJUSTMENT and re-bases batches. */
-  async adjust(tenantId: string, userId: string, dto: AdjustStockDto) {
+  async adjust(tenantId: string, userId: string, dto: AdjustStockDto, user?: OutletActor) {
     return this.prisma.$transaction(async (tx) => {
       const ing = await this.lockIngredient(tx, dto.ingredientId);
       if (ing.tenantId !== tenantId) throw notFound('Ingredient', dto.ingredientId);
+      assertOutletAccess(user, ing.outletId);
       const variance = round3(dto.countedQuantity - Number(ing.currentStock));
-      if (variance === 0) return { variance: 0 };
+      if (variance === 0) {
+        await this.rebaseBatches(tx, ing.id, dto.countedQuantity);
+        return { variance: 0 };
+      }
       if (variance < 0) {
         await this.outflowInTx(tx, {
           ingredientId: ing.id,
@@ -279,15 +304,47 @@ export class StockService {
           },
         );
       }
+      await this.rebaseBatches(tx, ing.id, dto.countedQuantity);
       return { variance, countedQuantity: dto.countedQuantity };
     });
   }
 
-  async wastage(tenantId: string, userId: string, dto: WastageDto) {
+  /**
+   * After a count, batches hold no more than what is on hand: drains the excess left by
+   * stock that went negative before a receipt (first-expiring first). The ledger is already
+   * right, so no movement is written.
+   */
+  private async rebaseBatches(tx: Tx, ingredientId: string, onHand: number) {
+    const batches = await tx.stockBatch.findMany({
+      where: { ingredientId, remainingQty: { gt: 0 } },
+    });
+    const excess = round3(
+      batches.reduce((s, b) => s + Number(b.remainingQty), 0) - Math.max(0, onHand),
+    );
+    if (excess <= 0) return;
+    const { allocations } = allocateFefo(
+      batches.map((b) => ({
+        id: b.id,
+        remainingQty: Number(b.remainingQty),
+        unitCost: Number(b.unitCost),
+        expiresAt: b.expiresAt,
+        receivedAt: b.receivedAt,
+      })),
+      excess,
+    );
+    for (const a of allocations)
+      await tx.stockBatch.update({
+        where: { id: a.batchId },
+        data: { remainingQty: { decrement: a.quantity } },
+      });
+  }
+
+  async wastage(tenantId: string, userId: string, dto: WastageDto, user?: OutletActor) {
     const ing = await this.prisma
       .forTenant(tenantId)
       .ingredient.findUnique({ where: { id: dto.ingredientId } });
     if (!ing) throw notFound('Ingredient', dto.ingredientId);
+    assertOutletAccess(user, ing.outletId);
     if (dto.quantity > Number(ing.currentStock))
       throw badRequest('Wastage exceeds stock on hand', 'WASTAGE_EXCEEDS_STOCK');
     return this.prisma.$transaction((tx) =>
@@ -301,12 +358,12 @@ export class StockService {
     );
   }
 
-  async movements(tenantId: string, q: MovementsQueryDto) {
+  async movements(tenantId: string, q: MovementsQueryDto, user?: OutletActor) {
     const range = resolveIstRange(q, 30);
     const { page, pageSize, skip, take } = normalizePage({ page: q.page, pageSize: 50 });
     const where: Prisma.StockMovementWhereInput = {
       ingredientId: q.ingredientId,
-      outletId: q.outletId,
+      ...outletScope(user, q.outletId),
       type: q.type,
       createdAt: { gte: range.from, lte: range.to },
     };

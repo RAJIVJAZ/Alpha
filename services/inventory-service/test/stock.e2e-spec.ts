@@ -21,6 +21,7 @@ import { SERVICE } from '../src/service.config';
 
 const TENANT = 'tnt_spice';
 const OUTLET = 'outlet_kora';
+const OUTLET_2 = 'outlet_indira';
 const owner = (tenantId = TENANT) =>
   issueTestToken({
     sub: `owner_${tenantId}`,
@@ -29,6 +30,15 @@ const owner = (tenantId = TENANT) =>
     tenantType: 'RESTAURANT',
     tenantRole: 'OWNER',
     outletIds: [],
+  });
+const staff = (tenantRole: 'CHEF' | 'STAFF' | 'PROCUREMENT_MANAGER', outletIds: string[] = []) =>
+  issueTestToken({
+    sub: `${tenantRole.toLowerCase()}_${TENANT}`,
+    roles: ['CUSTOMER'],
+    tenantId: TENANT,
+    tenantType: 'RESTAURANT',
+    tenantRole,
+    outletIds,
   });
 
 const envelope = <T>(type: string, data: T, aggregateId: string): EventEnvelope<string, T> => ({
@@ -82,9 +92,15 @@ describe('inventory-service stock ledger (e2e)', () => {
     http.reset();
     http.on('GET', 'order', 'internal/outlets/:id', ({ params }) => ({
       id: params.id,
-      tenantId: params.id === OUTLET ? TENANT : 'tnt_rival',
+      tenantId: [OUTLET, OUTLET_2].includes(params.id) ? TENANT : 'tnt_rival',
       name: 'Outlet',
     }));
+    http.on('GET', 'order', 'internal/outlets/:id/menu-prices', ({ params }) =>
+      params.id === OUTLET
+        ? [{ id: 'menu_dal', name: 'Dal Makhani', price: '250.00', isAvailable: true }]
+        : [],
+    );
+    http.on('GET', 'order', 'internal/outlets/:id/item-sales', () => []);
     await prisma.ingredient.create({
       data: {
         id: 'ing_butter',
@@ -181,6 +197,33 @@ describe('inventory-service stock ledger (e2e)', () => {
     ).toBe(1);
   });
 
+  it('keeps batches in line with stock on hand after stock went negative', async () => {
+    const remaining = async () =>
+      (await prisma.stockBatch.findMany({ where: { ingredientId: 'ing_butter' } })).reduce(
+        (s, b) => s + Number(b.remainingQty),
+        0,
+      );
+    await receive([{ ingredientId: 'ing_butter', quantity: 0.5, unitCost: 480 }]).expect(201);
+    await handlers.consumeForOrder(accepted('ord_3', [{ menuItemId: 'menu_pbm', quantity: 25 }])); // -0.5 kg
+    await receive([{ ingredientId: 'ing_butter', quantity: 2, unitCost: 480 }]).expect(201);
+    const ing = await prisma.ingredient.findUniqueOrThrow({ where: { id: 'ing_butter' } });
+    expect(Number(ing.currentStock)).toBeCloseTo(1.5, 3);
+    expect(await remaining()).toBeCloseTo(1.5, 3);
+
+    // rows that drifted before this fix are re-based by a stock count, even with no variance
+    await prisma.stockBatch.updateMany({
+      where: { ingredientId: 'ing_butter' },
+      data: { remainingQty: 2 },
+    });
+    await api()
+      .post('/api/v1/inventory/stock/adjust')
+      .set('Authorization', `Bearer ${owner()}`)
+      .send({ ingredientId: 'ing_butter', countedQuantity: 1.5, reason: 'Weekly count' })
+      .expect(201)
+      .expect(({ body }) => expect(body.variance).toBe(0));
+    expect(await remaining()).toBeCloseTo(1.5, 3);
+  });
+
   it('books purchase-order receipts from procurement exactly once', async () => {
     const grn = envelope<PurchaseOrderReceivedEvent>(
       EventTypes.PurchaseOrderReceived,
@@ -208,6 +251,36 @@ describe('inventory-service stock ledger (e2e)', () => {
         where: { referenceType: 'PURCHASE_ORDER', referenceId: 'po_1' },
       }),
     ).toBe(1);
+  });
+
+  it('books every partial goods receipt of a purchase order once', async () => {
+    const receipt = (qty: string) =>
+      envelope<PurchaseOrderReceivedEvent>(
+        EventTypes.PurchaseOrderReceived,
+        {
+          purchaseOrderId: 'po_2',
+          poNumber: 'PO-2',
+          tenantId: TENANT,
+          outletId: OUTLET,
+          supplierTenantId: 'sup_cowberry',
+          lines: [
+            { ingredientId: 'ing_butter', receivedQty: qty, unitPrice: '470.00', unit: 'KG' },
+          ],
+        },
+        'po_2',
+      );
+    const first = receipt('14');
+    const second = receipt('6');
+    await handlers.receivePurchaseOrder(first);
+    await handlers.receivePurchaseOrder(second);
+    await handlers.receivePurchaseOrder(second); // redelivered
+    const ing = await prisma.ingredient.findUniqueOrThrow({ where: { id: 'ing_butter' } });
+    expect(Number(ing.currentStock)).toBe(20);
+    expect(
+      await prisma.stockMovement.count({
+        where: { referenceType: 'PURCHASE_ORDER', referenceId: 'po_2' },
+      }),
+    ).toBe(2);
   });
 
   it('pages the ingredient list up to 500 rows per page', async () => {
@@ -270,6 +343,12 @@ describe('inventory-service stock ledger (e2e)', () => {
       .send({ reorderLevel: 3, maxStock: null, leadTimeDays: 4 })
       .expect(200);
     expect(patched.body).toMatchObject({ reorderLevel: '3', maxStock: null, leadTimeDays: 4 });
+    // the unit is fixed: stock, batches and recipes are counted in it
+    await api()
+      .patch(`/api/v1/inventory/ingredients/${ghee.id}`)
+      .set('Authorization', auth)
+      .send({ unit: 'KG' })
+      .expect(400);
 
     // 100 ml ghee (+10% wastage) and 200 ml milk make 2 portions
     await api()
@@ -294,6 +373,138 @@ describe('inventory-service stock ledger (e2e)', () => {
 
     await api().delete('/api/v1/inventory/recipes/menu_dal').set('Authorization', auth).expect(204);
     await api().get('/api/v1/inventory/recipes/menu_dal').set('Authorization', auth).expect(404);
+  });
+
+  it('confines outlet-limited staff to their own outlets', async () => {
+    await prisma.ingredient.create({
+      data: {
+        id: 'ing_milk_2',
+        tenantId: TENANT,
+        outletId: OUTLET_2,
+        name: 'Milk',
+        sku: 'MILK',
+        category: 'DAIRY',
+        unit: 'L',
+        reorderLevel: 1,
+      },
+    });
+    const auth = `Bearer ${staff('PROCUREMENT_MANAGER', [OUTLET])}`;
+    const list = await api()
+      .get('/api/v1/inventory/ingredients')
+      .set('Authorization', auth)
+      .expect(200);
+    expect(list.body.data.map((i: { id: string }) => i.id)).toEqual(['ing_butter']);
+    const summary = await api()
+      .get('/api/v1/inventory/summary')
+      .set('Authorization', auth)
+      .expect(200);
+    expect(summary.body.totalItems).toBe(1);
+    const denied = (req: request.Test) =>
+      req
+        .set('Authorization', auth)
+        .expect(403)
+        .expect(({ body }) => expect(body.code).toBe('OUTLET_FORBIDDEN'));
+    await denied(api().get(`/api/v1/inventory/ingredients?outletId=${OUTLET_2}`));
+    await denied(api().get('/api/v1/inventory/ingredients/ing_milk_2'));
+    await denied(
+      api()
+        .post('/api/v1/inventory/stock/adjust')
+        .send({ ingredientId: 'ing_milk_2', countedQuantity: 0, reason: 'count' }),
+    );
+    await denied(
+      api()
+        .post('/api/v1/inventory/stock/receive')
+        .send({
+          outletId: OUTLET_2,
+          lines: [{ ingredientId: 'ing_milk_2', quantity: 1, unitCost: 1 }],
+        }),
+    );
+    // an ingredient of another outlet cannot be received under this one
+    await api()
+      .post('/api/v1/inventory/stock/receive')
+      .set('Authorization', auth)
+      .send({ outletId: OUTLET, lines: [{ ingredientId: 'ing_milk_2', quantity: 1, unitCost: 1 }] })
+      .expect(400);
+    const chef = `Bearer ${staff('CHEF', [OUTLET])}`;
+    await api()
+      .post('/api/v1/inventory/production-plans/generate')
+      .set('Authorization', chef)
+      .send({ outletId: OUTLET_2, date: '2026-10-12' })
+      .expect(403);
+    await api()
+      .put('/api/v1/inventory/recipes')
+      .set('Authorization', chef)
+      .send({
+        outletId: OUTLET_2,
+        menuItemId: 'menu_dal',
+        name: 'Dal',
+        yieldQty: 1,
+        lines: [{ ingredientId: 'ing_milk_2', quantity: 100, unit: 'ML' }],
+      })
+      .expect(403);
+    expect(
+      Number(
+        (await prisma.ingredient.findUniqueOrThrow({ where: { id: 'ing_milk_2' } })).currentStock,
+      ),
+    ).toBe(0);
+  });
+
+  it("refuses another business's outlet for production plans and its dishes for recipes", async () => {
+    const rival = `Bearer ${owner('tnt_rival')}`;
+    // the rival's own plan for our outlet would read our sales and replace our plan
+    await prisma.productionPlan.create({
+      data: {
+        tenantId: TENANT,
+        outletId: OUTLET,
+        planDate: new Date('2026-10-12'),
+        createdBy: 'u1',
+      },
+    });
+    await api()
+      .post('/api/v1/inventory/production-plans/generate')
+      .set('Authorization', rival)
+      .send({ outletId: OUTLET, date: '2026-10-12' })
+      .expect(404);
+    expect(http.calls.some((c) => c.path.endsWith('/item-sales'))).toBe(false);
+    expect(await prisma.productionPlan.count({ where: { tenantId: TENANT } })).toBe(1);
+
+    // our dish on someone else's outlet: the rival cannot claim menu_dal for a recipe
+    await prisma.ingredient.create({
+      data: {
+        id: 'ing_rival',
+        tenantId: 'tnt_rival',
+        outletId: 'outlet_rival',
+        name: 'Ghee',
+        sku: 'GHEE',
+        category: 'DAIRY',
+        unit: 'L',
+        reorderLevel: 1,
+      },
+    });
+    await api()
+      .put('/api/v1/inventory/recipes')
+      .set('Authorization', rival)
+      .send({
+        outletId: 'outlet_rival',
+        menuItemId: 'menu_dal',
+        name: 'Dal',
+        yieldQty: 1,
+        lines: [{ ingredientId: 'ing_rival', quantity: 100, unit: 'ML' }],
+      })
+      .expect(404);
+    expect(await prisma.recipe.count({ where: { menuItemId: 'menu_dal' } })).toBe(0);
+  });
+
+  it('lets kitchen staff open the costing screen that holds the recipe editor', async () => {
+    await api()
+      .get(`/api/v1/inventory/costing?outletId=${OUTLET}`)
+      .set('Authorization', `Bearer ${staff('CHEF')}`)
+      .expect(200)
+      .expect(({ body }) => expect(body.items[0]).toMatchObject({ menuItemId: 'menu_dal' }));
+    await api()
+      .get(`/api/v1/inventory/costing?outletId=${OUTLET}`)
+      .set('Authorization', `Bearer ${staff('STAFF')}`)
+      .expect(403);
   });
 
   it("keeps each tenant's stock private", async () => {

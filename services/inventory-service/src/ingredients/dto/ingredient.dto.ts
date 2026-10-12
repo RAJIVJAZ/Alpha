@@ -49,8 +49,9 @@ export class IngredientDto {
   @ApiPropertyOptional() @IsOptional() @IsNumber() @Min(0) openingUnitCost?: number;
 }
 
+// the unit stays fixed once created: stock, batches and recipes are counted in it
 export class UpdateIngredientDto extends PartialType(
-  OmitType(IngredientDto, ['outletId', 'openingStock', 'openingUnitCost'] as const),
+  OmitType(IngredientDto, ['outletId', 'unit', 'openingStock', 'openingUnitCost'] as const),
 ) {
   @ApiPropertyOptional() @IsOptional() @IsBoolean() isActive?: boolean;
 }
