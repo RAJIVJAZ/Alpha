@@ -322,6 +322,51 @@ describe('order-service checkout & lifecycle (e2e)', () => {
     ]);
   });
 
+  it('refunds a second payment for an order another payment already paid', async () => {
+    http.on('POST', 'payment', 'internal/payments/:id/refund', { refunded: true });
+    const token = customer();
+    await fillCart(token);
+    const { body } = await api()
+      .post('/api/v1/orders')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ orderType: 'TAKEAWAY', paymentMethod: 'UPI' })
+      .expect(201);
+    const id = body.order.id as string;
+    const handlers = app.get(OrderEventHandlers);
+    const captured = (paymentId: string, method: string) =>
+      handlers.onPaymentCaptured({
+        id: `evt_${paymentId}`,
+        type: 'payment.captured',
+        data: { paymentId, purpose: 'ORDER', referenceId: id, amount: body.order.total, method },
+      } as never);
+    // paid from the wallet after the UPI attempt failed; the UPI approval lands later
+    await captured('pay_wallet', 'WALLET');
+    await captured('pay_upi_late', 'UPI');
+    const refunds = http.callsTo('payment', 'internal/payments/');
+    expect(refunds.map((c) => c.path)).toEqual(['internal/payments/pay_upi_late/refund']);
+    let order = await prisma.order.findUniqueOrThrow({ where: { id } });
+    expect(order).toMatchObject({
+      status: 'PLACED',
+      paymentStatus: 'PAID',
+      paymentId: 'pay_wallet',
+    });
+    // the duplicate's refund does not mark the paid order refunded
+    await handlers.onRefund({
+      id: 'evt_refund_dup',
+      type: 'payment.refund.processed',
+      data: {
+        refundId: 'rf_1',
+        paymentId: 'pay_upi_late',
+        purpose: 'ORDER',
+        referenceId: id,
+        amount: body.order.total,
+        toWallet: false,
+      },
+    } as never);
+    order = await prisma.order.findUniqueOrThrow({ where: { id } });
+    expect(order.paymentStatus).toBe('PAID');
+  });
+
   it('keeps the commission payment-service charged on the order, for the merchant only', async () => {
     const token = customer();
     await fillCart(token);

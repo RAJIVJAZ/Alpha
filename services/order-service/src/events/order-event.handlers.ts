@@ -10,7 +10,7 @@ import {
   RefundProcessedEvent,
   TenantStatusChangedEvent,
 } from '@foodgrid/types';
-import { OnDomainEvent } from '@foodgrid/utils/server';
+import { InternalHttpService, OnDomainEvent } from '@foodgrid/utils/server';
 import { MembershipsService } from '../memberships/memberships.service';
 import { OrderLifecycleService } from '../orders/order-lifecycle.service';
 
@@ -23,7 +23,19 @@ export class OrderEventHandlers {
     private readonly prisma: PrismaService,
     private readonly lifecycle: OrderLifecycleService,
     private readonly memberships: MembershipsService,
+    private readonly internal: InternalHttpService,
   ) {}
+
+  /**
+   * A payment captured for something already paid by another payment, or no longer awaiting
+   * payment (a retry in another method, a late UPI approval), goes back to the customer.
+   */
+  private async refundUnwanted(p: PaymentEvent, why: string) {
+    this.logger.warn(`Refunding payment ${p.paymentId} (${p.purpose} ${p.referenceId}): ${why}`);
+    await this.internal.post('payment', `internal/payments/${p.paymentId}/refund`, {
+      reason: why,
+    });
+  }
 
   @OnDomainEvent(EventTypes.PaymentCaptured)
   async onPaymentCaptured(env: EventEnvelope<string, PaymentEvent>) {
@@ -31,15 +43,27 @@ export class OrderEventHandlers {
     switch (p.purpose) {
       case 'ORDER':
         return this.orderPaid(p);
-      case 'MEMBERSHIP':
+      case 'MEMBERSHIP': {
+        const m = await this.prisma.customerMembership.findUnique({
+          where: { id: p.referenceId },
+        });
+        // cancelled when the customer switched plans, or already paid by another payment
+        if (m && m.status !== 'PENDING_PAYMENT' && m.paymentId !== p.paymentId)
+          return this.refundUnwanted(p, 'Membership is no longer awaiting payment');
         await this.memberships.activate(p.referenceId, p.paymentId);
         return;
-      case 'MEAL_SUBSCRIPTION':
-        await this.prisma.mealSubscription.updateMany({
+      }
+      case 'MEAL_SUBSCRIPTION': {
+        const activated = await this.prisma.mealSubscription.updateMany({
           where: { id: p.referenceId, status: 'PENDING_PAYMENT' },
           data: { status: 'ACTIVE', paymentId: p.paymentId },
         });
+        if (activated.count) return;
+        const s = await this.prisma.mealSubscription.findUnique({ where: { id: p.referenceId } });
+        if (s && s.paymentId !== p.paymentId)
+          return this.refundUnwanted(p, 'Subscription is no longer awaiting payment');
         return;
+      }
       default:
         return;
     }
@@ -60,6 +84,13 @@ export class OrderEventHandlers {
       });
       return;
     }
+    // A second payment for an order another payment already paid: refund it, keep the first.
+    if (
+      !['CANCELLED', 'REJECTED'].includes(order.status) &&
+      order.paymentId &&
+      order.paymentId !== p.paymentId
+    )
+      return this.refundUnwanted(p, 'Duplicate payment: the order was already paid');
     // Payment landed after the order was cancelled/rejected: mark paid and
     // re-announce the cancellation so payment-service issues the refund.
     await this.prisma.$transaction(async (tx) => {
@@ -93,6 +124,8 @@ export class OrderEventHandlers {
     if (env.data.purpose !== 'ORDER') return;
     const order = await this.prisma.order.findUnique({ where: { id: env.data.referenceId } });
     if (!order) return;
+    // a refunded duplicate payment says nothing about the payment that paid the order
+    if (order.paymentId && order.paymentId !== env.data.paymentId) return;
     const full = Number(env.data.amount) >= Number(order.total);
     await this.prisma.order.update({
       where: { id: order.id },
