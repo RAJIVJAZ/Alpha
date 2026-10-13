@@ -968,7 +968,8 @@ async function seedRiderLedger(ctx: SeedContext, orders: SimOrder[], c: Ctx2, rn
               'COD_COLLECTION',
               -balance,
               handIn,
-              `cod-deposit:${receipt}`,
+              // the receipt number is random and can repeat; the rider and day cannot
+              `cod-deposit:${rider.profileId}:${k}`,
               { type: 'CASH_DEPOSIT', id: receipt },
               `Cash deposited · ${receipt}`,
             );
