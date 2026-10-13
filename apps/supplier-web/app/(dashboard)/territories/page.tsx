@@ -5,6 +5,6 @@ import { requireKind } from '../kind';
 export const metadata: Metadata = { title: 'Territories' };
 
 export default async function Page() {
-  await requireKind('WHOLESALER');
+  await requireKind('WHOLESALER', 'SUPPLIER');
   return <Territories />;
 }

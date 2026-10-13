@@ -1,5 +1,8 @@
+import { foodKind } from './kind';
 import { Shell } from './shell';
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  return <Shell>{children}</Shell>;
+export const dynamic = 'force-dynamic';
+
+export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
+  return <Shell kind={await foodKind()}>{children}</Shell>;
 }

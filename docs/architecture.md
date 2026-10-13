@@ -27,8 +27,8 @@ Redis for events, locks and live state.
 flowchart LR
   subgraph people["People and their apps"]
     cust["Customers<br/>customer-web, customer-mobile"]
-    merch["Restaurants and food carts<br/>restaurant-web, vendor-web, merchant-mobile"]
-    sell["Suppliers, wholesalers, retailers<br/>supplier-web, vendor-web"]
+    merch["Restaurants and food carts<br/>restaurant-web (Food Seller Portal), merchant-mobile"]
+    sell["Suppliers, wholesalers, retailers<br/>supplier-web (Product Seller Portal)"]
     rider["Riders<br/>rider-web, rider-mobile"]
     staff["FoodGrid staff<br/>admin-web"]
   end
@@ -58,7 +58,8 @@ Browsers never call the gateway themselves: each web app's route handlers
 keep the tokens in httpOnly cookies and forward requests to `API_URL`. The mobile apps
 call the gateway directly with a bearer token. In Kubernetes the public hosts are
 `api.foodgrid.in` (gateway), `foodgrid.in` and `www.foodgrid.in` (customer-web),
-`partner.` (restaurant-web), `business.` (vendor-web), `supplier.` (supplier-web),
+`partner.` (restaurant-web), `business.` (vendor-web, which now only points to the two
+portals), `supplier.` (supplier-web),
 `rider.` (rider-web) and `admin.` (admin-web, behind an IP allow-list); staging uses the
 same names under `staging.foodgrid.in`.
 
@@ -271,7 +272,7 @@ stateDiagram-v2
 - **Tenants** are businesses: `RESTAURANT`, `FOOD_CART`, `SUPPLIER`, `WHOLESALER`,
   `RETAILER` (and `PLATFORM`), with status `PENDING_APPROVAL`, `ACTIVE`, `SUSPENDED` or
   `REJECTED`. A new business is created with `POST /api/v1/tenants` (the `/apply` page of
-  restaurant-web, vendor-web and supplier-web) and becomes active through the approvals
+  restaurant-web and supplier-web) and becomes active through the approvals
   queue in admin-web. A reviewer asking for changes or rejecting it leaves the notes in
   `Tenant.rejectionReason`; the owner fixes and resubmits with
   `POST /api/v1/tenants/current/kyc`, which puts it back under review.
@@ -314,8 +315,14 @@ Permissions (`packages/auth/src/permissions.ts`):
 | FINANCE         | `platform:finance`, `platform:analytics`, `platform:users:read`                                          |
 | OPS             | `platform:approvals`, `platform:riders`, `platform:users:read`, `platform:analytics`, `platform:content` |
 
-admin-web admits only the staff roles at sign-in. restaurant-web (`RESTAURANT`),
-vendor-web (`FOOD_CART`, `WHOLESALER`, `RETAILER`) and supplier-web (`SUPPLIER`) let any
+admin-web admits only the staff roles at sign-in. Businesses work in two portals:
+restaurant-web, the **Food Seller Portal** (`RESTAURANT`, `FOOD_CART`: one set of screens,
+with a phone-first nav for carts and outlet setup under Outlet settings), and
+supplier-web, the **Product Seller Portal** (`SUPPLIER`, `WHOLESALER`, `RETAILER`: one
+catalogue, bulk pricing, orders and delivery set-up, with distribution tools for wholesale
+and supply and marketplace buying for retailers and wholesalers). vendor-web, which used
+to serve carts, retailers and wholesalers, now only links to the two (set
+`FOOD_SELLER_PORTAL_URL` and `PRODUCT_SELLER_PORTAL_URL`). Both portals let any
 account sign in, but their middleware (`approvedBusiness` in `@foodgrid/auth`) opens the
 dashboards only to a token whose business is of those types and `ACTIVE`; everyone else
 gets `/apply`: register a business, follow its review, resubmit after changes or a

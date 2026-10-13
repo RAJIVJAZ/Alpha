@@ -9,8 +9,8 @@ export default function LoginPage() {
     <AuthScreen>
       <Suspense>
         <LoginPanel
-          title="FoodGrid for Restaurants"
-          description="Sign in to manage your restaurant. New to FoodGrid? Sign in with your mobile number to register your restaurant."
+          title="FoodGrid for Food Sellers"
+          description="Restaurants, cafés, cloud kitchens and food carts sign in here. New to FoodGrid? Sign in with your mobile number to register your business."
           modes={['password', 'otp']}
         />
       </Suspense>

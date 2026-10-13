@@ -182,14 +182,20 @@ Each web app is its own Vercel project, so a deployment holds one app (the Hobby
 allows 12 functions per deployment) and a push builds only the apps it changes. A project
 at the repository root builds nothing: the root `vercel.json` skips it.
 
-| Project          | Root Directory        | Domain                           |
-| ---------------- | --------------------- | -------------------------------- |
-| `customer-web`   | `apps/customer-web`   | `foodgrid.in`, `www.foodgrid.in` |
-| `admin-web`      | `apps/admin-web`      | `admin.foodgrid.in`              |
-| `restaurant-web` | `apps/restaurant-web` | `partner.foodgrid.in`            |
-| `vendor-web`     | `apps/vendor-web`     | `business.foodgrid.in`           |
-| `supplier-web`   | `apps/supplier-web`   | `supplier.foodgrid.in`           |
-| `rider-web`      | `apps/rider-web`      | `rider.foodgrid.in`              |
+| Project          | Root Directory        | Domain                            |
+| ---------------- | --------------------- | --------------------------------- |
+| `customer-web`   | `apps/customer-web`   | `foodgrid.in`, `www.foodgrid.in`  |
+| `admin-web`      | `apps/admin-web`      | `admin.foodgrid.in`               |
+| `restaurant-web` | `apps/restaurant-web` | `partner.foodgrid.in`             |
+| `vendor-web`     | `apps/vendor-web`     | `business.foodgrid.in` (optional) |
+| `supplier-web`   | `apps/supplier-web`   | `supplier.foodgrid.in`            |
+| `rider-web`      | `apps/rider-web`      | `rider.foodgrid.in`               |
+
+restaurant-web is the Food Seller Portal (restaurants and food carts) and supplier-web the
+Product Seller Portal (suppliers, wholesalers and retailers). vendor-web now only shows
+links to the two portals for old `business.` bookmarks: set `FOOD_SELLER_PORTAL_URL` and
+`PRODUCT_SELLER_PORTAL_URL` on its project, or delete the project if nobody uses that
+address.
 
 For each app:
 

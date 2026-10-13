@@ -8,7 +8,8 @@ const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'sw
 
 export const metadata: Metadata = {
   title: { default: 'FoodGrid Business', template: '%s · FoodGrid Business' },
-  description: 'Food carts, retailers and wholesalers',
+  description:
+    'Food carts now sell from the Food Seller Portal, retailers and wholesalers from the Product Seller Portal',
 };
 
 export const viewport: Viewport = {

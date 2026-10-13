@@ -1,11 +1,14 @@
+import type { OutletRecord, OutletType } from './outlet-form';
+
 /** Response shapes used by the merchant screens (subset of fields; decimals arrive as strings). */
 export type Dec = string;
 
-export interface Outlet {
+export interface Outlet extends OutletRecord {
   id: string;
   name: string;
   slug: string;
-  type: 'RESTAURANT' | 'FOOD_CART' | 'CLOUD_KITCHEN';
+  type: OutletType;
+  /** DRAFT, PENDING_APPROVAL, ACTIVE, PAUSED, SUSPENDED or CLOSED */
   status: string;
   city: string;
   addressLine1: string;
@@ -16,6 +19,8 @@ export interface Outlet {
   kdsStations: string[];
   ratingAvg: number;
   ratingCount: number;
+  lastLocationAt?: string | null;
+  _count?: { items: number; tables: number };
 }
 
 export interface MerchantOrder {

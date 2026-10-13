@@ -7,8 +7,8 @@ import './globals.css';
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'swap' });
 
 export const metadata: Metadata = {
-  title: { default: 'FoodGrid for Restaurants', template: '%s · FoodGrid for Restaurants' },
-  description: 'Orders, kitchen, inventory and procurement',
+  title: { default: 'FoodGrid for Food Sellers', template: '%s · FoodGrid for Food Sellers' },
+  description: 'Restaurants and food carts: orders, menu, kitchen, stock and buying',
 };
 
 export const viewport: Viewport = {
