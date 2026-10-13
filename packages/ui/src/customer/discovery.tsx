@@ -335,6 +335,7 @@ export function SearchView() {
                         </span>
                         <span className="text-sm">{formatMoney(d.price, { whole: true })}</span>
                         <span className="truncate text-xs text-muted-foreground">
+                          {d.outlet.sponsored ? 'Sponsored · ' : ''}
                           {d.outlet.name} · {d.outlet.etaMins} min
                           {d.outlet.isOpenNow ? '' : ' · closed now'}
                         </span>

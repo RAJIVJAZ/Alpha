@@ -8,7 +8,7 @@ import 'models.dart';
 import 'providers.dart';
 
 /// Restaurant / food cart card. Closed places are dimmed with "Closed now";
-/// sponsored ones carry an "Ad" label and report the click.
+/// sponsored ones carry a "Sponsored" label and report the click.
 class OutletCard extends ConsumerWidget {
   const OutletCard({super.key, required this.outlet, this.compact = false});
 
@@ -30,7 +30,7 @@ class OutletCard extends ConsumerWidget {
       button: true,
       label: [
         o.name,
-        if (o.sponsored) 'Ad',
+        if (o.sponsored) 'Sponsored',
         if (!o.isOpenNow) 'Closed now',
         o.ratingCount > 0 ? 'rated ${o.ratingAvg.toStringAsFixed(1)}' : 'new',
         o.cuisines.join(', '),
@@ -56,7 +56,7 @@ class OutletCard extends ConsumerWidget {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.65), borderRadius: BorderRadius.circular(4)),
-                      child: Text('Ad', style: text.labelSmall?.copyWith(color: Colors.white, fontWeight: FontWeight.w600)),
+                      child: Text('Sponsored', style: text.labelSmall?.copyWith(color: Colors.white, fontWeight: FontWeight.w600)),
                     ),
                   ),
                 if (!o.isOpenNow)

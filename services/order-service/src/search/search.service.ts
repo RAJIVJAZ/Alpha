@@ -6,8 +6,19 @@ import type { SearchQueryDto } from './search.controller';
 const SEARCH_RADIUS_KM = 10;
 
 /**
- * Text search over outlets (name, cuisine, tags) and dishes. ILIKE queries are
- * served by pg_trgm GIN indexes (see migration add_search_indexes); swap for
+ * Smallest pg_trgm word similarity that counts as a match despite a typo ("panner" finds
+ * Paneer Tikka, "biriyani" Chicken Biryani, "piza" Pizza). Short words have few trigrams,
+ * so they need more of them to agree ("roti" must not find Rogan Josh).
+ */
+export const fuzzyThreshold = (term: string) => (term.length <= 4 ? 0.5 : 0.42);
+
+/** `%term%` for ILIKE, with the wildcards a customer may type taken literally. */
+export const likePattern = (term: string) => `%${term.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+
+/**
+ * Text search over outlets (name, cuisines, tags) and dishes (name, tags, menu category).
+ * A substring match ranks first; otherwise pg_trgm word similarity tolerates typos. The
+ * trigram GIN indexes (migration add_search_indexes) serve the name lookups; swap for
  * OpenSearch when the catalogue outgrows a single Postgres.
  */
 @Injectable()
@@ -23,29 +34,56 @@ export class SearchService {
       type: q.type,
     });
     const byId = new Map(nearby.map((n) => [n.outlet.id, n]));
-    const lower = term.toLowerCase();
+    const ids = [...byId.keys()];
+    const like = likePattern(term);
+    const threshold = fuzzyThreshold(term);
 
-    const outletMatches = nearby.filter(
-      (n) =>
-        n.outlet.name.toLowerCase().includes(lower) ||
-        n.outlet.cuisines.some((c) => c.toLowerCase().includes(lower)) ||
-        n.outlet.tags.some((t) => t.toLowerCase().includes(lower)),
-    );
-
-    const dishes = byId.size
-      ? await this.prisma.menuItem.findMany({
-          where: {
-            outletId: { in: [...byId.keys()] },
-            isAvailable: true,
-            OR: [{ name: { contains: term, mode: 'insensitive' } }, { tags: { has: lower } }],
-          },
-          take: 60,
-          orderBy: { isRecommended: 'desc' },
-        })
+    // 1 for a substring of the name, a cuisine or a tag; else the closest word similarity
+    const outletScores = ids.length
+      ? await this.prisma.$queryRaw<{ id: string; score: number }[]>`
+          SELECT id, score FROM (
+            SELECT o.id, GREATEST(
+              CASE WHEN o.name ILIKE ${like} THEN 1 ELSE word_similarity(${term}, o.name) END,
+              COALESCE((
+                SELECT MAX(CASE WHEN x ILIKE ${like} THEN 1 ELSE word_similarity(${term}, x) END)
+                FROM unnest(o.cuisines || o.tags) AS x
+              ), 0)
+            )::float8 AS score
+            FROM commerce."Outlet" o
+            WHERE o.id = ANY(${ids}::text[])
+          ) s
+          WHERE score >= ${threshold}`
       : [];
+    const outletScore = new Map(outletScores.map((r) => [r.id, r.score]));
+    const outletMatches = nearby.filter((n) => outletScore.has(n.outlet.id));
+
+    // dishes match on their name or a tag, or on their menu category ("desserts")
+    const dishScores = ids.length
+      ? await this.prisma.$queryRaw<{ id: string; score: number }[]>`
+          SELECT id, score FROM (
+            SELECT i.id, i."isRecommended", GREATEST(
+              CASE WHEN i.name ILIKE ${like} THEN 1 ELSE word_similarity(${term}, i.name) END,
+              CASE WHEN ${term.toLowerCase()} = ANY(i.tags) THEN 1 ELSE 0 END,
+              CASE WHEN c.name ILIKE ${like} THEN 0.9 ELSE 0.9 * word_similarity(${term}, c.name) END
+            )::float8 AS score
+            FROM commerce."MenuItem" i
+            JOIN commerce."MenuCategory" c ON c.id = i."categoryId"
+            WHERE i."outletId" = ANY(${ids}::text[]) AND i."isAvailable"
+          ) s
+          WHERE score >= ${threshold}
+          ORDER BY score DESC, "isRecommended" DESC
+          LIMIT 60`
+      : [];
+    const dishScore = new Map(dishScores.map((r) => [r.id, r.score]));
+    const dishes = dishScores.length
+      ? await this.prisma.menuItem.findMany({ where: { id: { in: [...dishScore.keys()] } } })
+      : [];
+    // exact matches before typo matches; within each, the usual order
+    const strong = (score = 0) => (score >= 0.9 ? 0 : 1);
 
     const rankedOutlets = this.discovery
       .sort(outletMatches, 'relevance')
+      .sort((a, b) => strong(outletScore.get(a.outlet.id)) - strong(outletScore.get(b.outlet.id)))
       .slice(0, 30)
       .map((r) => toCard(r));
     const dishResults = dishes
@@ -58,15 +96,21 @@ export class SearchService {
           imageUrl: d.imageUrl,
           isVeg: d.isVeg,
           outlet: toCard(o),
+          strong: strong(dishScore.get(d.id)),
         };
       })
       .sort(
         (a, b) =>
+          a.strong - b.strong ||
           Number(b.outlet.isOpenNow) - Number(a.outlet.isOpenNow) ||
           (a.outlet.distanceKm ?? 0) - (b.outlet.distanceKm ?? 0),
       );
 
-    return { query: term, outlets: rankedOutlets, dishes: dishResults };
+    return {
+      query: term,
+      outlets: rankedOutlets,
+      dishes: dishResults.map(({ strong: _strong, ...d }) => d),
+    };
   }
 
   async suggest(q: SearchQueryDto) {

@@ -42,6 +42,7 @@ Most of the brief existed before this round:
 | One Food Seller Portal (restaurant-web)  | §3: restaurants and food carts in one portal, a phone-first cart nav, outlet setup and settings (location, hours, cuisines, ways to order, radius, stations, licences, photos), submit for approval, open / closed, temporary closure, cart location, more branches.                             |
 | One Product Seller Portal (supplier-web) | §4: suppliers, wholesalers and retailers in one portal with one nav; vendor-web only points to the two portals.                                                                                                                                                                                  |
 | New theme and its review fixes           | §7 look and feel (Olipop-inspired pop look for customers, calm dashboards, a night look for riders), WCAG contrast.                                                                                                                                                                              |
+| Search and labels                        | §7: search tolerates typos ("panner", "biriyani") and finds dishes by menu category, exact matches first; paid placements say "Sponsored", also on dishes from sponsored outlets.                                                                                                                |
 
 ## What is left
 
@@ -60,15 +61,13 @@ Most of the brief existed before this round:
 
 ### 2. Customer site
 
-| Gap                                                                                          | Size |
-| -------------------------------------------------------------------------------------------- | ---- |
-| Label paid placements "Sponsored" (they say "Ad") and label dishes from sponsored outlets    | S    |
-| Typo-tolerant search with the pg_trgm indexes that already exist; menu categories searchable | M    |
-| Filters on search results: price, dietary (egg, vegan, Jain, gluten-free), delivery time     | M    |
-| Favourites                                                                                   | M    |
-| Location search (geocoding) beyond GPS, saved addresses and the preset areas                 | M    |
-| Food facts and trivia from a reviewed facts table, with an admin review queue                | L    |
-| Help centre and "Get help" on orders, with a support queue                                   | L    |
+| Gap                                                                                      | Size |
+| ---------------------------------------------------------------------------------------- | ---- |
+| Filters on search results: price, dietary (egg, vegan, Jain, gluten-free), delivery time | M    |
+| Favourites                                                                               | M    |
+| Location search (geocoding) beyond GPS, saved addresses and the preset areas             | M    |
+| Food facts and trivia from a reviewed facts table, with an admin review queue            | L    |
+| Help centre and "Get help" on orders, with a support queue                               | L    |
 
 ### 3. B2B procurement
 

@@ -217,7 +217,7 @@ export function OutletCard({ outlet: o, compact }: { outlet: OutletSummary; comp
         />
         {o.sponsored ? (
           <span className="absolute left-2 top-2 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-white">
-            Ad
+            Sponsored
           </span>
         ) : null}
         {!o.isOpenNow ? (

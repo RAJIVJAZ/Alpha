@@ -1028,6 +1028,25 @@ describe('order-service checkout & lifecycle (e2e)', () => {
     });
   });
 
+  it('finds dishes and outlets despite typos, exact matches first', async () => {
+    const search = (q: string) =>
+      api().get('/api/v1/search').query({ q, lat: 12.9352, lng: 77.6245 }).expect(200);
+    const dishes = async (q: string) =>
+      ((await search(q)).body.dishes as { name: string }[]).map((d) => d.name);
+
+    expect(await dishes('panner')).toEqual(['Paneer Tikka']);
+    expect(await dishes('lasi')).toEqual(['Sweet Lassi']);
+    // the menu category finds every dish in it
+    expect((await dishes('mains')).sort()).toEqual(['Paneer Tikka', 'Sweet Lassi']);
+    expect((await search('kitchn')).body.outlets.map((o: { id: string }) => o.id)).toEqual([
+      'outlet_1',
+    ]);
+    // nothing close enough, and wildcards are taken literally
+    expect(await dishes('roti')).toEqual([]);
+    const wild = await search('%_');
+    expect([wild.body.outlets, wild.body.dishes]).toEqual([[], []]);
+  });
+
   // ─── merchant access (M2, M5) ──────────────────────────────────────────────
   it('lets any staff member list the outlets they work at, honouring outlet limits', async () => {
     await prisma.outlet.create({
