@@ -5,12 +5,12 @@ ALTER TABLE "delivery"."Delivery" ADD COLUMN     "orderReadyAt" TIMESTAMP(3),
 ADD COLUMN     "payableKm" DOUBLE PRECISION,
 ADD COLUMN     "pricingPolicyId" TEXT;
 
--- AlterTable
-ALTER TABLE "delivery"."DeliveryZone" DROP COLUMN "baseFee",
-DROP COLUMN "freeKm",
-DROP COLUMN "perKmFee",
-DROP COLUMN "riderBasePay",
-DROP COLUMN "riderPerKm";
+-- AlterTable: the zone tariffs are no longer read; defaults keep zones created now valid for
+-- the previous release while it is still serving, and the columns can go in a later release
+ALTER TABLE "delivery"."DeliveryZone" ALTER COLUMN "baseFee" SET DEFAULT 25,
+ALTER COLUMN "perKmFee" SET DEFAULT 8,
+ALTER COLUMN "riderBasePay" SET DEFAULT 30,
+ALTER COLUMN "riderPerKm" SET DEFAULT 6;
 
 -- CreateTable
 CREATE TABLE "delivery"."DeliveryPricingPolicy" (

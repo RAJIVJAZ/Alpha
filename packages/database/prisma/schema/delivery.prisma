@@ -138,6 +138,14 @@ model DeliveryZone {
   polygon         Json
   centerLat       Float
   centerLng       Float
+  /// The five tariff columns below are unused since delivery pricing versions
+  /// (DeliveryPricingPolicy); they stay, with defaults, for the release that still reads
+  /// them, and can be dropped in the next one.
+  baseFee         Decimal  @default(25) @db.Decimal(10, 2)
+  perKmFee        Decimal  @default(8) @db.Decimal(10, 2)
+  freeKm          Float    @default(2)
+  riderBasePay    Decimal  @default(30) @db.Decimal(10, 2)
+  riderPerKm      Decimal  @default(6) @db.Decimal(10, 2)
   /// Floor for the live surge; surge raises rider pay, not the customer's delivery fee.
   surgeMultiplier Float    @default(1)
   isActive        Boolean  @default(true)

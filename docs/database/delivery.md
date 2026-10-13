@@ -210,6 +210,11 @@ Table `delivery."DeliveryZone"`
 | `polygon` | Json |  |  | GeoJSON Polygon coordinates: [[[lng, lat], ...]] |
 | `centerLat` | Float |  |  |  |
 | `centerLng` | Float |  |  |  |
+| `baseFee` | Decimal |  | 25 | The five tariff columns below are unused since delivery pricing versions (DeliveryPricingPolicy); they stay, with defaults, for the release that still reads them, and can be dropped in the next one. |
+| `perKmFee` | Decimal |  | 8 |  |
+| `freeKm` | Float |  | 2 |  |
+| `riderBasePay` | Decimal |  | 30 |  |
+| `riderPerKm` | Decimal |  | 6 |  |
 | `surgeMultiplier` | Float |  | 1 | Floor for the live surge; surge raises rider pay, not the customer's delivery fee. |
 | `isActive` | Boolean |  | true |  |
 | `createdAt` | DateTime |  | now() |  |
