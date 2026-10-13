@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '@foodgrid/database/nest';
+import type { Delivery } from '@foodgrid/database';
 import {
   ApprovalDecidedEvent,
   DeliveryEvent,
@@ -89,8 +90,18 @@ export class DeliveryEventHandlers {
    */
   @OnDomainEvent(EventTypes.OrderCancelled, EventTypes.OrderRejected)
   async onCancelled(env: EventEnvelope<string, OrderStatusChangedEvent>) {
-    const d = await this.prisma.delivery.findUnique({ where: { orderId: env.data.orderId } });
-    if (!d || ['DELIVERED', 'FAILED', 'CANCELLED'].includes(d.status)) return;
+    // the rider may move the delivery on (e.g. pick up) while this runs: retry from the new status
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const d = await this.prisma.delivery.findUnique({ where: { orderId: env.data.orderId } });
+      if (!d || ['DELIVERED', 'FAILED', 'CANCELLED'].includes(d.status)) return;
+      if (await this.cancelDelivery(d)) return;
+    }
+    // the consumer retries the event later
+    throw new Error(`Delivery for ${env.data.orderNumber} kept changing while being cancelled`);
+  }
+
+  /** Cancels the delivery from the status read; false when it changed meanwhile. */
+  private async cancelDelivery(d: Delivery): Promise<boolean> {
     const rider = d.riderId
       ? await this.prisma.riderProfile.findUnique({ where: { id: d.riderId } })
       : null;
@@ -135,11 +146,13 @@ export class DeliveryEventHandlers {
       });
       return cancelled;
     });
-    if (ended && d.riderId)
+    if (!ended) return false;
+    if (d.riderId)
       this.gateway.toRider(d.riderId, 'delivery:cancelled', {
         deliveryId: d.id,
         orderNumber: d.orderNumber,
       });
+    return true;
   }
 
   @OnDomainEvent(EventTypes.ApprovalDecided)

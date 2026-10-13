@@ -429,6 +429,30 @@ describe('delivery-service dispatch, proof of delivery and incentives (e2e)', ()
     expect(rider.isOnDelivery).toBe(false);
   });
 
+  it('still cancels when the rider moves the delivery on while the cancellation runs', async () => {
+    const { id } = await dispatchToNext();
+    await step(id, 'picked-up').expect(200);
+    // the handler's first read is from before the pickup
+    const real = prisma.delivery.findUnique.bind(prisma.delivery);
+    const stale = await prisma.delivery.findUniqueOrThrow({ where: { id } });
+    const spy = jest
+      .spyOn(prisma.delivery, 'findUnique')
+      .mockImplementationOnce((() => Promise.resolve({ ...stale, status: 'ASSIGNED' })) as never);
+    try {
+      await app.get(DeliveryEventHandlers).onCancelled({
+        id: 'evt_c',
+        type: EventTypes.OrderCancelled,
+        data: { ...orderAccepted(1).data, status: 'CANCELLED' },
+      } as unknown as EventEnvelope<string, OrderStatusChangedEvent>);
+    } finally {
+      spy.mockRestore();
+    }
+    expect(await real({ where: { id } })).toMatchObject({ status: 'CANCELLED' });
+    expect(await prisma.outboxEvent.count({ where: { type: EventTypes.DeliveryCancelled } })).toBe(
+      1,
+    );
+  });
+
   it('pays nothing when the order is cancelled before the rider reached the pickup', async () => {
     const { id } = await dispatchToNext();
     await app.get(DeliveryEventHandlers).onCancelled({
