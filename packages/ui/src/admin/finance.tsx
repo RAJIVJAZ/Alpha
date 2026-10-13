@@ -28,6 +28,7 @@ import {
 } from '../lib/format';
 import { useApi, useApiMutation } from '../lib/hooks';
 import type { Settlement } from '../merchant/types';
+import { DeliveryPricing } from './delivery-pricing';
 import type { AdminTenant, CommissionRule as Rule } from './types';
 
 type AdminSettlement = Settlement & { tenantId: string; tenantName: string | null };
@@ -56,18 +57,19 @@ function weekStart(weeksAgo: number) {
   return new Date(today.getTime() - (back + 7 * weeksAgo) * 86_400_000).toISOString().slice(0, 10);
 }
 
-/** Payment settlement, commission management and rider payouts. */
+/** Payment settlement, commission management, delivery pricing and rider payouts. */
 export function FinanceAdmin() {
   return (
     <>
       <PageHeader
         title="Finance"
-        description="Weekly merchant settlements, commission rules, rider payouts and COD cash"
+        description="Weekly merchant settlements, commission rules, delivery pricing, rider payouts and COD cash"
       />
       <Tabs defaultValue="settlements">
         <TabsList>
           <TabsTrigger value="settlements">Settlements</TabsTrigger>
           <TabsTrigger value="commission">Commission rules</TabsTrigger>
+          <TabsTrigger value="delivery">Delivery pricing</TabsTrigger>
           <TabsTrigger value="payouts">Rider payouts</TabsTrigger>
           <TabsTrigger value="cash">Rider cash</TabsTrigger>
         </TabsList>
@@ -76,6 +78,9 @@ export function FinanceAdmin() {
         </TabsContent>
         <TabsContent value="commission">
           <CommissionRules />
+        </TabsContent>
+        <TabsContent value="delivery">
+          <DeliveryPricing />
         </TabsContent>
         <TabsContent value="payouts">
           <Payouts />

@@ -202,6 +202,10 @@ describe('order-service checkout & lifecycle (e2e)', () => {
     expect(p.couponDiscount).toBe('50.00');
     expect(p.packagingCharge).toBe('20.00');
     expect(p.deliveryFee).toBe('31.00');
+    // the fee is quoted on the food subtotal, before the coupon
+    expect(http.callsTo('delivery', 'internal/delivery/quote').at(-1)!.opts.query).toMatchObject({
+      subtotal: 559,
+    });
     expect(body.coupon).toEqual({ code: 'SAVE50', valid: true });
     const sum =
       [
@@ -684,11 +688,34 @@ describe('order-service checkout & lifecycle (e2e)', () => {
       .send({ orderType: 'DELIVERY', paymentMethod: 'UPI', deliveryAddress: HOME })
       .expect(201);
     expect(res.body.order.status).toBe('PENDING_PAYMENT');
+    // the launch delivery rules stand in for the quote: free from a ₹399 food subtotal
+    expect(res.body.pricing.deliveryFee).toBe('0.00');
     expect(res.body.payment).toMatchObject({
       required: true,
       purpose: 'ORDER',
       referenceId: res.body.order.id,
     });
+  });
+
+  it('tells the customer how much more makes delivery free', async () => {
+    http.on('GET', 'delivery', 'internal/delivery/quote', {
+      serviceable: true,
+      distanceKm: 2.4,
+      deliveryFee: 15,
+      etaMins: 32,
+      surgeMultiplier: 1,
+      zoneId: 'zone_1',
+      freeDeliveryAbove: 600,
+    });
+    const token = customer();
+    await fillCart(token); // ₹559 of food
+    const { body } = await api()
+      .post('/api/v1/cart/quote')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ orderType: 'DELIVERY', lat: HOME.lat, lng: HOME.lng })
+      .expect(200);
+    expect(body.cart.pricing.deliveryFee).toBe('15.00');
+    expect(body.cart.pricing.messages).toContain('Add items worth ₹41 more for free delivery');
   });
   // ─── coupons are validated when applied (K8) ─────────────────────────────
   it('rejects a coupon that cannot be used on this cart with a 422 and a readable reason', async () => {

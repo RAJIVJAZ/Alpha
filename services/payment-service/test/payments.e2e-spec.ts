@@ -247,6 +247,42 @@ describe('payment-service (e2e)', () => {
       .send({ amount: 1 })
       .expect(403);
   });
+  it('credits cancellation and waiting pay for a delivery that ended early, once', async () => {
+    const RIDER = 'usr_rider_cancel';
+    const handlers = app.get(PaymentEventHandlers);
+    const ended = (id: string, type: string, status: string, earning: string) =>
+      handlers.riderEndedEarly({
+        id: `evt_${id}_${type}`,
+        type,
+        data: {
+          deliveryId: id,
+          orderNumber: `ORD-${id}`,
+          riderUserId: RIDER,
+          status,
+          riderEarning: earning,
+          tipAmount: '0.00',
+          isCod: false,
+          codAmount: '0.00',
+        },
+      } as never);
+    await ended('c1', 'delivery.cancelled', 'CANCELLED', '23.00');
+    await ended('c1', 'delivery.cancelled', 'CANCELLED', '23.00'); // redelivered
+    await ended('c2', 'delivery.cancelled', 'CANCELLED', '0.00'); // rider never reached it
+    await ended('f1', 'delivery.failed', 'FAILED', '3.00');
+
+    const wallet = await prisma.wallet.findFirstOrThrow({
+      where: { ownerType: 'RIDER', ownerId: RIDER },
+    });
+    expect(Number(wallet.balance)).toBe(26);
+    const txns = await prisma.walletTransaction.findMany({
+      where: { walletId: wallet.id },
+      orderBy: { createdAt: 'asc' },
+    });
+    expect(txns.map((t) => [t.reason, Number(t.amount), t.description])).toEqual([
+      ['DELIVERY_EARNING', 23, 'Cancelled delivery ORD-c1'],
+      ['DELIVERY_EARNING', 3, 'Failed delivery ORD-f1'],
+    ]);
+  });
   it('refunds a payment nothing needs any more, once, for other services only', async () => {
     const payment = await prisma.payment.create({
       data: {

@@ -1,45 +1,92 @@
 import { buildHeatmap } from './heatmap';
 import { rankCandidates, scoreRider, searchRadiusKm, updateAcceptanceRate } from './dispatch';
-import { deliveryEtaMins, deliveryFee, riderEarning, splitEarning } from './fees';
+import {
+  customerDeliveryFee,
+  DEFAULT_PRICING,
+  deliveryEtaMins,
+  payableKm,
+  riderPayout,
+  waitingPay,
+} from './fees';
 import { splitByIstDay } from './attendance';
 import { attendanceProgress, deliveryContribution } from './incentives';
 
-const tariff = { baseFee: 25, perKmFee: 8, freeKm: 2, riderBasePay: 30, riderPerKm: 6 };
+const p = DEFAULT_PRICING;
 
-describe('fees & earnings', () => {
-  it('charges per km beyond the free radius with surge', () => {
-    expect(deliveryFee(tariff, 1.5)).toBe(25);
-    expect(deliveryFee(tariff, 6)).toBe(57);
-    expect(deliveryFee(tariff, 6, 1.5)).toBe(86);
+describe('customer delivery fee', () => {
+  it('charges the flat fee below the threshold and nothing from it', () => {
+    expect(customerDeliveryFee(p, 0)).toBe(15);
+    expect(customerDeliveryFee(p, 398.99)).toBe(15);
+    expect(customerDeliveryFee(p, 399)).toBe(0);
+    expect(customerDeliveryFee(p, 1250)).toBe(0);
   });
-  it('pays riders base + distance + surge + waiting', () => {
-    expect(riderEarning(tariff, 5)).toEqual({
-      basePay: 30,
-      distancePay: 30,
-      surgePay: 0,
-      waitingPay: 0,
-      total: 60,
+  it('is never free without a threshold', () => {
+    expect(customerDeliveryFee({ ...p, freeDeliveryAbove: null }, 5000)).toBe(15);
+  });
+});
+
+describe('rider payout', () => {
+  it('rounds the payable distance to 0.1 km, halves up', () => {
+    expect(payableKm(2.44)).toBe(2.4);
+    expect(payableKm(2.45)).toBe(2.5);
+    expect(payableKm(1.15)).toBe(1.2);
+    expect(payableKm(-1)).toBe(0);
+  });
+  it('pays the greater of the minimum and ₹10 a km, never both', () => {
+    const cases: [number, number, number, number][] = [
+      // km, distance pay, top-up, total
+      [0.4, 4, 29, 33],
+      [1, 10, 23, 33],
+      [3, 30, 3, 33],
+      [3.3, 33, 0, 33],
+      [3.34, 33, 0, 33],
+      [3.4, 34, 0, 34],
+      [7.25, 73, 0, 73],
+      [12, 120, 0, 120],
+    ];
+    for (const [km, distancePay, minimumTopUp, total] of cases)
+      expect(riderPayout(p, km)).toEqual({
+        payableKm: payableKm(km),
+        distancePay,
+        minimumTopUp,
+        surgePay: 0,
+        total,
+      });
+  });
+  it('adds surge on the payout as its own line', () => {
+    expect(riderPayout(p, 2, 1.5)).toMatchObject({ minimumTopUp: 13, surgePay: 16.5, total: 49.5 });
+    expect(riderPayout(p, 5, 1.2)).toMatchObject({ distancePay: 50, surgePay: 10, total: 60 });
+  });
+  it('follows a changed policy', () => {
+    const q = { ...p, riderPerKm: 12, riderMinPayout: 40 };
+    expect(riderPayout(q, 3).total).toBe(40);
+    expect(riderPayout(q, 4).total).toBe(48);
+  });
+});
+
+describe('waiting pay', () => {
+  const at = new Date('2026-10-13T12:00:00Z');
+  const after = (mins: number) => new Date(at.getTime() + mins * 60_000);
+  it('pays once for a verified wait longer than the threshold', () => {
+    expect(waitingPay(p, { arrivedAt: at, endedAt: after(5.5), verified: true })).toEqual({
+      waitedMins: 5.5,
+      amount: 3,
     });
-    expect(riderEarning(tariff, 5, 1.2, 15).total).toBe(77);
+    expect(waitingPay(p, { arrivedAt: at, endedAt: after(42), verified: true }).amount).toBe(3);
   });
-  it('splits a quoted earning back into statement lines that sum to the quote', () => {
-    for (const [km, surge] of [
-      [5, 1],
-      [4.3, 1.5],
-      [0.4, 1.2],
-      [7.7, 1.35],
-    ] as const) {
-      const q = riderEarning(tariff, km, surge);
-      const s = splitEarning(q.total, surge, tariff.riderBasePay);
-      expect(Math.round((s.basePay + s.distancePay + s.surgePay) * 100)).toBe(
-        Math.round(q.total * 100),
-      );
-      expect(Math.abs(s.surgePay - q.surgePay)).toBeLessThanOrEqual(0.01);
-      expect(s.basePay).toBe(30);
-    }
-    // a flat quote below the zone base pay is all base pay
-    expect(splitEarning(20, 1, 30)).toEqual({ basePay: 20, distancePay: 0, surgePay: 0 });
+  it('pays nothing at or under the threshold', () => {
+    expect(waitingPay(p, { arrivedAt: at, endedAt: after(5), verified: true }).amount).toBe(0);
+    expect(waitingPay(p, { arrivedAt: at, endedAt: after(2), verified: true }).amount).toBe(0);
   });
+  it('pays nothing when GPS did not confirm the arrival', () => {
+    expect(waitingPay(p, { arrivedAt: at, endedAt: after(20), verified: false })).toEqual({
+      waitedMins: 20,
+      amount: 0,
+    });
+  });
+});
+
+describe('ETA', () => {
   it('estimates ETA', () => {
     expect(deliveryEtaMins(12, 8, 15)).toBe(30);
   });

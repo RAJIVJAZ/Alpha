@@ -1003,6 +1003,70 @@
         ]
       }
     },
+    "/api/v1/delivery/pricing": {
+      "get": {
+        "operationId": "Pricing_current",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Delivery pricing in force: the customer fee rule and how riders are paid",
+        "tags": [
+          "delivery"
+        ],
+        "security": []
+      }
+    },
+    "/api/v1/admin/delivery-pricing": {
+      "get": {
+        "operationId": "PricingAdmin_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delivery pricing in force and its earlier versions (newest first)",
+        "tags": [
+          "admin"
+        ]
+      },
+      "post": {
+        "operationId": "PricingAdmin_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeliveryPricingDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Change delivery pricing: adds the next version, used by new quotes and deliveries",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
     "/api/v1/internal/delivery/quote": {
       "get": {
         "operationId": "Internal_quote",
@@ -1046,6 +1110,14 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "subtotal",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -1053,7 +1125,7 @@
             "description": ""
           }
         },
-        "summary": "Serviceability, distance, fee (with surge) and ETA for checkout",
+        "summary": "Serviceability, distance, delivery fee (from the food subtotal) and ETA for checkout",
         "tags": [
           "internal"
         ],
@@ -1506,29 +1578,10 @@
           "centerLng": {
             "type": "number"
           },
-          "baseFee": {
-            "type": "number",
-            "example": 25
-          },
-          "perKmFee": {
-            "type": "number",
-            "example": 8
-          },
-          "freeKm": {
-            "type": "number",
-            "example": 2
-          },
           "surgeMultiplier": {
             "type": "number",
-            "example": 1
-          },
-          "riderBasePay": {
-            "type": "number",
-            "example": 30
-          },
-          "riderPerKm": {
-            "type": "number",
-            "example": 6
+            "example": 1,
+            "description": "Floor for the live surge, which raises rider pay (fees: /admin/delivery-pricing)"
           },
           "isActive": {
             "type": "boolean"
@@ -1539,11 +1592,7 @@
           "city",
           "polygon",
           "centerLat",
-          "centerLng",
-          "baseFee",
-          "perKmFee",
-          "riderBasePay",
-          "riderPerKm"
+          "centerLng"
         ]
       },
       "UpdateDeliveryZoneDto": {
@@ -1573,34 +1622,73 @@
           "centerLng": {
             "type": "number"
           },
-          "baseFee": {
-            "type": "number",
-            "example": 25
-          },
-          "perKmFee": {
-            "type": "number",
-            "example": 8
-          },
-          "freeKm": {
-            "type": "number",
-            "example": 2
-          },
           "surgeMultiplier": {
             "type": "number",
-            "example": 1
-          },
-          "riderBasePay": {
-            "type": "number",
-            "example": 30
-          },
-          "riderPerKm": {
-            "type": "number",
-            "example": 6
+            "example": 1,
+            "description": "Floor for the live surge, which raises rider pay (fees: /admin/delivery-pricing)"
           },
           "isActive": {
             "type": "boolean"
           }
         }
+      },
+      "DeliveryPricingDto": {
+        "type": "object",
+        "properties": {
+          "customerFlatFee": {
+            "type": "number",
+            "example": 15,
+            "description": "Charged when the food subtotal is below the threshold"
+          },
+          "freeDeliveryAbove": {
+            "type": "object",
+            "example": 399,
+            "nullable": true,
+            "description": "Food subtotal from which delivery is free; null means never free"
+          },
+          "riderPerKm": {
+            "type": "number",
+            "example": 10
+          },
+          "riderMinPayout": {
+            "type": "number",
+            "example": 33,
+            "description": "A delivered order pays at least this"
+          },
+          "waitingThresholdMins": {
+            "type": "number",
+            "example": 5
+          },
+          "waitingPay": {
+            "type": "number",
+            "example": 3,
+            "description": "Paid once per delivery for a longer verified wait"
+          },
+          "arrivalRadiusM": {
+            "type": "number",
+            "example": 200,
+            "description": "Arrival must be within this many metres of the pickup"
+          },
+          "cancellationPay": {
+            "type": "number",
+            "example": 0,
+            "description": "Paid when a delivery is cancelled or fails after the rider reached the pickup"
+          },
+          "note": {
+            "type": "string",
+            "example": "Festival week: minimum payout up to ₹40"
+          }
+        },
+        "required": [
+          "customerFlatFee",
+          "freeDeliveryAbove",
+          "riderPerKm",
+          "riderMinPayout",
+          "waitingThresholdMins",
+          "waitingPay",
+          "arrivalRadiusM",
+          "cancellationPay"
+        ]
       },
       "IdsDto": {
         "type": "object",

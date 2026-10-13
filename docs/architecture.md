@@ -405,8 +405,9 @@ sequenceDiagram
 ## Delivery
 
 - **Dispatch.** On `order.accepted` for a delivery order, delivery-service creates the
-  delivery: zone by point-in-polygon on the pickup, distance, rider earning from the
-  zone tariff and current surge, and the handover OTP from the order. It then offers it
+  delivery: zone by point-in-polygon on the pickup, distance, rider pay from the
+  [delivery pricing](#delivery-pricing-and-rider-pay) in force and the zone's current
+  surge, and the handover OTP from the order. It then offers it
   to the best rider found by a Redis GEO search (`riders:geo`) among active, online
   riders with a fix in the last 5 minutes. Candidates are scored on proximity (50 %),
   acceptance rate (20 %), rating (15 %) and idle time (15 %), riders with two active
@@ -426,8 +427,8 @@ sequenceDiagram
   positions for 10 minutes are taken offline; their shift ends at their last position.
 - **Attendance.** Going offline (or being taken offline) credits the online session to
   the rider's attendance days, split at IST midnight.
-- **Earnings and incentives.** Completion writes earnings lines (base, distance,
-  surge, tip), attendance and incentive progress in the same transaction. `ORDER_COUNT`,
+- **Earnings and incentives.** Completion writes the pay lines (see below) and the tip,
+  attendance and incentive progress in the same transaction. `ORDER_COUNT`,
   `PEAK_HOURS` (inside the peak windows) and `RATING` (while the rider's rating is at
   least `minRating`) count deliveries; `STREAK` is the longest run of consecutive days
   with a delivery inside the scheme window; `LOGIN_HOURS` is whole hours online in the
@@ -439,6 +440,37 @@ sequenceDiagram
   `GET /api/v1/admin/rider-cash` and records hand-ins with
   `POST /api/v1/admin/rider-cash/{userId}/deposits` (see the
   [rider cash runbook](./runbooks.md#rider-cash-reconciliation)).
+
+### Delivery pricing and rider pay
+
+One platform-wide `DeliveryPricingPolicy` (delivery schema) sets both sides. Rows are never
+edited: finance or an admin adds the next version in admin-web (Finance, Delivery pricing;
+`POST /api/v1/admin/delivery-pricing`, `platform:finance`), the change is written to the
+admin audit log first (no audit, no change), and new quotes and deliveries use it within
+30 seconds. Each delivery stores the version it was created with (`pricingPolicyId`), so a
+change never alters the pay of a delivery already offered. Version 1 holds the launch rules
+below and is created on first use. `GET /api/v1/delivery/pricing` (public) returns the
+rules in force; the rider app shows them next to the earnings statement. The rules are
+pure functions in `services/delivery-service/src/domain/fees.ts`, unit-tested in
+`domain.spec.ts`.
+
+| Rule                   | Launch value                     | Definition                                                                                                                                                                                                                                                                                                                                                                                      |
+| ---------------------- | -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Customer delivery fee  | ₹15 below ₹399, ₹0 from ₹399     | Flat, on the food subtotal (items before discounts; no packaging, taxes or tip). Distance and surge never change it. A `FREE_DELIVERY` coupon or a membership can still waive it. order-service falls back to the same launch rule when the quote is unavailable, and tells the customer how much more makes delivery free.                                                                     |
+| Rider pay per delivery | greater of ₹33 and ₹10 × km      | Never both: `max(minimum, perKm × payable km)`, written as `DISTANCE_PAY` plus a `BASE_PAY` top-up to the minimum. ₹33 covers everything up to 3.3 km.                                                                                                                                                                                                                                          |
+| Payable distance       | pickup to drop, to 0.1 km        | The road estimate fixed when the delivery is created (`Delivery.distanceKm`, `payableKm`), halves rounded up; not the rider's GPS trail and not the ride to the pickup.                                                                                                                                                                                                                         |
+| Surge                  | zone multiplier                  | Paid on top of the delivery pay as its own `SURGE` line while the zone surges; customers do not pay it.                                                                                                                                                                                                                                                                                         |
+| Waiting pay            | ₹3 once, after 5 minutes         | `DeliveryWait`, one per delivery (unique `deliveryId`): opened when the rider marks arrival at the pickup, with the GPS fix and its distance; verified when the fix is under 5 minutes old and within 200 m. Closed at pickup (or cancellation) with the wait, the time the order was marked ready, and the amount. Only a verified wait longer than the threshold pays, once (`WAITING_TIME`). |
+| Cancelled or failed    | waiting pay; cancellation pay ₹0 | After the rider reached the pickup (verified arrival, or the food picked up) the rider gets the cancellation pay (set in the policy, ₹0 at launch) and any waiting pay; before that, nothing. Credited from `delivery.cancelled` / `delivery.failed`.                                                                                                                                           |
+| Batched orders         | each paid on its own             | A rider may carry two deliveries; each is paid on its own pickup-to-drop distance, minimum included.                                                                                                                                                                                                                                                                                            |
+| Long distance          | no cap, no extra rate            | Every payable km is paid at the per-km rate; orders beyond the 15 km serviceable distance are not taken.                                                                                                                                                                                                                                                                                        |
+
+`Delivery.riderEarning` is the quoted pay while the delivery runs and what the rider was
+paid (tip excluded) once it ends; payment-service credits it to the rider wallet once per
+delivery (idempotency key `earning:<deliveryId>`). Delivery fees, rider pay, commissions,
+merchant settlements, refunds and taxes stay separate entries: the fee and its GST are on
+the order and the customer's invoice, rider pay is in `RiderEarning` and the wallet ledger,
+commission and the merchant payable are settlement lines.
 
 ## Realtime
 

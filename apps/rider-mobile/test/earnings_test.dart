@@ -80,7 +80,7 @@ void main() {
     expect(cashOutButton(tester).onPressed, isNull);
 
     // where it came from, largest first
-    final types = ['Distance pay', 'Base pay', 'Tip'].map((t) => tester.getTopLeft(find.text(t).first).dy).toList();
+    final types = ['Distance pay', 'Minimum and cancellation pay', 'Tip'].map((t) => tester.getTopLeft(find.text(t).first).dy).toList();
     expect(types, orderedEquals([...types]..sort()));
 
     // statement and pager

@@ -46,6 +46,23 @@ interface WalletView {
   }[];
   meta: { page: number; totalPages: number };
 }
+/** delivery-service GET delivery/pricing: the rules in force. */
+interface PayRules {
+  version: number;
+  riderPerKm: number;
+  riderMinPayout: number;
+  waitingThresholdMins: number;
+  waitingPay: number;
+  arrivalRadiusM: number;
+  cancellationPay: number;
+}
+const EARNING_LABELS: Record<string, string> = {
+  BASE_PAY: 'Minimum and cancellation pay',
+  DISTANCE_PAY: 'Distance pay',
+  WAITING_TIME: 'Waiting pay',
+};
+const rs = (n: number) => formatMoney(n, { whole: Number.isInteger(n) });
+
 interface Payout {
   id: string;
   amount: string;
@@ -144,13 +161,16 @@ export function RiderEarnings() {
               .sort((a, b) => b[1] - a[1])
               .map(([type, amount]) => (
                 <div key={type} className="flex justify-between">
-                  <span className="text-muted-foreground">{humanize(type)}</span>
+                  <span className="text-muted-foreground">
+                    {EARNING_LABELS[type] ?? humanize(type)}
+                  </span>
                   <span className="tabular">{formatMoney(amount)}</span>
                 </div>
               ))}
           </CardContent>
         </Card>
       </div>
+      <HowPayWorks />
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
@@ -492,5 +512,41 @@ export function RiderHistory() {
         </div>
       ) : null}
     </>
+  );
+}
+
+/** The pay rules in force, so a rider can check every line of their statement. */
+function HowPayWorks() {
+  const rules = useApi<PayRules>('delivery/pricing');
+  const r = rules.data;
+  if (!r) return null;
+  return (
+    <Card className="mt-4">
+      <CardHeader>
+        <CardTitle>How you're paid</CardTitle>
+        <CardDescription>
+          The rules a delivery was offered with stay with it, even if they change on the way.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <ul className="grid list-disc gap-1.5 pl-5 text-sm">
+          <li>
+            Each delivered order pays the greater of {rs(r.riderMinPayout)} and {rs(r.riderPerKm)} a
+            km from the pickup to the drop (to 0.1 km), never both; surge is added on top.
+          </li>
+          <li>
+            Waiting pay: {rs(r.waitingPay)} once per order when you wait more than{' '}
+            {r.waitingThresholdMins} minutes at the pickup. Tap Arrived when you reach it, within{' '}
+            {r.arrivalRadiusM} m, so the wait counts.
+          </li>
+          <li>
+            {r.cancellationPay > 0
+              ? `An order cancelled after you reached the pickup pays ${rs(r.cancellationPay)}, plus any waiting pay.`
+              : 'An order cancelled after you reached the pickup still pays any waiting pay.'}
+          </li>
+          <li>Customer tips are always yours in full.</li>
+        </ul>
+      </CardContent>
+    </Card>
   );
 }

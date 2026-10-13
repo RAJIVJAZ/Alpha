@@ -11,7 +11,8 @@ import {
   travelMinutes,
 } from '@foodgrid/utils';
 import { InternalHttpService, REDIS } from '@foodgrid/utils/server';
-import { deliveryFee } from '../domain/fees';
+import { customerDeliveryFee } from '../domain/fees';
+import { PricingService, toPricing } from '../pricing/pricing.service';
 import { DeliveryZoneDto, UpdateDeliveryZoneDto } from './dto/zone.dto';
 
 const MAX_DELIVERY_KM = 15;
@@ -33,6 +34,7 @@ export class ZonesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly internal: InternalHttpService,
+    private readonly pricing: PricingService,
     @Inject(REDIS) private readonly redis: Redis,
   ) {}
 
@@ -56,10 +58,16 @@ export class ZonesService {
     return cached ? Number(cached) : zone.surgeMultiplier;
   }
 
-  /** Quote used by order-service at cart/checkout time. */
-  async quote(pickup: LatLng, drop: LatLng, prepMins = 20) {
+  /**
+   * Quote used by order-service at cart/checkout time. The fee follows the pricing in force
+   * and the food subtotal (items before discounts); surge raises rider pay, not this fee.
+   */
+  async quote(pickup: LatLng, drop: LatLng, prepMins = 20, foodSubtotal = 0) {
     const zone = await this.zoneFor(pickup);
     const distanceKm = round2(estimateRoadKm(pickup, drop));
+    const policy = await this.pricing.current();
+    const rules = toPricing(policy);
+    const pricing = { freeDeliveryAbove: rules.freeDeliveryAbove, pricingVersion: policy.version };
     if (!zone)
       return {
         serviceable: false,
@@ -69,22 +77,17 @@ export class ZonesService {
         etaMins: 0,
         surgeMultiplier: 1,
         zoneId: null,
+        ...pricing,
       };
     const surge = await this.surge(zone);
-    const tariff = {
-      baseFee: Number(zone.baseFee),
-      perKmFee: Number(zone.perKmFee),
-      freeKm: zone.freeKm,
-      riderBasePay: Number(zone.riderBasePay),
-      riderPerKm: Number(zone.riderPerKm),
-    };
     return {
       serviceable: distanceKm <= MAX_DELIVERY_KM,
       distanceKm,
-      deliveryFee: deliveryFee(tariff, distanceKm, surge),
+      deliveryFee: customerDeliveryFee(rules, foodSubtotal),
       etaMins: prepMins + travelMinutes(distanceKm) + HANDOVER_BUFFER_MINS,
       surgeMultiplier: surge,
       zoneId: zone.id,
+      ...pricing,
     };
   }
 

@@ -2,14 +2,17 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '@foodgrid/database/nest';
 import {
   ApprovalDecidedEvent,
+  DeliveryEvent,
   EventEnvelope,
   EventTypes,
   OrderStatusChangedEvent,
   ReviewCreatedEvent,
 } from '@foodgrid/types';
 import { enumLabel } from '@foodgrid/utils';
-import { OnDomainEvent } from '@foodgrid/utils/server';
+import { OnDomainEvent, OutboxService } from '@foodgrid/utils/server';
+import { toDeliveryEvent } from '../common/delivery-event';
 import { DispatchService } from '../dispatch/dispatch.service';
+import { RiderPayService, total } from '../pricing/rider-pay.service';
 import { TrackingGateway } from '../tracking/tracking.gateway';
 
 @Injectable()
@@ -20,6 +23,8 @@ export class DeliveryEventHandlers {
     private readonly prisma: PrismaService,
     private readonly dispatch: DispatchService,
     private readonly gateway: TrackingGateway,
+    private readonly pay: RiderPayService,
+    private readonly outbox: OutboxService,
   ) {}
 
   /**
@@ -65,7 +70,11 @@ export class DeliveryEventHandlers {
   async onReady(env: EventEnvelope<string, OrderStatusChangedEvent>) {
     const d = await this.prisma.delivery.findUnique({ where: { orderId: env.data.orderId } });
     if (!d) return;
-    await this.prisma.delivery.update({ where: { id: d.id }, data: { readyAt: new Date() } });
+    const now = new Date();
+    await this.prisma.delivery.update({
+      where: { id: d.id },
+      data: { readyAt: now, orderReadyAt: d.orderReadyAt ?? now },
+    });
     if (d.riderId)
       this.gateway.toRider(d.riderId, 'order:ready', {
         deliveryId: d.id,
@@ -74,15 +83,32 @@ export class DeliveryEventHandlers {
     else await this.dispatch.dispatch(d.id);
   }
 
+  /**
+   * The order was cancelled or rejected: the delivery ends here. A rider who had reached the
+   * pickup is paid the cancellation pay and any waiting pay (credited from delivery.cancelled).
+   */
   @OnDomainEvent(EventTypes.OrderCancelled, EventTypes.OrderRejected)
   async onCancelled(env: EventEnvelope<string, OrderStatusChangedEvent>) {
     const d = await this.prisma.delivery.findUnique({ where: { orderId: env.data.orderId } });
     if (!d || ['DELIVERED', 'FAILED', 'CANCELLED'].includes(d.status)) return;
-    await this.prisma.$transaction(async (tx) => {
-      await tx.delivery.update({
-        where: { id: d.id },
-        data: { status: 'CANCELLED', cancelledAt: new Date() },
+    const rider = d.riderId
+      ? await this.prisma.riderProfile.findUnique({ where: { id: d.riderId } })
+      : null;
+    const now = new Date();
+    const ended = await this.prisma.$transaction(async (tx) => {
+      // only from the status read, so a redelivered event cannot pay twice
+      const { count } = await tx.delivery.updateMany({
+        where: { id: d.id, status: d.status },
+        data: { status: 'CANCELLED', cancelledAt: now },
       });
+      if (!count) return null;
+      const wait = await this.pay.closeWait(tx, d, 'CANCELLED', now);
+      const lines = await this.pay.endedEarly(tx, d, wait);
+      const cancelled = await tx.delivery.update({
+        where: { id: d.id },
+        data: { riderEarning: total(lines) },
+      });
+      if (d.riderId) await this.pay.record(tx, cancelled, d.riderId, now, lines);
       await tx.deliveryOffer.updateMany({
         where: { deliveryId: d.id, status: 'PENDING' },
         data: { status: 'CANCELLED' },
@@ -99,8 +125,17 @@ export class DeliveryEventHandlers {
           data: { isOnDelivery: remaining > 0 },
         });
       }
+      await this.outbox.enqueue<DeliveryEvent>(tx, {
+        stream: 'delivery',
+        type: EventTypes.DeliveryCancelled,
+        aggregateType: 'Delivery',
+        aggregateId: d.id,
+        tenantId: d.tenantId,
+        data: toDeliveryEvent(cancelled, rider),
+      });
+      return cancelled;
     });
-    if (d.riderId)
+    if (ended && d.riderId)
       this.gateway.toRider(d.riderId, 'delivery:cancelled', {
         deliveryId: d.id,
         orderNumber: d.orderNumber,

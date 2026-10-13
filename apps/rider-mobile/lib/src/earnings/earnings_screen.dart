@@ -194,7 +194,7 @@ class _EarningsSection extends ConsumerWidget {
                         child: Padding(
                           padding: const EdgeInsets.symmetric(vertical: 6),
                           child: Row(children: [
-                            Expanded(child: Text(humanize(e.key))),
+                            Expanded(child: Text(earningLabel(e.key))),
                             Text(money(e.value), style: const TextStyle(fontFeatures: [FontFeature.tabularFigures()], fontWeight: FontWeight.w500)),
                           ]),
                         ),

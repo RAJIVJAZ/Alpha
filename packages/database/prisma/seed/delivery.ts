@@ -17,6 +17,25 @@ export async function seedDelivery(ctx: SeedContext) {
   const { prisma, rng } = ctx;
   const d = 0.03;
 
+  // the launch rules, as delivery-service creates them on first use (DEFAULT_PRICING)
+  const pricing = await prisma.deliveryPricingPolicy.create({
+    data: {
+      version: 1,
+      customerFlatFee: ctx.pricing.customerFlatFee,
+      freeDeliveryAbove: ctx.pricing.freeDeliveryAbove,
+      riderPerKm: ctx.pricing.riderPerKm,
+      riderMinPayout: ctx.pricing.riderMinPayout,
+      waitingThresholdMins: 5,
+      waitingPay: 3,
+      arrivalRadiusM: 200,
+      cancellationPay: 0,
+      note: 'Launch rules',
+      createdBy: 'system',
+      createdAt: istMidnight(200, ctx.now),
+    },
+  });
+  ctx.pricing.id = pricing.id;
+
   for (const key of CUSTOMER_AREAS) {
     const loc = LOCALITIES[key]!;
     const ring = [
@@ -26,7 +45,6 @@ export async function seedDelivery(ctx: SeedContext) {
       [loc.lng - d, loc.lat + d],
       [loc.lng - d, loc.lat - d],
     ];
-    const tariff = { baseFee: 25, perKmFee: 8, freeKm: 2, riderBasePay: 25, riderPerKm: 7 };
     const zone = await prisma.deliveryZone.create({
       data: {
         name: `Bengaluru - ${loc.name}`,
@@ -34,11 +52,10 @@ export async function seedDelivery(ctx: SeedContext) {
         polygon: ring,
         centerLat: loc.lat,
         centerLng: loc.lng,
-        ...tariff,
         surgeMultiplier: key === 'whitefield' ? 1.1 : 1,
       },
     });
-    ctx.zones.set(key, { id: zone.id, ...tariff });
+    ctx.zones.set(key, { id: zone.id });
   }
   log('delivery zones', ctx.zones.size);
 

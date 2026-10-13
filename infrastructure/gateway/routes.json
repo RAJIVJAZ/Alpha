@@ -51,6 +51,10 @@
       "service": "payment-service"
     },
     {
+      "prefix": "/api/v1/admin/delivery-pricing",
+      "service": "delivery-service"
+    },
+    {
       "prefix": "/api/v1/admin/delivery-zones",
       "service": "delivery-service"
     },
@@ -185,6 +189,10 @@
     {
       "prefix": "/api/v1/admin/ai",
       "service": "ai-service"
+    },
+    {
+      "prefix": "/api/v1/delivery",
+      "service": "delivery-service"
     },
     {
       "prefix": "/api/v1/merchant",

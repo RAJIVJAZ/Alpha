@@ -176,9 +176,11 @@ export function computePricing(input: PricingInput): PricingResult {
   };
 }
 
-/** Local fallback when delivery-service quotes are unavailable. */
-export function fallbackDeliveryFee(distanceKm: number): number {
-  const base = 25;
-  const perKm = 8;
-  return round2(base + Math.max(0, distanceKm - 2) * perKm);
+/** The launch rules (delivery-service DEFAULT_PRICING), for when its quote is unavailable. */
+export const FALLBACK_FREE_DELIVERY_ABOVE = 399;
+const FALLBACK_FLAT_FEE = 15;
+
+/** Local fallback when delivery-service quotes are unavailable: flat below the threshold. */
+export function fallbackDeliveryFee(foodSubtotal: number): number {
+  return foodSubtotal >= FALLBACK_FREE_DELIVERY_ABOVE ? 0 : FALLBACK_FLAT_FEE;
 }

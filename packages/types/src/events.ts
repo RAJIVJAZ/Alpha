@@ -322,6 +322,7 @@ export const EventTypes = {
   DeliveryPickedUp: 'delivery.picked_up',
   DeliveryDelivered: 'delivery.delivered',
   DeliveryFailed: 'delivery.failed',
+  DeliveryCancelled: 'delivery.cancelled',
   IncentiveAchieved: 'delivery.incentive.achieved',
 
   StockLow: 'inventory.stock.low',

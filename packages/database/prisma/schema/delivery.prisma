@@ -138,12 +138,8 @@ model DeliveryZone {
   polygon         Json
   centerLat       Float
   centerLng       Float
-  baseFee         Decimal  @db.Decimal(10, 2)
-  perKmFee        Decimal  @db.Decimal(10, 2)
-  freeKm          Float    @default(2)
+  /// Floor for the live surge; surge raises rider pay, not the customer's delivery fee.
   surgeMultiplier Float    @default(1)
-  riderBasePay    Decimal  @db.Decimal(10, 2)
-  riderPerKm      Decimal  @db.Decimal(10, 2)
   isActive        Boolean  @default(true)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -182,8 +178,13 @@ model Delivery {
   isCod             Boolean        @default(false)
   codAmount         Decimal        @default(0) @db.Decimal(12, 2)
   tipAmount         Decimal        @default(0) @db.Decimal(10, 2)
+  /// The quoted pay while the delivery runs; once it ends, what the rider was paid (tip excluded).
   riderEarning      Decimal        @default(0) @db.Decimal(10, 2)
   surgeMultiplier   Float          @default(1)
+  /// Pricing version the rider pay follows; null for deliveries created before versions.
+  pricingPolicyId   String?
+  /// Distance the rider is paid for (distanceKm to 0.1 km).
+  payableKm         Float?
   deliveryOtp       String?
   proofPhotoUrl     String?
   proofSignatureUrl String?
@@ -193,7 +194,10 @@ model Delivery {
   route             Json?
   batchId           String?
   searchAttempts    Int            @default(0)
+  /// The kitchen's estimate until the order is marked ready, then when it was.
   readyAt           DateTime?
+  /// When the restaurant marked the order ready (null until it does).
+  orderReadyAt      DateTime?
   assignedAt        DateTime?
   arrivedPickupAt   DateTime?
   pickedUpAt        DateTime?
@@ -203,13 +207,77 @@ model Delivery {
   createdAt         DateTime       @default(now())
   updatedAt         DateTime       @updatedAt
 
-  rider  RiderProfile?   @relation(fields: [riderId], references: [id])
-  zone   DeliveryZone?   @relation(fields: [zoneId], references: [id])
-  offers DeliveryOffer[]
+  rider         RiderProfile?          @relation(fields: [riderId], references: [id])
+  zone          DeliveryZone?          @relation(fields: [zoneId], references: [id])
+  pricingPolicy DeliveryPricingPolicy? @relation(fields: [pricingPolicyId], references: [id])
+  offers        DeliveryOffer[]
+  wait          DeliveryWait?
 
   @@index([riderId, status])
   @@index([status, createdAt])
   @@index([tenantId, createdAt])
+  @@schema("delivery")
+}
+
+/// Delivery pricing: the customer delivery fee and the rider pay. Rows are never edited: a
+/// change adds the next version, and each delivery keeps the version it was priced with.
+model DeliveryPricingPolicy {
+  id                   String   @id @default(cuid())
+  version              Int      @unique
+  /// Charged when the food subtotal is below freeDeliveryAbove.
+  customerFlatFee      Decimal  @db.Decimal(10, 2)
+  /// Food subtotal from which delivery is free; null means never free.
+  freeDeliveryAbove    Decimal? @db.Decimal(10, 2)
+  riderPerKm           Decimal  @db.Decimal(10, 2)
+  /// A delivered order pays at least this (the greater of it and riderPerKm x payable km).
+  riderMinPayout       Decimal  @db.Decimal(10, 2)
+  waitingThresholdMins Int
+  /// Paid once per delivery for a verified wait longer than the threshold.
+  waitingPay           Decimal  @db.Decimal(10, 2)
+  /// An arrival counts for waiting pay only within this distance of the pickup.
+  arrivalRadiusM       Int
+  /// Paid when a delivery is cancelled or fails after the rider reached the pickup.
+  cancellationPay      Decimal  @db.Decimal(10, 2)
+  /// Why it changed, shown in the history.
+  note                 String?
+  /// User who made this version; "system" for the launch defaults.
+  createdBy            String
+  createdAt            DateTime @default(now())
+
+  deliveries Delivery[]
+  waits      DeliveryWait[]
+
+  @@schema("delivery")
+}
+
+/// Waiting at the pickup: opened when the rider marks arrival, closed at pickup or when the
+/// delivery ends. One per delivery (unique deliveryId), so a wait is paid at most once.
+model DeliveryWait {
+  id               String          @id @default(cuid())
+  deliveryId       String          @unique
+  riderId          String
+  policyId         String
+  arrivedAt        DateTime
+  /// The rider's last GPS fix when marking arrival; null without a recent fix.
+  arrivalLat       Float?
+  arrivalLng       Float?
+  arrivalDistanceM Int?
+  /// The fix was recent and inside the policy's arrival radius.
+  verified         Boolean
+  /// When the restaurant marked the order ready, if it had by the end of the wait.
+  orderReadyAt     DateTime?
+  endedAt          DateTime?
+  /// PICKED_UP, CANCELLED or FAILED
+  endedBy          DeliveryStatus?
+  waitedMins       Float?
+  thresholdMins    Int
+  amount           Decimal         @default(0) @db.Decimal(10, 2)
+  createdAt        DateTime        @default(now())
+
+  delivery Delivery              @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+  policy   DeliveryPricingPolicy @relation(fields: [policyId], references: [id])
+
+  @@index([riderId, arrivedAt])
   @@schema("delivery")
 }
 

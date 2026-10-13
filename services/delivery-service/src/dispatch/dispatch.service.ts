@@ -7,7 +7,8 @@ import { businessCounter, InternalHttpService, OutboxService } from '@foodgrid/u
 import { GeoStore } from '../common/geo-store';
 import { toDeliveryEvent } from '../common/delivery-event';
 import { rankCandidates, searchRadiusKm, updateAcceptanceRate } from '../domain/dispatch';
-import { DEFAULT_TARIFF, riderEarning } from '../domain/fees';
+import { riderPayout } from '../domain/fees';
+import { PricingService, toPricing } from '../pricing/pricing.service';
 import { TrackingGateway } from '../tracking/tracking.gateway';
 import { ZonesService } from '../zones/zones.service';
 
@@ -33,6 +34,7 @@ export class DispatchService {
     private readonly gateway: TrackingGateway,
     private readonly outbox: OutboxService,
     private readonly internal: InternalHttpService,
+    private readonly pricing: PricingService,
   ) {}
 
   async createFromOrder(o: OrderStatusChangedEvent): Promise<Delivery | null> {
@@ -44,19 +46,9 @@ export class DispatchService {
     const zone = await this.zones.zoneFor(pickup);
     const distanceKm = o.distanceKm ?? round2(estimateRoadKm(pickup, drop));
     const surge = zone ? await this.zones.surge(zone) : 1;
-    const earning = zone
-      ? riderEarning(
-          {
-            baseFee: Number(zone.baseFee),
-            perKmFee: Number(zone.perKmFee),
-            freeKm: zone.freeKm,
-            riderBasePay: Number(zone.riderBasePay),
-            riderPerKm: Number(zone.riderPerKm),
-          },
-          distanceKm,
-          surge,
-        )
-      : riderEarning(DEFAULT_TARIFF, distanceKm, surge);
+    // the rider is offered, and paid, by the pricing in force now, even if it changes en route
+    const policy = await this.pricing.current();
+    const pay = riderPayout(toPricing(policy), distanceKm, surge);
     const a = o.deliveryAddress;
     const delivery = await this.prisma.delivery.create({
       data: {
@@ -82,8 +74,10 @@ export class DispatchService {
         isCod: o.paymentMethod === 'COD',
         codAmount: o.paymentMethod === 'COD' ? Number(o.total) : 0,
         tipAmount: Number(o.tip),
-        riderEarning: earning.total,
+        riderEarning: pay.total,
         surgeMultiplier: surge,
+        pricingPolicyId: policy.id,
+        payableKm: pay.payableKm,
         deliveryOtp: o.deliveryOtp ?? null,
         readyAt: o.estimatedReadyAt ? new Date(o.estimatedReadyAt) : null,
         status: 'SEARCHING',

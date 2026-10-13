@@ -1,72 +1,101 @@
 import { round2 } from '@foodgrid/utils';
 
-export interface ZoneTariff {
-  baseFee: number;
-  perKmFee: number;
-  freeKm: number;
-  riderBasePay: number;
+/**
+ * Delivery pricing: what the customer pays for delivery and what the rider earns for it.
+ * Admins change it as a new DeliveryPricingPolicy version (admin Finance > Delivery pricing);
+ * every delivery keeps the version it was priced with. Amounts in rupees.
+ */
+export interface DeliveryPricing {
+  /** Charged when the food subtotal is below `freeDeliveryAbove`. */
+  customerFlatFee: number;
+  /** Food subtotal from which delivery is free; null means never free. */
+  freeDeliveryAbove: number | null;
   riderPerKm: number;
+  riderMinPayout: number;
+  /** Waiting pay needs a wait longer than this. */
+  waitingThresholdMins: number;
+  /** One payment per delivery, however long the wait. */
+  waitingPay: number;
+  /** An arrival at the pickup counts for waiting pay only within this distance of it. */
+  arrivalRadiusM: number;
+  /** Paid when a delivery is cancelled or fails after the rider reached the pickup. */
+  cancellationPay: number;
 }
 
-/** Used when a pickup falls outside every configured zone. */
-export const DEFAULT_TARIFF: ZoneTariff = {
-  baseFee: 25,
-  perKmFee: 8,
-  freeKm: 2,
-  riderBasePay: 30,
-  riderPerKm: 6,
+/** The launch rules; also used when no policy version exists yet. */
+export const DEFAULT_PRICING: DeliveryPricing = {
+  customerFlatFee: 15,
+  freeDeliveryAbove: 399,
+  riderPerKm: 10,
+  riderMinPayout: 33,
+  waitingThresholdMins: 5,
+  waitingPay: 3,
+  arrivalRadiusM: 200,
+  cancellationPay: 0,
 };
 
-/** Customer delivery fee: base + per-km beyond the free radius, times surge. */
-export function deliveryFee(t: ZoneTariff, distanceKm: number, surge = 1): number {
-  const raw = t.baseFee + Math.max(0, distanceKm - t.freeKm) * t.perKmFee;
-  return Math.round(raw * surge);
+/**
+ * Customer delivery fee: a flat fee when the food subtotal (items before discounts, without
+ * packaging, taxes or tip) is below the threshold, free from it. Distance and surge do not
+ * change it.
+ */
+export function customerDeliveryFee(p: DeliveryPricing, foodSubtotal: number): number {
+  if (p.freeDeliveryAbove != null && foodSubtotal >= p.freeDeliveryAbove) return 0;
+  return p.customerFlatFee;
 }
 
-export interface EarningBreakdown {
-  basePay: number;
+/**
+ * Payable distance: the pickup-to-drop road estimate fixed when the delivery is created (not
+ * the rider's GPS trail, and not the ride to the pickup), to 0.1 km, halves rounded up.
+ */
+export function payableKm(distanceKm: number): number {
+  // the epsilon keeps 1.15 * 10 = 11.4999… rounding up like 1.15 should
+  return Math.round(Math.max(0, distanceKm) * 10 + 1e-9) / 10;
+}
+
+export interface RiderPay {
+  payableKm: number;
+  /** payable km × the per-km rate */
   distancePay: number;
+  /** what lifts the distance pay to the minimum payout (0 when the distance pay is higher) */
+  minimumTopUp: number;
   surgePay: number;
-  waitingPay: number;
+  /** distancePay + minimumTopUp + surgePay */
   total: number;
 }
 
 /**
- * Rider payout per delivery: base + per-km for the whole trip; surge is paid
- * on top; waiting time beyond 10 minutes at the restaurant is compensated.
+ * Rider pay for a delivered order: the greater of the minimum payout and the per-km rate
+ * times the payable distance (the minimum is never added on top), plus surge on that while
+ * the zone is surging. Waiting pay and the customer's tip are separate lines.
  */
-export function riderEarning(
-  t: ZoneTariff,
-  distanceKm: number,
-  surge = 1,
-  waitingMins = 0,
-): EarningBreakdown {
-  const basePay = t.riderBasePay;
-  const distancePay = round2(distanceKm * t.riderPerKm);
-  const surgePay = round2((basePay + distancePay) * Math.max(0, surge - 1));
-  const waitingPay = round2(Math.max(0, waitingMins - 10) * 1);
-  return {
-    basePay,
-    distancePay,
-    surgePay,
-    waitingPay,
-    total: round2(basePay + distancePay + surgePay + waitingPay),
-  };
+export function riderPayout(p: DeliveryPricing, distanceKm: number, surge = 1): RiderPay {
+  const km = payableKm(distanceKm);
+  const distancePay = round2(km * p.riderPerKm);
+  const minimumTopUp = round2(Math.max(0, p.riderMinPayout - distancePay));
+  const base = round2(distancePay + minimumTopUp);
+  const surgePay = round2(base * Math.max(0, surge - 1));
+  return { payableKm: km, distancePay, minimumTopUp, surgePay, total: round2(base + surgePay) };
+}
+
+export interface WaitingResult {
+  /** minutes from the arrival to the end of the wait, to 0.1 */
+  waitedMins: number;
+  amount: number;
 }
 
 /**
- * Splits a quoted rider earning (tip excluded) back into base, distance and
- * surge lines for the earnings statement. Lines always sum to the quote.
+ * Waiting pay: a one-time amount when the rider waited longer than the threshold at the
+ * pickup, counted from an arrival confirmed by GPS until pickup (or the cancellation).
  */
-export function splitEarning(
-  total: number,
-  surge: number,
-  riderBasePay: number,
-): Pick<EarningBreakdown, 'basePay' | 'distancePay' | 'surgePay'> {
-  const beforeSurge = surge > 1 ? total / surge : total;
-  const basePay = round2(Math.min(beforeSurge, riderBasePay));
-  const surgePay = round2(total - beforeSurge);
-  return { basePay, distancePay: round2(total - basePay - surgePay), surgePay };
+export function waitingPay(
+  p: DeliveryPricing,
+  w: { arrivedAt: Date; endedAt: Date; verified: boolean },
+): WaitingResult {
+  const ms = Math.max(0, w.endedAt.getTime() - w.arrivedAt.getTime());
+  const waitedMins = Math.round(ms / 6_000) / 10;
+  const amount = w.verified && ms > p.waitingThresholdMins * 60_000 ? p.waitingPay : 0;
+  return { waitedMins, amount };
 }
 
 /** Customer-facing ETA: remaining prep + rider to restaurant + trip. */

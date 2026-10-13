@@ -52,7 +52,8 @@ export class DeliveryAdminController {
       where: status ? { status } : { status: { notIn: ['DELIVERED', 'CANCELLED', 'FAILED'] } },
       orderBy: { createdAt: 'desc' },
       take: 200,
-      include: { rider: { select: { name: true, phone: true } } },
+      // wait: the arrival, readiness and GPS evidence behind any waiting pay
+      include: { rider: { select: { name: true, phone: true } }, wait: true },
     });
   }
 

@@ -400,9 +400,12 @@ function addOrderRows(
   // delivery task + rider earnings
   if (o.type === 'DELIVERY' && o.rider && (ok || live)) {
     const zone = ctx.zones.get(outlet.zoneKey)!;
-    const distancePay = r2((o.distanceKm ?? 3) * zone.riderPerKm);
-    const surgePay = r2((zone.riderBasePay + distancePay) * Math.max(0, o.surge - 1));
-    const earning = r2(zone.riderBasePay + distancePay + surgePay);
+    // delivery-service riderPayout: the greater of the minimum and the per-km pay, then surge
+    const payableKm = Math.round((o.distanceKm ?? 3) * 10 + 1e-9) / 10;
+    const distancePay = r2(payableKm * ctx.pricing.riderPerKm);
+    const minimumTopUp = r2(Math.max(0, ctx.pricing.riderMinPayout - distancePay));
+    const surgePay = r2((distancePay + minimumTopUp) * Math.max(0, o.surge - 1));
+    const earning = r2(distancePay + minimumTopUp + surgePay);
     const status = ok
       ? 'DELIVERED'
       : o.status === 'OUT_FOR_DELIVERY'
@@ -440,6 +443,8 @@ function addOrderRows(
       tipAmount: o.tip,
       riderEarning: earning,
       surgeMultiplier: o.surge,
+      pricingPolicyId: ctx.pricing.id,
+      payableKm,
       deliveryOtp: otp,
       readyAt: o.readyAt,
       assignedAt: o.assignedAt,
@@ -462,16 +467,17 @@ function addOrderRows(
       const base = { riderId: o.rider.profileId, deliveryId, earnedAt: o.deliveredAt!, _day: day };
       c.earningRows.push({
         ...base,
-        type: 'BASE_PAY',
-        amount: zone.riderBasePay,
-        description: `Delivery ${orderNumber}`,
-      });
-      c.earningRows.push({
-        ...base,
         type: 'DISTANCE_PAY',
         amount: distancePay,
-        description: `${(o.distanceKm ?? 3).toFixed(1)} km`,
+        description: `${payableKm.toFixed(1)} km × ₹${ctx.pricing.riderPerKm}`,
       });
+      if (minimumTopUp > 0)
+        c.earningRows.push({
+          ...base,
+          type: 'BASE_PAY',
+          amount: minimumTopUp,
+          description: `Top-up to the ₹${ctx.pricing.riderMinPayout} minimum`,
+        });
       if (surgePay > 0)
         c.earningRows.push({
           ...base,
