@@ -68,7 +68,7 @@ function BannerRow({ banners }: { banners: Banner[] }) {
             className={cn(
               'relative flex h-36 w-[85%] shrink-0 snap-start flex-col justify-end overflow-hidden rounded-2xl p-5 text-ink sm:w-[26rem]',
               // flavour washes behind the creative keep the Ink text readable when images are slow or missing
-              ['bg-mango', 'bg-sky', 'bg-bubblegum', 'bg-pista'][i % 4],
+              ['bg-wash-mango', 'bg-wash-sky', 'bg-wash-bubblegum', 'bg-wash-pista'][i % 4],
             )}
           >
             {b.imageUrl ? (
@@ -176,8 +176,8 @@ function AllOutlets() {
     <Button
       size="sm"
       variant={on ? 'default' : 'outline'}
-      className="rounded-full"
       aria-pressed={on}
+      className="rounded-full"
       onClick={() => (toggle(), setPages(1))}
     >
       {label}

@@ -19,7 +19,7 @@ class Bill extends StatelessWidget {
     final p = pricing;
     final text = Theme.of(context).textTheme;
     final muted = Theme.of(context).colorScheme.onSurfaceVariant;
-    const saving = TextStyle(color: FoodGridTheme.goodText, fontWeight: FontWeight.w600);
+    final saving = TextStyle(color: FoodGridTheme.goodTextOf(context), fontWeight: FontWeight.w600);
     final waived = waivedDeliveryFee ?? 0;
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       KeyValueRow('Item total', money(p.subtotal)),

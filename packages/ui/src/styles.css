@@ -15,7 +15,8 @@
  *   - riders default to dark ("night", see ThemeScript's defaultTheme)
  *
  * Chili Pop carries Ink text (5.8:1); as text on light surfaces it is too pale (3.1:1), so
- * coral text uses `text-primary-strong` (Chili Deep) and links use `text-link` (Grape).
+ * coral text and links use Chili Deep (`text-primary-strong`, `text-link`). Grape is the
+ * secondary colour: outline buttons, tags and selected filters.
  *
  * Chart series use the validated categorical palette (dataviz reference
  * instance, checked with validate_palette.js in both modes); the brand colours
@@ -53,7 +54,8 @@
   --primary: #ff5a36;
   --primary-foreground: #1a1423;
   --primary-strong: #c4320a;
-  --link: #6c4bf4;
+  --link: #c4320a;
+  --grape-text: #6c4bf4;
   --key: #c8f135;
   --key-foreground: #1a1423;
   --secondary: #f4f2f7;
@@ -65,7 +67,8 @@
   --destructive: #d92d20;
   --destructive-foreground: #ffffff;
   --border: rgba(26, 20, 35, 0.1);
-  --input: rgba(26, 20, 35, 0.18);
+  /* 3:1 against white and Cream, so a field's edge is visible (WCAG 1.4.11) */
+  --input: rgba(26, 20, 35, 0.45);
   --ring: #6c4bf4;
   --radius: 0.75rem;
 
@@ -85,12 +88,22 @@
   --chart-8: #e34948;
   --chart-muted: #c3c2b7;
 
+  /* demand map: a sequential ramp, darker = more orders per rider */
+  --heat-1: #cfe1f7;
+  --heat-2: #9fc3ef;
+  --heat-3: #6aa2e4;
+  --heat-4: #3987e5;
+  --heat-5: #1f66c2;
+  --heat-6: #13498e;
+
   /* status (never used for series; always paired with icon + label) */
   --status-good: #12b76a;
   --status-good-text: #067647;
   --status-warning: #f79009;
   --status-serious: #ec835a;
   --status-critical: #d92d20;
+  /* critical as text, also on its own 10% tint */
+  --status-critical-text: #b42318;
   --delta-up: #067647;
   --delta-down: #b42318;
 }
@@ -111,7 +124,8 @@
   --primary: #ff5a36;
   --primary-foreground: #1a1423;
   --primary-strong: #ff7a5c;
-  --link: #a996ff;
+  --link: #ff7a5c;
+  --grape-text: #a996ff;
   --secondary: #262130;
   --secondary-foreground: #f6f4fa;
   --muted: #262130;
@@ -121,7 +135,7 @@
   --destructive: #f04438;
   --destructive-foreground: #1a1423;
   --border: rgba(255, 255, 255, 0.1);
-  --input: rgba(255, 255, 255, 0.16);
+  --input: rgba(255, 255, 255, 0.35);
   --ring: #a996ff;
   --fg-shadow-soft: 0 1px 2px rgb(0 0 0 / 0.4);
 
@@ -140,7 +154,17 @@
   --chart-8: #e66767;
   --chart-muted: #4a4a46;
 
+  /* on Night the ramp runs the other way: brighter = more orders per rider */
+  --heat-1: #1b2a44;
+  --heat-2: #1f4374;
+  --heat-3: #2563a8;
+  --heat-4: #3987e5;
+  --heat-5: #74aef0;
+  --heat-6: #b9d6f8;
+
   --status-good-text: #12b76a;
+  --status-critical: #f97066;
+  --status-critical-text: #f97066;
   --delta-up: #12b76a;
   --delta-down: #f97066;
 }
@@ -156,6 +180,8 @@
   --color-primary-foreground: var(--primary-foreground);
   --color-primary-strong: var(--primary-strong);
   --color-link: var(--link);
+  /* Grape as text and outlines, readable in both modes (the fixed --color-grape is for fills) */
+  --color-grape-text: var(--grape-text);
   --color-key: var(--key);
   --color-key-foreground: var(--key-foreground);
   --color-secondary: var(--secondary);
@@ -174,6 +200,7 @@
   --color-status-warning: var(--status-warning);
   --color-status-serious: var(--status-serious);
   --color-status-critical: var(--status-critical);
+  --color-status-critical-text: var(--status-critical-text);
   --color-delta-up: var(--delta-up);
   --color-delta-down: var(--delta-down);
   --color-ink: var(--fg-ink);
@@ -188,10 +215,14 @@
   --color-wash-sky: var(--fg-wash-sky);
   --color-wash-pista: var(--fg-wash-pista);
   --shadow-soft: var(--fg-shadow-soft);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+  --shadow-pop: 4px 4px 0 var(--fg-ink);
+  /* the blueprint's corners: 8 for inputs and small controls, 12 for cards, 20 for sheets
+     and dialogs, full for pop buttons */
+  --radius-sm: 8px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 20px;
+  --radius-2xl: 24px;
   /* the font variables come from next/font in each app's layout; the fallbacks keep
      every app readable if one is missing */
   --font-sans:
@@ -234,12 +265,15 @@
 }
 
 /*
- * Pop look (customer site, light mode): the main and key buttons, and anything marked
- * data-fg-pop, look like stickers - pill or rounded shape, 2px Ink outline, offset shadow
- * that collapses on press. Dark mode keeps the shapes without the outline and shadow.
+ * Pop look (customer site, light mode): the main and key buttons, cards, and anything marked
+ * data-fg-pop look like stickers - pill or rounded shape, 2px Ink outline, 4px offset shadow
+ * that collapses on press. Toggle chips (aria-pressed) keep their plain shape when selected.
+ * Dark mode keeps the shapes without the outline and shadow.
  */
 .theme-pop
-  :is([data-slot='button'][data-variant='default'], [data-slot='button'][data-variant='key']) {
+  :is([data-slot='button'][data-variant='default'], [data-slot='button'][data-variant='key']):not(
+    [aria-pressed]
+  ) {
   border-radius: 9999px;
   transition:
     transform 120ms ease-out,
@@ -247,21 +281,24 @@
     background-color 120ms;
 }
 .theme-pop:not(.dark)
-  :is([data-slot='button'][data-variant='default'], [data-slot='button'][data-variant='key']) {
+  :is([data-slot='button'][data-variant='default'], [data-slot='button'][data-variant='key']):not(
+    [aria-pressed]
+  ) {
   border: 2px solid var(--fg-ink);
-  box-shadow: 3px 3px 0 var(--fg-ink);
+  box-shadow: var(--shadow-pop);
 }
 .theme-pop:not(.dark)
-  :is(
-    [data-slot='button'][data-variant='default'],
-    [data-slot='button'][data-variant='key']
+  :is([data-slot='button'][data-variant='default'], [data-slot='button'][data-variant='key']):not(
+    [aria-pressed]
   ):active:not(:disabled) {
-  transform: translate(2px, 2px);
+  transform: translate(3px, 3px);
   box-shadow: 1px 1px 0 var(--fg-ink);
 }
-.theme-pop:not(.dark) [data-fg-pop] {
+.theme-pop:not(.dark) :is([data-fg-pop], [data-slot='card']) {
   border: 2px solid var(--fg-ink);
-  box-shadow: 4px 4px 0 var(--fg-ink);
+  box-shadow: var(--shadow-pop);
+}
+.theme-pop:not(.dark) [data-fg-pop] {
   transition:
     transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1),
     box-shadow 200ms ease-out;
@@ -270,6 +307,10 @@
 .theme-pop:not(.dark) a[data-fg-pop]:hover {
   transform: translate(-2px, -2px);
   box-shadow: 6px 6px 0 var(--fg-ink);
+}
+/* the display face at display weight; unlayered, so it wins over a heading's weight utility */
+.theme-pop :is(h1, h2) {
+  font-weight: 800;
 }
 
 @utility tabular {

@@ -162,8 +162,9 @@ class _CompleteSheetState extends ConsumerState<CompleteSheet> {
           SizedBox(
             height: 60,
             child: FilledButton.icon(
+              style: FoodGridTheme.keyButton,
               onPressed: _ready ? _submit : null,
-              icon: _busy ? const ButtonSpinner(color: Colors.white) : const Icon(Icons.check),
+              icon: _busy ? const ButtonSpinner(color: FoodGridTheme.ink) : const Icon(Icons.check),
               label: Text(_busy ? (_stage ?? 'Completing…') : 'Mark delivered'),
             ),
           ),

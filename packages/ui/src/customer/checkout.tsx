@@ -703,9 +703,11 @@ export function CartView() {
                 {blocker}
               </p>
             ) : null}
+            {/* phones pay from the sticky bar below, so the key action shows once */}
             <Button
               variant="key"
               size="lg"
+              className="hidden lg:inline-flex"
               disabled={!!blocker || !pricing || quote.isFetching}
               loading={placing}
               onClick={place}
@@ -729,7 +731,8 @@ export function CartView() {
           </span>
           <Button
             variant="key"
-            size="lg"
+            size="xl"
+            className="px-6"
             disabled={!!blocker || !pricing || quote.isFetching}
             loading={placing}
             onClick={place}

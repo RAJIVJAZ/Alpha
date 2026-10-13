@@ -242,7 +242,7 @@ class _TxnRow extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 8),
         child: Row(children: [
           ExcludeSemantics(
-            child: Icon(txn.isCredit ? Icons.south_west : Icons.north_east, size: 18, color: txn.isCredit ? FoodGridTheme.goodText : Theme.of(context).colorScheme.onSurfaceVariant),
+            child: Icon(txn.isCredit ? Icons.south_west : Icons.north_east, size: 18, color: txn.isCredit ? FoodGridTheme.goodTextOf(context) : Theme.of(context).colorScheme.onSurfaceVariant),
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -254,7 +254,7 @@ class _TxnRow extends StatelessWidget {
           Text(
             money(txn.isCredit ? txn.amount : -txn.amount, signed: true),
             semanticsLabel: '${txn.isCredit ? 'Credit' : 'Debit'} ${money(txn.amount)}',
-            style: TextStyle(fontWeight: FontWeight.w600, fontFeatures: const [FontFeature.tabularFigures()], color: txn.isCredit ? FoodGridTheme.goodText : null),
+            style: TextStyle(fontWeight: FontWeight.w600, fontFeatures: const [FontFeature.tabularFigures()], color: txn.isCredit ? FoodGridTheme.goodTextOf(context) : null),
           ),
         ]),
       ),

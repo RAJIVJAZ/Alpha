@@ -271,7 +271,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                     Expanded(
                       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                         Text('${c.couponCode} applied', style: text.titleSmall),
-                        if (q?.couponValid == false) Text(q?.couponReason ?? 'This coupon does not apply to this order', style: text.bodySmall?.copyWith(color: FoodGridTheme.critical)),
+                        if (q?.couponValid == false) Text(q?.couponReason ?? 'This coupon does not apply to this order', style: text.bodySmall?.copyWith(color: FoodGridTheme.criticalTextOf(context))),
                       ]),
                     ),
                     TextButton.icon(
@@ -318,7 +318,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                       subtitle: m == PaymentMethod.wallet
                           ? Text(
                               balance == null ? 'Balance —' : 'Balance ${money(balance)}${balance < total ? ' — not enough for this order' : ''}',
-                              style: TextStyle(color: balance != null && balance < total ? FoodGridTheme.critical : null),
+                              style: TextStyle(color: balance != null && balance < total ? FoodGridTheme.criticalTextOf(context) : null),
                             )
                           : m.hint == null
                               ? null
@@ -364,6 +364,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             ),
             FilledButton(
               key: const Key('place-order'),
+              style: FoodGridTheme.keyButton,
               onPressed: canPay ? () => _place(cart: c, orderType: orderType, method: method, address: address) : null,
               child: _placing ? const ButtonSpinner() : Text(payLabel),
             ),

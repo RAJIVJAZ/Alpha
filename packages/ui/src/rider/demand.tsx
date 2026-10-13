@@ -10,8 +10,9 @@ import { formatRelative } from '../lib/format';
 import { useApi } from '../lib/hooks';
 import type { Heatmap, RiderProfile } from './types';
 
-// sequential blue ramp (light → dark) for demand pressure; status colours stay reserved
-const RAMP = ['#cfe1f7', '#9fc3ef', '#6aa2e4', '#3987e5', '#1f66c2', '#13498e'];
+// sequential blue ramp for demand pressure (styles.css --heat-1..6: darker in light mode,
+// brighter on Night = more orders per rider); status colours stay reserved
+const RAMP = [1, 2, 3, 4, 5, 6].map((n) => `var(--heat-${n})`);
 const W = 640;
 const H = 440;
 function haversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
@@ -123,7 +124,7 @@ export function DemandMap() {
       <div className="grid gap-4 lg:grid-cols-[1fr_20rem]">
         <ChartFrame
           title="Demand by area"
-          description="Circle size = open orders; darker = more orders per available rider"
+          description="Circle size = open orders; stronger colour = more orders per available rider"
           loading={heat.isFetching && !h}
           legend={
             <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">

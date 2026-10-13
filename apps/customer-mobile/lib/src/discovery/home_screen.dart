@@ -151,12 +151,6 @@ class _SearchEntry extends StatelessWidget {
   }
 }
 
-const _bannerGradients = [
-  [Color(0xFFEA580C), Color(0xFFBE123C)],
-  [Color(0xFF047857), Color(0xFF134E4A)],
-  [Color(0xFF4338CA), Color(0xFF0F172A)],
-];
-
 class _Banners extends ConsumerWidget {
   const _Banners();
 
@@ -191,19 +185,20 @@ class _Banners extends ConsumerWidget {
                   clipBehavior: Clip.antiAlias,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(18),
-                    gradient: LinearGradient(colors: _bannerGradients[i % _bannerGradients.length], begin: Alignment.topLeft, end: Alignment.bottomRight),
+                    // a flavour wash behind the creative keeps the Ink text readable while images load
+                    color: FoodGridTheme.washes[i % FoodGridTheme.washes.length],
                   ),
                   child: Stack(fit: StackFit.expand, children: [
                     if (b.imageUrl != null)
                       Opacity(
-                        opacity: 0.35,
+                        opacity: 0.3,
                         child: Image.network(b.imageUrl!, fit: BoxFit.cover, errorBuilder: (_, _, _) => const SizedBox.shrink()),
                       ),
                     Padding(
                       padding: const EdgeInsets.all(18),
                       child: Column(mainAxisAlignment: MainAxisAlignment.end, crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text(b.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: text.titleLarge?.copyWith(color: Colors.white, fontWeight: FontWeight.w700)),
-                        if (b.subtitle != null) Text(b.subtitle!, maxLines: 1, overflow: TextOverflow.ellipsis, style: text.bodyMedium?.copyWith(color: Colors.white)),
+                        Text(b.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: text.titleLarge?.copyWith(color: FoodGridTheme.ink, fontWeight: FontWeight.w800)),
+                        if (b.subtitle != null) Text(b.subtitle!, maxLines: 1, overflow: TextOverflow.ellipsis, style: text.bodyMedium?.copyWith(color: FoodGridTheme.ink)),
                       ]),
                     ),
                   ]),

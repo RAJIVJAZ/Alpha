@@ -272,7 +272,8 @@ export function OutletRail({
         <h2 className="text-lg font-semibold">{title}</h2>
         {hint ? <p className="text-sm text-muted-foreground">{hint}</p> : null}
       </div>
-      <div className="-mx-4 flex snap-x gap-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
+      {/* room above and right for the pop cards' lift and offset shadow, which a scroller clips */}
+      <div className="-mx-4 flex snap-x gap-4 overflow-x-auto px-4 pb-3 pt-1 sm:-mx-1 sm:px-1">
         {outlets.map((o) => (
           <div key={o.id} className="w-60 shrink-0 snap-start">
             <OutletCard outlet={o} compact />

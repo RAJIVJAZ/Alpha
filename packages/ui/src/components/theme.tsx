@@ -36,11 +36,13 @@ function apply(theme: Theme) {
 export function ThemeToggle() {
   const [theme, setTheme] = React.useState<Theme>('system');
   React.useEffect(() => {
+    let saved: string | null = null;
     try {
-      setTheme((localStorage.getItem(KEY) as Theme | null) ?? appDefault());
+      saved = localStorage.getItem(KEY);
     } catch {
-      /* storage unavailable */
+      /* storage unavailable: show the app's default */
     }
+    setTheme((saved as Theme | null) ?? appDefault());
     const mq = window.matchMedia('(prefers-color-scheme: dark)');
     const onChange = () => {
       let saved: string | null = null;

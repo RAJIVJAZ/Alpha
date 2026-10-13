@@ -12,10 +12,9 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#ffffff' },
-    { media: '(prefers-color-scheme: dark)', color: '#100d17' },
-  ],
+  // Night whatever the OS says: the page defaults to dark (ThemeScript below), so the
+  // browser bar matches it for every rider who has not picked a theme
+  themeColor: '#100d17',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

@@ -11,9 +11,10 @@ export const buttonVariants = cva(
       variant: {
         default: 'bg-primary font-semibold text-primary-foreground shadow-sm hover:bg-primary/90',
         /** the one most important action on a screen (Place order, Accept): Lime */
-        key: 'bg-key font-semibold text-key-foreground shadow-sm hover:bg-key/90',
+        key: 'rounded-full bg-key font-semibold text-key-foreground shadow-sm hover:bg-key/90',
         secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
-        outline: 'border border-input bg-card hover:bg-muted',
+        /** Grape, the secondary colour (the blueprint's secondary buttons, tags and filters) */
+        outline: 'border border-grape-text/50 bg-card text-grape-text hover:bg-grape-text/10',
         ghost: 'hover:bg-muted',
         destructive: 'bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90',
         link: 'text-link underline-offset-4 hover:underline',

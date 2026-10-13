@@ -207,6 +207,7 @@ export function LocationDialog({ onClose }: { onClose: () => void }) {
                 key={a.label}
                 size="sm"
                 variant={place.label === a.label ? 'default' : 'outline'}
+                aria-pressed={place.label === a.label}
                 onClick={() => choose(a)}
               >
                 {a.label.split(',')[0]}

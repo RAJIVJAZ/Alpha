@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:foodgrid_core/foodgrid_core.dart';
 
+import 'theme_mode.dart';
+
 /// A titled card section.
 class SectionCard extends StatelessWidget {
   const SectionCard({super.key, required this.title, required this.child, this.icon, this.trailing, this.padding = const EdgeInsets.fromLTRB(16, 14, 16, 16)});
@@ -158,6 +160,28 @@ class ButtonSpinner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2.5, color: color));
+}
+
+/// Light, dark or the phone's setting; dark until the rider picks.
+class ThemeButton extends ConsumerWidget {
+  const ThemeButton({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final mode = ref.watch(riderThemeModeProvider);
+    return IconButton(
+      tooltip: 'Light or dark',
+      icon: Icon(mode == ThemeMode.light ? Icons.light_mode_outlined : Icons.dark_mode_outlined),
+      onPressed: () => showDialog<void>(
+        context: context,
+        builder: (c) => AlertDialog(
+          title: const Text('Look'),
+          content: Consumer(builder: (_, ref, _) => ThemeModePicker(mode: ref.watch(riderThemeModeProvider), onChanged: ref.read(riderThemeModeProvider.notifier).choose)),
+          actions: [TextButton(onPressed: () => Navigator.pop(c), child: const Text('Done'))],
+        ),
+      ),
+    );
+  }
 }
 
 /// Sign-out with a confirmation; [beforeSignOut] runs first (e.g. go offline).

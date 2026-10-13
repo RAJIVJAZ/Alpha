@@ -55,8 +55,8 @@ class AccountScreen extends ConsumerWidget {
         link(Icons.qr_code_scanner, 'Order at a table', '/scan', subtitle: 'Scan the QR code on your table'),
         const Divider(),
         ListTile(
-          leading: const Icon(Icons.logout, color: FoodGridTheme.critical),
-          title: const Text('Sign out', style: TextStyle(color: FoodGridTheme.critical)),
+          leading: Icon(Icons.logout, color: FoodGridTheme.criticalTextOf(context)),
+          title: Text('Sign out', style: TextStyle(color: FoodGridTheme.criticalTextOf(context))),
           onTap: () => _signOut(context, ref),
         ),
         const SizedBox(height: 24),

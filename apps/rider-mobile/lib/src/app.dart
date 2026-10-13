@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:foodgrid_core/foodgrid_core.dart';
 
+import 'common/theme_mode.dart';
 import 'router.dart';
 
 /// FoodGrid theme with bigger targets for gloved hands on a bike mount.
@@ -30,8 +31,7 @@ class RiderApp extends ConsumerWidget {
         debugShowCheckedModeBanner: false,
         theme: riderTheme(FoodGridTheme.light()),
         darkTheme: riderTheme(FoodGridTheme.dark()),
-        // riders ride at night and glance in traffic: the dark "night" look by default
-        themeMode: ThemeMode.dark,
+        themeMode: ref.watch(riderThemeModeProvider),
         routerConfig: ref.watch(routerProvider),
         builder: (_, child) => PushListener(child: child!),
       );

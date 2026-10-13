@@ -14,7 +14,7 @@ export const badgeVariants = cva(
         good: 'border-status-good/30 bg-status-good/10 text-status-good-text',
         warning: 'border-status-warning/40 bg-status-warning/15 text-foreground',
         serious: 'border-status-serious/40 bg-status-serious/15 text-foreground',
-        critical: 'border-status-critical/30 bg-status-critical/10 text-status-critical',
+        critical: 'border-status-critical/30 bg-status-critical/10 text-status-critical-text',
         info: 'border-[var(--chart-1)]/30 bg-[var(--chart-1)]/10 text-foreground',
         /* flavour washes (offers, trivia, menu tags): pale pastels, always Ink text */
         mango: 'border-transparent bg-wash-mango text-ink',

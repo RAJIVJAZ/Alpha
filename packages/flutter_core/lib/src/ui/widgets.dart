@@ -75,7 +75,7 @@ class StatusChip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(color: c.withValues(alpha: 0.12), border: Border.all(color: c.withValues(alpha: 0.4)), borderRadius: BorderRadius.circular(99)),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Icon(icon, size: 14, color: t == Tone.good ? FoodGridTheme.goodText : scheme.onSurface),
+        Icon(icon, size: 14, color: t == Tone.good ? FoodGridTheme.goodTextOf(context) : scheme.onSurface),
         const SizedBox(width: 4),
         Text(label ?? humanize(status), style: Theme.of(context).textTheme.labelMedium),
       ]),

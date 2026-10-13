@@ -94,6 +94,7 @@ export function WalletView() {
                 size="sm"
                 className="rounded-full"
                 variant={Number(amount) === t ? 'default' : 'outline'}
+                aria-pressed={Number(amount) === t}
                 onClick={() => setAmount(String(t))}
               >
                 +{formatMoney(t, { whole: true })}
@@ -697,7 +698,7 @@ export function AccountView() {
                 {!a.isDefault ? (
                   <button
                     type="button"
-                    className="text-xs text-link underline-offset-4 hover:underline"
+                    className="text-xs text-link underline underline-offset-4"
                     onClick={() => makeDefault.mutate(a.id)}
                   >
                     Make default

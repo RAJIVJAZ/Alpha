@@ -179,7 +179,7 @@ export function TableOrderView({ token }: { token: string }) {
               {session ? (
                 <Link
                   href={`/orders/${p.id}`}
-                  className="ml-auto text-link underline-offset-4 hover:underline"
+                  className="ml-auto text-link underline underline-offset-4"
                 >
                   Track
                 </Link>
@@ -445,7 +445,7 @@ function PlaceTableOrder({
               {!signedIn ? (
                 <Link
                   href={`/login?next=${encodeURIComponent(`/t/${token}`)}`}
-                  className="text-link underline-offset-4 hover:underline"
+                  className="text-link underline underline-offset-4"
                 >
                   sign in
                 </Link>
