@@ -80,6 +80,7 @@ from source with hot reload, and the mobile apps are in
 | [Testing](docs/testing.md)                      | test layers and how to run them                                         |
 | [Deployment](docs/deployment.md)                | Terraform, GitHub setup, CI/CD, rollback                                |
 | [Runbooks](docs/runbooks.md)                    | what to do when an alert fires                                          |
+| [Roadmap](docs/roadmap.md)                      | the master brief against the code: what is built and what is left       |
 | [Terraform](infrastructure/terraform/README.md) | infrastructure step by step                                             |
 
 ## Status
