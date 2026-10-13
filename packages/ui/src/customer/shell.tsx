@@ -75,12 +75,14 @@ function Header() {
       <div className="mx-auto flex h-16 max-w-6xl items-center gap-2 px-4 sm:gap-3 sm:px-6">
         <Link href="/" className="flex shrink-0 items-center gap-2" aria-label="FoodGrid home">
           <span
-            className="flex size-9 items-center justify-center rounded-xl bg-primary text-sm font-bold text-primary-foreground"
+            className="flex size-9 items-center justify-center rounded-xl bg-primary font-display text-sm font-extrabold text-primary-foreground"
             aria-hidden
           >
             FG
           </span>
-          <span className="hidden text-lg font-semibold tracking-tight lg:inline">FoodGrid</span>
+          <span className="hidden font-display text-xl font-extrabold tracking-tight lg:inline">
+            FoodGrid
+          </span>
         </Link>
         <LocationButton />
         <div className="hidden flex-1 md:block">
@@ -131,7 +133,7 @@ function LocationButton() {
         onClick={() => setOpen(true)}
         aria-label={`Delivering to ${place.label}. Change location`}
       >
-        <MapPin className="text-primary" />
+        <MapPin className="text-primary-strong" />
         <span className="truncate text-sm font-medium">{place.label}</span>
         <ChevronDown className="opacity-60" />
       </Button>
@@ -411,7 +413,7 @@ function BottomTabs() {
             aria-current={on ? 'page' : undefined}
             className={cn(
               'flex flex-col items-center gap-0.5 py-2 text-[11px]',
-              on ? 'font-semibold text-primary' : 'text-muted-foreground',
+              on ? 'font-semibold text-primary-strong' : 'text-muted-foreground',
             )}
           >
             <t.icon className="size-5" aria-hidden />

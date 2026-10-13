@@ -179,7 +179,7 @@ export function TableOrderView({ token }: { token: string }) {
               {session ? (
                 <Link
                   href={`/orders/${p.id}`}
-                  className="ml-auto text-primary underline-offset-4 hover:underline"
+                  className="ml-auto text-link underline-offset-4 hover:underline"
                 >
                   Track
                 </Link>
@@ -236,7 +236,7 @@ export function TableOrderView({ token }: { token: string }) {
                       <Button
                         size="sm"
                         variant="outline"
-                        className="border-primary/40 font-semibold text-primary"
+                        className="border-primary/40 font-semibold text-primary-strong"
                         disabled={!open}
                         onClick={() => onAdd(i)}
                         aria-label={`Add ${i.name}`}
@@ -445,7 +445,7 @@ function PlaceTableOrder({
               {!signedIn ? (
                 <Link
                   href={`/login?next=${encodeURIComponent(`/t/${token}`)}`}
-                  className="text-primary underline-offset-4 hover:underline"
+                  className="text-link underline-offset-4 hover:underline"
                 >
                   sign in
                 </Link>

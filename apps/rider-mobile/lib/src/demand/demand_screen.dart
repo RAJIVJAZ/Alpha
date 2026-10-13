@@ -17,7 +17,7 @@ const tileUrl = String.fromEnvironment('MAP_TILE_URL', defaultValue: 'https://ti
 /// Whether to draw the raster base map. Tests turn it off so nothing is fetched.
 final mapTilesProvider = Provider<bool>((ref) => true);
 
-const _youColor = Color(0xFFC2410C);
+const _youColor = Color(0xFFFF5A36);
 
 /// Where the orders are: zones with surge, demand per area, and the rider.
 class DemandScreen extends ConsumerWidget {

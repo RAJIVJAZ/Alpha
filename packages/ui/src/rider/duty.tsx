@@ -194,7 +194,7 @@ function OfferCard({ offer: o }: { offer: Offer }) {
       <CardHeader className="flex-row items-start justify-between gap-3 pb-2">
         <CardTitle>New order · {formatMoney(o.estimatedEarning)}</CardTitle>
         <span
-          className="flex items-center gap-1 text-sm font-semibold tabular text-primary"
+          className="flex items-center gap-1 text-sm font-semibold tabular text-primary-strong"
           aria-live="polite"
         >
           <Clock className="size-4" aria-hidden /> {left}s
@@ -223,7 +223,12 @@ function OfferCard({ offer: o }: { offer: Offer }) {
           <Button size="lg" variant="outline" onClick={() => setRejecting(true)}>
             <X /> Reject
           </Button>
-          <Button size="lg" onClick={() => accept.mutate()} loading={accept.isPending}>
+          <Button
+            variant="key"
+            size="lg"
+            onClick={() => accept.mutate()}
+            loading={accept.isPending}
+          >
             <Check /> Accept
           </Button>
         </div>
@@ -299,7 +304,7 @@ function ActiveDelivery({ delivery: d }: { delivery: Delivery }) {
           <p className="font-medium">{toPickup ? d.pickupName : (d.dropName ?? 'Customer')}</p>
           <p className="text-muted-foreground">{toPickup ? d.pickupAddress : d.dropAddress}</p>
           {d.isCod && !toPickup ? (
-            <p className="mt-1 font-semibold text-primary">
+            <p className="mt-1 font-semibold text-primary-strong">
               Collect {formatMoney(d.codAmount)} in cash
             </p>
           ) : null}
@@ -325,7 +330,8 @@ function ActiveDelivery({ delivery: d }: { delivery: Delivery }) {
           )}
         </div>
         <Button
-          size="lg"
+          variant="key"
+          size="xl"
           onClick={() => (step.action === 'complete' ? setCompleting(true) : advance.mutate())}
           loading={advance.isPending}
         >

@@ -9,17 +9,21 @@ export const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: 'bg-primary text-primary-foreground shadow-sm hover:bg-primary/90',
+        default: 'bg-primary font-semibold text-primary-foreground shadow-sm hover:bg-primary/90',
+        /** the one most important action on a screen (Place order, Accept): Lime */
+        key: 'bg-key font-semibold text-key-foreground shadow-sm hover:bg-key/90',
         secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
         outline: 'border border-input bg-card hover:bg-muted',
         ghost: 'hover:bg-muted',
         destructive: 'bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90',
-        link: 'text-primary underline-offset-4 hover:underline',
+        link: 'text-link underline-offset-4 hover:underline',
       },
       size: {
         sm: 'h-8 px-3 text-xs',
         default: 'h-9 px-4',
         lg: 'h-11 px-6 text-base',
+        /** full-width phone actions: 56px tall */
+        xl: 'h-14 px-8 text-base',
         icon: 'size-9',
       },
     },
@@ -39,6 +43,9 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     return (
       <Comp
         ref={ref}
+        // data-variant lets the pop look restyle the main buttons (styles.css)
+        data-slot="button"
+        data-variant={variant ?? 'default'}
         className={cn(buttonVariants({ variant, size }), className)}
         disabled={disabled || loading}
         aria-busy={loading || undefined}

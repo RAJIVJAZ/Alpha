@@ -353,7 +353,7 @@ function Live() {
                   <tr key={c.geohash} className="border-b last:border-0">
                     <td className="py-1.5 pr-3">
                       <a
-                        className="font-mono text-xs text-primary hover:underline"
+                        className="font-mono text-xs text-link hover:underline"
                         href={`https://maps.google.com/?q=${c.lat},${c.lng}`}
                         target="_blank"
                         rel="noreferrer"

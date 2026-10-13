@@ -16,6 +16,11 @@ export const badgeVariants = cva(
         serious: 'border-status-serious/40 bg-status-serious/15 text-foreground',
         critical: 'border-status-critical/30 bg-status-critical/10 text-status-critical',
         info: 'border-[var(--chart-1)]/30 bg-[var(--chart-1)]/10 text-foreground',
+        /* flavour washes (offers, trivia, menu tags): pale pastels, always Ink text */
+        mango: 'border-transparent bg-wash-mango text-ink',
+        bubblegum: 'border-transparent bg-wash-bubblegum text-ink',
+        sky: 'border-transparent bg-wash-sky text-ink',
+        pista: 'border-transparent bg-wash-pista text-ink',
       },
     },
     defaultVariants: { variant: 'secondary' },

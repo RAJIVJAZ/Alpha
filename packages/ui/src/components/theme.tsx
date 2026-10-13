@@ -8,12 +8,22 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 const KEY = 'fg-theme';
 type Theme = 'light' | 'dark' | 'system';
 
-/** Inline in <head>: applies the saved/OS theme before first paint (no flash). */
-export const themeScript = `(function(){try{var t=localStorage.getItem('${KEY}');var d=t==='dark'||((!t||t==='system')&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);document.documentElement.dataset.theme=d?'dark':'light'}catch(e){}})();`;
+/**
+ * Inline in <head>: applies the saved theme, else the app's default (riders: dark), else the
+ * OS preference, before first paint (no flash). The default is kept on <html> for ThemeToggle.
+ */
+export const themeScriptFor = (fallback: Theme = 'system') =>
+  `(function(){var e=document.documentElement,t=null;e.dataset.themeDefault='${fallback}';try{t=localStorage.getItem('${KEY}')}catch(x){}t=t||'${fallback}';var d=t==='dark'||(t==='system'&&matchMedia('(prefers-color-scheme: dark)').matches);e.classList.toggle('dark',d);e.dataset.theme=d?'dark':'light'})();`;
 
-export function ThemeScript() {
-  return <script dangerouslySetInnerHTML={{ __html: themeScript }} />;
+export const themeScript = themeScriptFor();
+
+export function ThemeScript({ defaultTheme = 'system' }: { defaultTheme?: Theme }) {
+  return <script dangerouslySetInnerHTML={{ __html: themeScriptFor(defaultTheme) }} />;
 }
+
+/** The app's default when nothing is saved (set on <html> by ThemeScript). */
+const appDefault = (): Theme =>
+  (document.documentElement.dataset.themeDefault as Theme | undefined) ?? 'system';
 
 function apply(theme: Theme) {
   const dark =
@@ -27,7 +37,7 @@ export function ThemeToggle() {
   const [theme, setTheme] = React.useState<Theme>('system');
   React.useEffect(() => {
     try {
-      setTheme((localStorage.getItem(KEY) as Theme | null) ?? 'system');
+      setTheme((localStorage.getItem(KEY) as Theme | null) ?? appDefault());
     } catch {
       /* storage unavailable */
     }
@@ -39,7 +49,7 @@ export function ThemeToggle() {
       } catch {
         /* ignore */
       }
-      if (!saved || saved === 'system') apply('system');
+      if ((saved ?? appDefault()) === 'system') apply('system');
     };
     mq.addEventListener('change', onChange);
     return () => mq.removeEventListener('change', onChange);

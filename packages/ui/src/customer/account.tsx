@@ -205,7 +205,7 @@ export function MembershipView() {
   };
   return (
     <div className="grid grid-cols-1 gap-6">
-      <section className="grid gap-2 rounded-2xl bg-gradient-to-br from-orange-600 to-rose-800 p-6 text-white">
+      <section className="grid gap-2 rounded-2xl bg-grape p-6 text-white">
         <p className="flex items-center gap-2 text-sm font-medium uppercase tracking-wide opacity-90">
           <Crown className="size-4" aria-hidden /> FoodGrid One
         </p>
@@ -697,7 +697,7 @@ export function AccountView() {
                 {!a.isDefault ? (
                   <button
                     type="button"
-                    className="text-xs text-primary underline-offset-4 hover:underline"
+                    className="text-xs text-link underline-offset-4 hover:underline"
                     onClick={() => makeDefault.mutate(a.id)}
                   >
                     Make default

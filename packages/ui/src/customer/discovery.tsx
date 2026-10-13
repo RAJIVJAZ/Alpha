@@ -66,24 +66,22 @@ function BannerRow({ banners }: { banners: Banner[] }) {
             key={b.id}
             href={href}
             className={cn(
-              'relative flex h-36 w-[85%] shrink-0 snap-start flex-col justify-end overflow-hidden rounded-2xl p-5 text-white sm:w-[26rem]',
-              // brand-tinted gradients behind the creative so text stays readable when images are slow or missing
-              [
-                'bg-gradient-to-br from-orange-600 to-rose-700',
-                'bg-gradient-to-br from-emerald-700 to-teal-900',
-                'bg-gradient-to-br from-indigo-700 to-slate-900',
-              ][i % 3],
+              'relative flex h-36 w-[85%] shrink-0 snap-start flex-col justify-end overflow-hidden rounded-2xl p-5 text-ink sm:w-[26rem]',
+              // flavour washes behind the creative keep the Ink text readable when images are slow or missing
+              ['bg-mango', 'bg-sky', 'bg-bubblegum', 'bg-pista'][i % 4],
             )}
           >
             {b.imageUrl ? (
               <img
                 src={b.imageUrl}
                 alt=""
-                className="absolute inset-0 size-full object-cover opacity-40"
+                className="absolute inset-0 size-full object-cover opacity-30"
                 onError={(e) => (e.currentTarget.style.display = 'none')}
               />
             ) : null}
-            <span className="relative text-xl font-semibold leading-tight">{b.title}</span>
+            <span className="relative font-display text-2xl font-extrabold leading-tight">
+              {b.title}
+            </span>
             {b.subtitle ? <span className="relative text-sm opacity-90">{b.subtitle}</span> : null}
           </Link>
         );

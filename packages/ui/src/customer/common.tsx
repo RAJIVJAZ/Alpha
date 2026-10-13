@@ -217,7 +217,7 @@ export function OutletCard({ outlet: o, compact }: { outlet: OutletSummary; comp
         !o.isOpenNow && 'opacity-60',
       )}
     >
-      <div className="relative overflow-hidden rounded-xl">
+      <div className="relative overflow-hidden rounded-xl" data-fg-pop>
         <Thumb
           src={o.coverImageUrl}
           className={cn(
@@ -368,12 +368,12 @@ export function Stepper({
   label: string;
 }) {
   return (
-    <div className="inline-flex h-9 items-center overflow-hidden rounded-lg border border-primary/40 bg-card text-primary">
+    <div className="inline-flex h-9 items-center overflow-hidden rounded-lg border border-primary/40 bg-card text-primary-strong">
       <Button
         type="button"
         variant="ghost"
         size="icon"
-        className="h-9 w-8 rounded-none text-primary"
+        className="h-9 w-8 rounded-none text-primary-strong"
         onClick={() => onChange(value - 1)}
         disabled={busy}
         aria-label={`Remove one ${label}`}
@@ -387,7 +387,7 @@ export function Stepper({
         type="button"
         variant="ghost"
         size="icon"
-        className="h-9 w-8 rounded-none text-primary"
+        className="h-9 w-8 rounded-none text-primary-strong"
         onClick={() => onChange(value + 1)}
         disabled={busy}
         aria-label={`Add one more ${label}`}

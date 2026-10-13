@@ -7,39 +7,70 @@
  *   @source "../../../packages/ui/src";
  *
  * Dark mode is selected, not flipped: `.dark` on <html> (set before paint by
- * ThemeScript from the saved choice or the OS preference).
+ * ThemeScript from the saved choice, the app's default or the OS preference).
+ *
+ * One palette, three looks (the Gen Z design blueprint):
+ *   - calm (no class): dashboards - white pages, soft shadows, coral only for the main action
+ *   - `.theme-pop` on <html>: the customer site - Cream page, sticker-style buttons and cards
+ *   - riders default to dark ("night", see ThemeScript's defaultTheme)
+ *
+ * Chili Pop carries Ink text (5.8:1); as text on light surfaces it is too pale (3.1:1), so
+ * coral text uses `text-primary-strong` (Chili Deep) and links use `text-link` (Grape).
  *
  * Chart series use the validated categorical palette (dataviz reference
- * instance, checked with validate_palette.js in both modes); the brand orange
- * is a UI accent only and never encodes data.
+ * instance, checked with validate_palette.js in both modes); the brand colours
+ * are UI accents only and never encode data.
  */
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
+  /* brand palette: fixed in both modes */
+  --fg-chili: #ff5a36;
+  --fg-chili-deep: #c4320a;
+  --fg-grape: #6c4bf4;
+  --fg-lime: #c8f135;
+  --fg-ink: #1a1423;
+  --fg-slate: #6b6577;
+  --fg-cream: #fff8ee;
+  --fg-night: #100d17;
+  --fg-mango: #ffd66b;
+  --fg-bubblegum: #ff8fc7;
+  --fg-sky: #7cc8ff;
+  --fg-pista: #9be7b0;
+  --fg-wash-mango: #fff1c7;
+  --fg-wash-bubblegum: #ffe0ef;
+  --fg-wash-sky: #ddf1ff;
+  --fg-wash-pista: #ddf7e4;
+  --fg-shadow-soft: 0 1px 2px rgb(26 20 35 / 0.08), 0 4px 12px rgb(26 20 35 / 0.06);
+
   color-scheme: light;
-  --background: #f9f9f7;
-  --foreground: #0b0b0b;
-  --card: #fcfcfb;
-  --card-foreground: #0b0b0b;
+  --background: #ffffff;
+  --foreground: #1a1423;
+  --card: #ffffff;
+  --card-foreground: #1a1423;
   --popover: #ffffff;
-  --popover-foreground: #0b0b0b;
-  --primary: #c2410c;
-  --primary-foreground: #ffffff;
-  --secondary: #f0efec;
-  --secondary-foreground: #1d1c1a;
-  --muted: #f0efec;
-  --muted-foreground: #5f5e59;
-  --accent: #fff1e6;
-  --accent-foreground: #7c2d12;
-  --destructive: #b42318;
+  --popover-foreground: #1a1423;
+  --primary: #ff5a36;
+  --primary-foreground: #1a1423;
+  --primary-strong: #c4320a;
+  --link: #6c4bf4;
+  --key: #c8f135;
+  --key-foreground: #1a1423;
+  --secondary: #f4f2f7;
+  --secondary-foreground: #1a1423;
+  --muted: #f4f2f7;
+  --muted-foreground: #6b6577;
+  --accent: #ffece6;
+  --accent-foreground: #8a2a0c;
+  --destructive: #d92d20;
   --destructive-foreground: #ffffff;
-  --border: rgba(11, 11, 11, 0.1);
-  --input: rgba(11, 11, 11, 0.16);
-  --ring: #ea580c;
-  --radius: 0.625rem;
+  --border: rgba(26, 20, 35, 0.1);
+  --input: rgba(26, 20, 35, 0.18);
+  --ring: #6c4bf4;
+  --radius: 0.75rem;
 
   /* chart chrome & series (reference palette, light steps) */
-  --chart-surface: #fcfcfb;
+  --chart-surface: #ffffff;
   --chart-grid: #e1e0d9;
   --chart-baseline: #c3c2b7;
   --chart-axis: #898781;
@@ -55,40 +86,48 @@
   --chart-muted: #c3c2b7;
 
   /* status (never used for series; always paired with icon + label) */
-  --status-good: #0ca30c;
-  --status-good-text: #006300;
-  --status-warning: #fab219;
+  --status-good: #12b76a;
+  --status-good-text: #067647;
+  --status-warning: #f79009;
   --status-serious: #ec835a;
-  --status-critical: #d03b3b;
-  --delta-up: #006300;
+  --status-critical: #d92d20;
+  --delta-up: #067647;
   --delta-down: #b42318;
+}
+
+/* the customer site's page colour */
+.theme-pop {
+  --background: var(--fg-cream);
 }
 
 .dark {
   color-scheme: dark;
-  --background: #0d0d0d;
-  --foreground: #ffffff;
-  --card: #1a1a19;
-  --card-foreground: #ffffff;
-  --popover: #222220;
-  --popover-foreground: #ffffff;
-  --primary: #f97316;
-  --primary-foreground: #1a1a19;
-  --secondary: #2c2c2a;
-  --secondary-foreground: #f2f1ec;
-  --muted: #262624;
-  --muted-foreground: #b4b3aa;
-  --accent: #3a2416;
-  --accent-foreground: #fed7aa;
+  --background: #100d17;
+  --foreground: #f6f4fa;
+  --card: #1c1824;
+  --card-foreground: #f6f4fa;
+  --popover: #241f2e;
+  --popover-foreground: #f6f4fa;
+  --primary: #ff5a36;
+  --primary-foreground: #1a1423;
+  --primary-strong: #ff7a5c;
+  --link: #a996ff;
+  --secondary: #262130;
+  --secondary-foreground: #f6f4fa;
+  --muted: #262130;
+  --muted-foreground: #b3adbf;
+  --accent: #3a1d14;
+  --accent-foreground: #ffc2b0;
   --destructive: #f04438;
-  --destructive-foreground: #1a1a19;
+  --destructive-foreground: #1a1423;
   --border: rgba(255, 255, 255, 0.1);
   --input: rgba(255, 255, 255, 0.16);
-  --ring: #fb923c;
+  --ring: #a996ff;
+  --fg-shadow-soft: 0 1px 2px rgb(0 0 0 / 0.4);
 
-  --chart-surface: #1a1a19;
-  --chart-grid: #2c2c2a;
-  --chart-baseline: #383835;
+  --chart-surface: #1c1824;
+  --chart-grid: #2c2836;
+  --chart-baseline: #3a3546;
   --chart-axis: #898781;
   --chart-text: #c3c2b7;
   --chart-1: #3987e5;
@@ -101,8 +140,8 @@
   --chart-8: #e66767;
   --chart-muted: #4a4a46;
 
-  --status-good-text: #0ca30c;
-  --delta-up: #0ca30c;
+  --status-good-text: #12b76a;
+  --delta-up: #12b76a;
   --delta-down: #f97066;
 }
 
@@ -115,6 +154,10 @@
   --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-primary-strong: var(--primary-strong);
+  --color-link: var(--link);
+  --color-key: var(--key);
+  --color-key-foreground: var(--key-foreground);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
@@ -133,11 +176,30 @@
   --color-status-critical: var(--status-critical);
   --color-delta-up: var(--delta-up);
   --color-delta-down: var(--delta-down);
+  --color-ink: var(--fg-ink);
+  --color-night: var(--fg-night);
+  --color-grape: var(--fg-grape);
+  --color-mango: var(--fg-mango);
+  --color-bubblegum: var(--fg-bubblegum);
+  --color-sky: var(--fg-sky);
+  --color-pista: var(--fg-pista);
+  --color-wash-mango: var(--fg-wash-mango);
+  --color-wash-bubblegum: var(--fg-wash-bubblegum);
+  --color-wash-sky: var(--fg-wash-sky);
+  --color-wash-pista: var(--fg-wash-pista);
+  --shadow-soft: var(--fg-shadow-soft);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
-  --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans', sans-serif;
+  /* the font variables come from next/font in each app's layout; the fallbacks keep
+     every app readable if one is missing */
+  --font-sans:
+    var(--font-inter, system-ui), system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans',
+    'Noto Sans Devanagari', sans-serif;
+  --font-display:
+    var(--font-bricolage, var(--font-inter, system-ui)), var(--font-inter, system-ui), system-ui,
+    sans-serif;
 }
 
 @layer base {
@@ -153,6 +215,10 @@
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
   }
+  .theme-pop :is(h1, h2) {
+    font-family: var(--font-display);
+    letter-spacing: -0.01em;
+  }
   :focus-visible {
     outline: 2px solid var(--ring);
     outline-offset: 2px;
@@ -165,6 +231,45 @@
       transition-duration: 0.01ms !important;
     }
   }
+}
+
+/*
+ * Pop look (customer site, light mode): the main and key buttons, and anything marked
+ * data-fg-pop, look like stickers - pill or rounded shape, 2px Ink outline, offset shadow
+ * that collapses on press. Dark mode keeps the shapes without the outline and shadow.
+ */
+.theme-pop
+  :is([data-slot='button'][data-variant='default'], [data-slot='button'][data-variant='key']) {
+  border-radius: 9999px;
+  transition:
+    transform 120ms ease-out,
+    box-shadow 120ms ease-out,
+    background-color 120ms;
+}
+.theme-pop:not(.dark)
+  :is([data-slot='button'][data-variant='default'], [data-slot='button'][data-variant='key']) {
+  border: 2px solid var(--fg-ink);
+  box-shadow: 3px 3px 0 var(--fg-ink);
+}
+.theme-pop:not(.dark)
+  :is(
+    [data-slot='button'][data-variant='default'],
+    [data-slot='button'][data-variant='key']
+  ):active:not(:disabled) {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 var(--fg-ink);
+}
+.theme-pop:not(.dark) [data-fg-pop] {
+  border: 2px solid var(--fg-ink);
+  box-shadow: 4px 4px 0 var(--fg-ink);
+  transition:
+    transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 200ms ease-out;
+}
+.theme-pop:not(.dark) :is(a, button):hover > [data-fg-pop],
+.theme-pop:not(.dark) a[data-fg-pop]:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0 var(--fg-ink);
 }
 
 @utility tabular {

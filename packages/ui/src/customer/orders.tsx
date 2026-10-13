@@ -418,7 +418,7 @@ function TrackingMap({ tracking: t }: { tracking: Tracking }) {
       {t.drop ? (
         <figcaption className="text-right text-xs">
           <a
-            className="text-primary underline-offset-4 hover:underline"
+            className="text-link underline-offset-4 hover:underline"
             href={`https://www.google.com/maps/dir/?api=1&origin=${t.outlet.lat},${t.outlet.lng}&destination=${t.drop.lat},${t.drop.lng}`}
             target="_blank"
             rel="noreferrer"
