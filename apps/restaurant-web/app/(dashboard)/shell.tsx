@@ -106,6 +106,7 @@ export function Shell({ kind, children }: { kind: FoodBusinessKind; children: Re
   const nav = useNavForRole(NAV[kind], {
     '/reports': 'reports:read',
     '/marketplace': 'procurement:read',
+    '/pos': 'pos:operate', // billing; a cart's home shows who may bill instead
   });
   return (
     <OutletProvider>

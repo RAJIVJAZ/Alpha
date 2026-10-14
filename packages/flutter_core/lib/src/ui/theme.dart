@@ -59,8 +59,10 @@ class FoodGridTheme {
     final base = ThemeData(colorScheme: scheme, useMaterial3: true, visualDensity: VisualDensity.standard);
     // text-only buttons on light surfaces use Chili Deep: Chili Pop is too pale as text there
     final textColor = scheme.brightness == Brightness.light ? brandDeep : scheme.primary;
-    // selected states drawn as text or thin marks follow the same rule
-    WidgetStateProperty<Color?> selected(Color? otherwise) => WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.selected) ? textColor : otherwise);
+    // selected states drawn as text or thin marks follow the same rule; disabled ones keep the
+    // Material defaults (null), which dim them so they don't look usable
+    WidgetStateProperty<Color?> selected(Color? otherwise) => WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.disabled) ? null : s.contains(WidgetState.selected) ? textColor : otherwise);
+    final disabledText = scheme.onSurface.withValues(alpha: 0.38);
     // corners from the blueprint: 8 inputs, 12 cards, 20 sheets and dialogs, pills for buttons
     return base.copyWith(
       appBarTheme: AppBarTheme(backgroundColor: scheme.surface, foregroundColor: scheme.onSurface, elevation: 0, scrolledUnderElevation: 1, centerTitle: false),
@@ -68,7 +70,7 @@ class FoodGridTheme {
       inputDecorationTheme: InputDecorationTheme(
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
         isDense: true,
-        floatingLabelStyle: WidgetStateTextStyle.resolveWith((s) => TextStyle(color: s.contains(WidgetState.error) ? scheme.error : s.contains(WidgetState.focused) ? textColor : scheme.onSurfaceVariant)),
+        floatingLabelStyle: WidgetStateTextStyle.resolveWith((s) => TextStyle(color: s.contains(WidgetState.disabled) ? disabledText : s.contains(WidgetState.error) ? scheme.error : s.contains(WidgetState.focused) ? textColor : scheme.onSurfaceVariant)),
       ),
       filledButtonTheme: FilledButtonThemeData(style: FilledButton.styleFrom(minimumSize: const Size(64, 48), shape: const StadiumBorder())),
       outlinedButtonTheme: OutlinedButtonThemeData(style: OutlinedButton.styleFrom(foregroundColor: textColor, minimumSize: const Size(64, 44), shape: const StadiumBorder())),
@@ -76,7 +78,8 @@ class FoodGridTheme {
       tabBarTheme: TabBarThemeData(labelColor: textColor, indicatorColor: scheme.primary, unselectedLabelColor: scheme.onSurfaceVariant),
       checkboxTheme: CheckboxThemeData(fillColor: selected(null)),
       radioTheme: RadioThemeData(fillColor: selected(scheme.onSurfaceVariant)),
-      datePickerTheme: DatePickerThemeData(todayForegroundColor: selected(textColor)),
+      // today's number: on the filled primary circle when picked, else the text colour
+      datePickerTheme: DatePickerThemeData(todayForegroundColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.disabled) ? disabledText : s.contains(WidgetState.selected) ? scheme.onPrimary : textColor)),
       bottomSheetTheme: const BottomSheetThemeData(shape: RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20)))),
       dialogTheme: DialogThemeData(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20))),
       chipTheme: base.chipTheme.copyWith(shape: const StadiumBorder()),

@@ -1,12 +1,12 @@
 'use client';
 
 import * as React from 'react';
-import { Copy, LocateFixed, MapPin, Plus, Store, Trash2 } from 'lucide-react';
+import { Copy, LocateFixed, MapPin, Plus, RefreshCw, Store, Trash2 } from 'lucide-react';
 import { Button } from '../components/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/card';
 import { ConfirmDialog } from '../components/dialog';
 import { Field, Input, Select, Textarea } from '../components/form';
-import { PageHeader } from '../components/layout';
+import { EmptyState, PageHeader } from '../components/layout';
 import { Switch } from '../components/menu';
 import { Skeleton } from '../components/misc';
 import { StatusBadge } from '../components/status';
@@ -14,13 +14,14 @@ import { api, uploadMedia } from '../lib/api';
 import { formatRelative } from '../lib/format';
 import { devicePosition } from '../lib/geo';
 import { useApiMutation } from '../lib/hooks';
-import { useCan } from './access';
-import { useOutlet } from './outlet';
+import { useCan, useOutletScoped } from './access';
+import { OutletPicker, useOutlet } from './outlet';
 import {
   DAYS,
   hoursSummary,
   outletBody,
   outletForm,
+  savedLocation,
   type HoursWindow,
   type OutletForm,
   type OutletType,
@@ -46,12 +47,29 @@ const STATUS_NOTE: Record<string, string> = {
  * switch, temporary closure, location, hours, ways to order and licences.
  */
 export function OutletSettings({ kind }: { kind: FoodBusinessKind }) {
-  const { outlets, outlet, setOutletId, loading } = useOutlet();
+  const { outlets, outlet, setOutletId, loading, failed, retry } = useOutlet();
   const canManage = useCan('outlet:manage');
+  // staff limited to some outlets can edit those, but a new one would be outside their reach
+  const scoped = useOutletScoped();
+  const canAdd = canManage && !scoped;
   const [adding, setAdding] = React.useState(false);
   if (loading) return <Skeleton className="h-96" />;
-  const creating = adding || !outlet;
   const noun = kind === 'FOOD_CART' ? 'cart' : 'outlet';
+  // never offer the first-outlet form when the list simply failed to load: it would add a copy
+  if (failed)
+    return (
+      <EmptyState
+        icon={<Store />}
+        title={`Your ${noun} settings could not be loaded`}
+        description="Check your connection and try again."
+        action={
+          <Button variant="outline" onClick={retry}>
+            <RefreshCw /> Try again
+          </Button>
+        }
+      />
+    );
+  const creating = adding || !outlet;
   return (
     <>
       <PageHeader
@@ -68,10 +86,15 @@ export function OutletSettings({ kind }: { kind: FoodBusinessKind }) {
             : `${outlet!.name} · ${hoursSummary(outlet!.openingHours)}`
         }
         actions={
-          !creating && kind === 'RESTAURANT' && canManage ? (
-            <Button variant="outline" onClick={() => setAdding(true)}>
-              <Plus /> Add an outlet
-            </Button>
+          !creating ? (
+            <>
+              <OutletPicker />
+              {kind === 'RESTAURANT' && canAdd ? (
+                <Button variant="outline" onClick={() => setAdding(true)}>
+                  <Plus /> Add an outlet
+                </Button>
+              ) : null}
+            </>
           ) : adding && outlets.length ? (
             <Button variant="ghost" onClick={() => setAdding(false)}>
               Back to {outlet?.name}
@@ -79,7 +102,7 @@ export function OutletSettings({ kind }: { kind: FoodBusinessKind }) {
           ) : null
         }
       />
-      {!canManage && creating ? (
+      {!canAdd && creating ? (
         <p className="text-sm text-muted-foreground">
           Ask the owner or a manager to set up the outlet.
         </p>
@@ -118,7 +141,8 @@ function OutletStatusCard({ outlet: o }: { outlet: Outlet }) {
     (paused: boolean) => api.post(`merchant/outlets/${o.id}/${paused ? 'pause' : 'resume'}`),
     {
       invalidate: inv,
-      success: (r) => ((r as Outlet).status === 'PAUSED' ? 'Temporarily closed' : 'Reopened'),
+      success: (r) =>
+        (r as Outlet).status === 'PAUSED' ? 'Temporarily closed' : 'Reopened: taking orders again',
       onSuccess: () => setConfirmPause(false),
     },
   );
@@ -265,6 +289,17 @@ function OutletEditor({
   onSaved?: (o: Outlet) => void;
 }) {
   const [f, setF] = React.useState<OutletForm>(() => outletForm(outlet?.type ?? kind, outlet));
+  // the saved spot: a cart moved with "I'm here now" (or from the app) shows its new place,
+  // unless the coordinates are being edited here
+  const { lat: savedLat = '', lng: savedLng = '' } = outlet ? savedLocation(outlet) : {};
+  const location = React.useRef(outlet ? { lat: savedLat, lng: savedLng } : undefined);
+  React.useEffect(() => {
+    const prev = location.current;
+    if (!prev || (prev.lat === savedLat && prev.lng === savedLng)) return;
+    const next = { lat: savedLat, lng: savedLng };
+    location.current = next;
+    setF((x) => (x.lat === prev.lat && x.lng === prev.lng ? { ...x, ...next } : x));
+  }, [savedLat, savedLng]);
   const [error, setError] = React.useState<string | null>(null);
   const [locating, setLocating] = React.useState(false);
   const [uploading, setUploading] = React.useState<string | null>(null);
@@ -321,7 +356,7 @@ function OutletEditor({
         e.preventDefault();
         setError(null);
         try {
-          save.mutate(outletBody(f, { create: !outlet }));
+          save.mutate(outletBody(f, { create: !outlet, location: location.current }));
         } catch (err) {
           setError((err as Error).message);
         }
@@ -589,16 +624,12 @@ function OutletEditor({
           </CardContent>
         </Card>
       </fieldset>
-      {error ? (
-        <p
-          role="alert"
-          className="rounded-md bg-status-critical/10 px-3 py-2 text-sm text-status-critical-text"
-        >
-          {error}
-        </p>
-      ) : null}
       {!readOnly ? (
-        <div className="sticky bottom-0 -mx-4 flex justify-end gap-2 border-t bg-background/95 px-4 py-3 backdrop-blur sm:mx-0 sm:rounded-lg sm:border">
+        // the bar stays in view, so a problem found on save shows next to the button pressed
+        <div className="sticky bottom-0 -mx-4 flex items-center justify-end gap-3 border-t bg-background/95 px-4 py-3 backdrop-blur sm:mx-0 sm:rounded-lg sm:border">
+          <p role="alert" className="mr-auto text-sm text-status-critical-text empty:hidden">
+            {error}
+          </p>
           <Button type="submit" loading={save.isPending} disabled={!!uploading}>
             {outlet ? 'Save changes' : cart ? 'Save the cart' : 'Save the outlet'}
           </Button>
@@ -680,7 +711,21 @@ function ImageField({
   );
 }
 
-/** Opening windows per day: add, remove, edit, and copy Monday's to every day. */
+const DAY_NAMES = [
+  'Sunday',
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+] as const;
+
+/**
+ * Opening windows per day: add, remove, edit, and copy Monday's to every day. With no
+ * windows at all the outlet takes orders around the clock (as checkout reads it); once any
+ * day has hours, a day without them is closed.
+ */
 function HoursEditor({
   value,
   onChange,
@@ -698,25 +743,35 @@ function HoursEditor({
       last ? { day, open: '18:30', close: '23:00' } : { day, open: '11:00', close: '22:00' },
     ]);
   };
-  const copyMonday = () => {
-    const monday = value.filter((w) => w.day === 1);
+  const monday = value.filter((w) => w.day === 1);
+  const copyMonday = () =>
     onChange([0, 1, 2, 3, 4, 5, 6].flatMap((day) => monday.map((w) => ({ ...w, day }))));
-  };
+  const allDay = value.length === 0;
   return (
     <div className="grid gap-2">
+      {allDay ? (
+        <p className="text-sm text-muted-foreground">
+          No hours set: customers can order at any time, every day. Add hours to a day to set when
+          you are open.
+        </p>
+      ) : null}
       {[1, 2, 3, 4, 5, 6, 0].map((day) => {
         const windows = value.map((w, i) => ({ w, i })).filter(({ w }) => w.day === day);
         return (
           <div key={day} className="flex flex-wrap items-center gap-2 border-b pb-2 last:border-0">
             <span className="w-10 text-sm font-medium">{DAYS[day]}</span>
-            {windows.length ? null : <span className="text-sm text-muted-foreground">Closed</span>}
-            {windows.map(({ w, i }) => (
+            {windows.length ? null : (
+              <span className="text-sm text-muted-foreground">
+                {allDay ? 'Open all day' : 'Closed'}
+              </span>
+            )}
+            {windows.map(({ w, i }, k) => (
               <span key={i} className="flex items-center gap-1">
                 <Input
                   type="time"
                   value={w.open}
                   onChange={(e) => update(i, { open: e.target.value })}
-                  aria-label={`${DAYS[day]} opens`}
+                  aria-label={`${DAY_NAMES[day]} opens${windows.length > 1 ? `, window ${k + 1}` : ''}`}
                   className="h-8 w-28"
                 />
                 <span aria-hidden>–</span>
@@ -724,7 +779,7 @@ function HoursEditor({
                   type="time"
                   value={w.close}
                   onChange={(e) => update(i, { close: e.target.value })}
-                  aria-label={`${DAYS[day]} closes`}
+                  aria-label={`${DAY_NAMES[day]} closes${windows.length > 1 ? `, window ${k + 1}` : ''}`}
                   className="h-8 w-28"
                 />
                 <Button
@@ -732,14 +787,24 @@ function HoursEditor({
                   variant="ghost"
                   size="icon"
                   onClick={() => remove(i)}
-                  aria-label={`Remove ${DAYS[day]} ${w.open}–${w.close}`}
+                  aria-label={`Remove ${DAY_NAMES[day]} ${w.open}–${w.close}`}
                 >
                   <Trash2 />
                 </Button>
               </span>
             ))}
-            <Button type="button" variant="ghost" size="sm" onClick={() => add(day)}>
-              <Plus /> {windows.length ? 'Add hours' : 'Open'}
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => add(day)}
+              aria-label={
+                windows.length
+                  ? `Add more hours on ${DAY_NAMES[day]}`
+                  : `Set opening hours on ${DAY_NAMES[day]}`
+              }
+            >
+              <Plus /> {windows.length ? 'Add hours' : 'Set hours'}
             </Button>
           </div>
         );
@@ -749,6 +814,8 @@ function HoursEditor({
         variant="outline"
         size="sm"
         className="justify-self-start"
+        disabled={!monday.length}
+        title={monday.length ? undefined : "Set Monday's hours first"}
         onClick={copyMonday}
       >
         <Copy /> Use Monday&apos;s hours every day

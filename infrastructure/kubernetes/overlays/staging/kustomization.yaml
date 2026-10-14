@@ -53,4 +53,6 @@ patches:
       - { op: replace, path: /data/JWT_ISSUER, value: https://auth.staging.foodgrid.in }
       - { op: replace, path: /data/CORS_ORIGINS, value: https://staging.foodgrid.in }
       - { op: replace, path: /data/CUSTOMER_WEB_URL, value: https://staging.foodgrid.in }
+      - { op: replace, path: /data/FOOD_SELLER_PORTAL_URL, value: https://partner.staging.foodgrid.in }
+      - { op: replace, path: /data/PRODUCT_SELLER_PORTAL_URL, value: https://supplier.staging.foodgrid.in }
       - { op: replace, path: /data/LOG_LEVEL, value: debug }

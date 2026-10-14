@@ -1,7 +1,7 @@
 /// <reference types="node" />
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { cleanHours, outletBody, outletForm, type OutletForm } from './outlet-form';
+import { cleanHours, outletBody, outletForm, savedLocation, type OutletForm } from './outlet-form';
 
 const filled = (over: Partial<OutletForm> = {}): OutletForm => ({
   ...outletForm('RESTAURANT'),
@@ -38,6 +38,34 @@ test('outletBody trims, de-duplicates and keeps the type only on create', () => 
   const update = outletBody(filled(), { create: false });
   assert.equal('type' in update, false);
   assert.equal(update.description, '');
+});
+
+test('an update clears emptied optional fields and keeps a moved cart where it is', () => {
+  const update = outletBody(filled({ logoUrl: '', gstin: ' ', fssaiNumber: '' }), {
+    create: false,
+  });
+  assert.equal(update.logoUrl, null);
+  assert.equal(update.gstin, null);
+  assert.equal(update.fssaiNumber, null);
+  assert.equal(update.addressLine2, null);
+  assert.equal(outletBody(filled({ logoUrl: '' }), { create: true }).logoUrl, undefined);
+  // unchanged coordinates are left out, so "I'm here now" is not undone by a later save
+  const saved = savedLocation({ lat: 12.9352, lng: 77.6245 });
+  assert.equal('lat' in outletBody(filled(), { create: false, location: saved }), false);
+  const moved = outletBody(filled({ lat: '12.94' }), { create: false, location: saved });
+  assert.deepEqual([moved.lat, moved.lng], [12.94, 77.6245]);
+});
+
+test('a cloud kitchen saves with dine-in and QR off, and still needs a way to order', () => {
+  const kitchen = filled({ type: 'CLOUD_KITCHEN', acceptsDineIn: true, acceptsQrOrders: true });
+  const body = outletBody(kitchen, { create: true });
+  assert.equal(body.acceptsDineIn, false);
+  assert.equal(body.acceptsQrOrders, false);
+  assert.throws(
+    () =>
+      outletBody({ ...kitchen, acceptsDelivery: false, acceptsTakeaway: false }, { create: true }),
+    /at least one way/,
+  );
 });
 
 test('outletBody refuses what the outlet cannot go live with', () => {

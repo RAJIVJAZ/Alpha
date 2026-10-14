@@ -195,7 +195,8 @@ restaurant-web is the Food Seller Portal (restaurants and food carts) and suppli
 Product Seller Portal (suppliers, wholesalers and retailers). vendor-web now only shows
 links to the two portals for old `business.` bookmarks: set `FOOD_SELLER_PORTAL_URL` and
 `PRODUCT_SELLER_PORTAL_URL` on its project, or delete the project if nobody uses that
-address.
+address. Kubernetes sets both in `foodgrid-config` (the staging overlay points them at the
+staging hosts), and docker compose at the local portal ports.
 
 For each app:
 

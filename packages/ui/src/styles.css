@@ -67,8 +67,9 @@
   --destructive: #d92d20;
   --destructive-foreground: #ffffff;
   --border: rgba(26, 20, 35, 0.1);
-  /* 3:1 against white and Cream, so a field's edge is visible (WCAG 1.4.11) */
-  --input: rgba(26, 20, 35, 0.45);
+  /* 3.2:1 on a white field and 3.05:1 against the Cream page, so a field's edge is visible
+     (WCAG 1.4.11) */
+  --input: rgba(26, 20, 35, 0.48);
   --ring: #6c4bf4;
   --radius: 0.75rem;
 
@@ -294,9 +295,21 @@
   transform: translate(3px, 3px);
   box-shadow: 1px 1px 0 var(--fg-ink);
 }
-.theme-pop:not(.dark) :is([data-fg-pop], [data-slot='card']) {
+.theme-pop:not(.dark) [data-fg-pop] {
   border: 2px solid var(--fg-ink);
   box-shadow: var(--shadow-pop);
+}
+/* cards get the sticker edge too, but the ink colour sits in a layer below the utilities, so
+   a card that marks itself with a border colour (the current membership plan) keeps it */
+.theme-pop:not(.dark) [data-slot='card'] {
+  border-width: 2px;
+  border-style: solid;
+  box-shadow: var(--shadow-pop);
+}
+@layer components {
+  .theme-pop:not(.dark) [data-slot='card'] {
+    border-color: var(--fg-ink);
+  }
 }
 .theme-pop:not(.dark) [data-fg-pop] {
   transition:

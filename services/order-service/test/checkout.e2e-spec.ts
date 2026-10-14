@@ -1124,6 +1124,56 @@ describe('order-service checkout & lifecycle (e2e)', () => {
       .expect(403);
   });
 
+  it('outlet settings: clears emptied fields, keeps the type, cloud kitchens never seat guests', async () => {
+    const as = { Authorization: `Bearer ${merchant()}` };
+    const outlet = (id: string) => api().patch(`/api/v1/merchant/outlets/${id}`).set(as);
+    await prisma.outlet.update({
+      where: { id: 'outlet_1' },
+      data: { logoUrl: 'https://cdn.example.com/logo.png', gstin: '29ABCDE1234F1Z5' },
+    });
+    const cleared = await outlet('outlet_1').send({ logoUrl: null, gstin: null }).expect(200);
+    expect(cleared.body).toMatchObject({ logoUrl: null, gstin: null, name: 'Test Kitchen' });
+    // the type decides the commission rule and whether the outlet moves: fixed at creation
+    await outlet('outlet_1').send({ type: 'FOOD_CART' }).expect(400);
+    const place = {
+      name: 'Night Kitchen',
+      addressLine1: '1 Main Road',
+      city: 'Bengaluru',
+      state: 'Karnataka',
+      pincode: '560034',
+      lat: 12.93,
+      lng: 77.62,
+      acceptsDineIn: true,
+      acceptsQrOrders: true,
+    };
+    const kitchen = await api()
+      .post('/api/v1/merchant/outlets')
+      .set(as)
+      .send({ type: 'CLOUD_KITCHEN', ...place })
+      .expect(201);
+    expect(kitchen.body).toMatchObject({ acceptsDineIn: false, acceptsQrOrders: false });
+    const edited = await outlet(kitchen.body.id).send({ acceptsDineIn: true }).expect(200);
+    expect(edited.body.acceptsDineIn).toBe(false);
+    // staff limited to some outlets would never see one they added
+    const scoped = await api()
+      .post('/api/v1/merchant/outlets')
+      .set('Authorization', `Bearer ${staff('MANAGER', ['outlet_1'])}`)
+      .send({ type: 'RESTAURANT', ...place, name: 'Annexe' })
+      .expect(403);
+    expect(scoped.body.code).toBe('OUTLET_SCOPE');
+  });
+
+  it('closing an outlet temporarily stops orders and reopening takes them again', async () => {
+    const as = { Authorization: `Bearer ${merchant()}` };
+    const paused = await api().post('/api/v1/merchant/outlets/outlet_1/pause').set(as).expect(201);
+    expect(paused.body).toMatchObject({ status: 'PAUSED', isOpen: false });
+    const reopened = await api()
+      .post('/api/v1/merchant/outlets/outlet_1/resume')
+      .set(as)
+      .expect(201);
+    expect(reopened.body).toMatchObject({ status: 'ACTIVE', isOpen: true });
+  });
+
   it('shows the daily sales summary only to roles that can read reports, amounts as strings', async () => {
     const sold = await prisma.order.create({
       data: {

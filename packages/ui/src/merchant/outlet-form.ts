@@ -160,9 +160,14 @@ export function cleanHours(hours: HoursWindow[]): HoursWindow[] {
 
 /**
  * The merchant/outlets body. `create` adds the type, which stays fixed afterwards (a food
- * cart business only creates food cart outlets).
+ * cart business only creates food cart outlets). On an update, `location` is the outlet's
+ * saved spot: the coordinates are only sent when the form changed them, so saving other
+ * settings never moves a cart back from where "I'm here now" put it.
  */
-export function outletBody(f: OutletForm, { create }: { create: boolean }) {
+export function outletBody(
+  f: OutletForm,
+  { create, location }: { create: boolean; location?: { lat: string; lng: string } },
+) {
   const name = f.name.trim();
   if (!name) throw new Error('Enter the outlet name customers will see');
   if (!f.addressLine1.trim() || !f.city.trim() || !f.state.trim())
@@ -187,8 +192,16 @@ export function outletBody(f: OutletForm, { create }: { create: boolean }) {
   const prep = amount(f.avgPrepTimeMins, 'Preparation time');
   if (prep !== undefined && (!Number.isInteger(prep) || prep < 1 || prep > 180))
     throw new Error('Preparation time must be 1 to 180 minutes');
-  if (!f.acceptsDelivery && !f.acceptsTakeaway && !f.acceptsDineIn && !f.acceptsQrOrders)
+  // a cloud kitchen has no seats or tables: its dine-in and QR switches are hidden and off
+  const kitchen = f.type === 'CLOUD_KITCHEN';
+  const dineIn = f.acceptsDineIn && !kitchen;
+  const qr = f.acceptsQrOrders && !kitchen;
+  if (!f.acceptsDelivery && !f.acceptsTakeaway && !dineIn && !qr)
     throw new Error('Choose at least one way to take orders');
+  const moved =
+    create || !location || f.lat.trim() !== location.lat || f.lng.trim() !== location.lng;
+  // an emptied optional field is cleared on save (null); new outlets just leave it out
+  const optional = (v: string) => v || (create ? undefined : null);
   const stations = list(f.kdsStations.toUpperCase().replace(/[^A-Z0-9,\s_-]/g, ''), 12);
   const body = {
     name,
@@ -197,12 +210,11 @@ export function outletBody(f: OutletForm, { create }: { create: boolean }) {
     cuisines: list(f.cuisines, 10),
     phone: f.phone.trim() || (create ? undefined : ''),
     addressLine1: f.addressLine1.trim(),
-    addressLine2: f.addressLine2.trim() || undefined,
+    addressLine2: optional(f.addressLine2.trim()),
     city: f.city.trim(),
     state: f.state.trim(),
     pincode: f.pincode.trim(),
-    lat,
-    lng,
+    ...(moved ? { lat, lng } : {}),
     isPureVeg: f.isPureVeg,
     costForTwo: amount(f.costForTwo, 'Cost for two'),
     avgPrepTimeMins: prep,
@@ -210,18 +222,24 @@ export function outletBody(f: OutletForm, { create }: { create: boolean }) {
     minOrderValue: amount(f.minOrderValue, 'Minimum order'),
     packagingCharge: amount(f.packagingCharge, 'Packaging charge'),
     openingHours: cleanHours(f.hours),
-    fssaiNumber: fssai || undefined,
-    gstin: f.gstin.trim().toUpperCase() || undefined,
-    logoUrl: f.logoUrl.trim() || undefined,
-    coverImageUrl: f.coverImageUrl.trim() || undefined,
+    fssaiNumber: optional(fssai),
+    gstin: optional(f.gstin.trim().toUpperCase()),
+    logoUrl: optional(f.logoUrl.trim()),
+    coverImageUrl: optional(f.coverImageUrl.trim()),
     acceptsDelivery: f.acceptsDelivery,
     acceptsTakeaway: f.acceptsTakeaway,
-    acceptsDineIn: f.acceptsDineIn,
-    acceptsQrOrders: f.acceptsQrOrders,
+    acceptsDineIn: dineIn,
+    acceptsQrOrders: qr,
     kdsStations: stations.length ? stations : ['MAIN'],
   };
   return create ? { type: f.type, ...body } : body;
 }
+
+/** The saved spot of an outlet, as the form writes coordinates. */
+export const savedLocation = (o: Pick<OutletRecord, 'lat' | 'lng'>) => ({
+  lat: str(o.lat),
+  lng: str(o.lng),
+});
 
 /** "Mon–Sat 11:00–23:00" style summary for the status card. */
 export function hoursSummary(hours: HoursWindow[] | null | undefined): string {
