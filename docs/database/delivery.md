@@ -27,7 +27,7 @@ erDiagram
   }
   DeliveryWait {
     String id PK
-    String deliveryId FK, UK
+    String deliveryId FK
     String riderId "-> delivery.RiderProfile"
     String policyId FK
   }
@@ -63,7 +63,7 @@ erDiagram
     String zoneId FK
   }
   Delivery ||--o{ DeliveryOffer : "delivery"
-  Delivery ||--o| DeliveryWait : "delivery"
+  Delivery ||--o{ DeliveryWait : "delivery"
   DeliveryPricingPolicy |o--o{ Delivery : "pricingPolicy"
   DeliveryPricingPolicy ||--o{ DeliveryWait : "policy"
   DeliveryZone |o--o{ Delivery : "zone"
@@ -174,15 +174,16 @@ Table `delivery."DeliveryPricingPolicy"`
 
 ## DeliveryWait
 
-Waiting at the pickup: opened when the rider marks arrival, closed at pickup or when the
-delivery ends. One per delivery (unique deliveryId), so a wait is paid at most once.
+Waiting at the pickup: opened when the rider marks arrival, closed at pickup, when the
+delivery ends or when ops hand it to another rider. One per delivery and rider (unique),
+so a wait is paid at most once.
 
 Table `delivery."DeliveryWait"`
 
 | Column | Type | Null | Default | Notes |
 | --- | --- | :---: | --- | --- |
 | `id` | String |  | cuid() | PK |
-| `deliveryId` | String |  |  | unique |
+| `deliveryId` | String |  |  |  |
 | `riderId` | String |  |  | → delivery.RiderProfile |
 | `policyId` | String |  |  |  |
 | `arrivedAt` | DateTime |  |  |  |
@@ -192,11 +193,13 @@ Table `delivery."DeliveryWait"`
 | `verified` | Boolean |  |  | The fix was recent and inside the policy's arrival radius. |
 | `orderReadyAt` | DateTime | ✓ |  | When the restaurant marked the order ready, if it had by the end of the wait. |
 | `endedAt` | DateTime | ✓ |  |  |
-| `endedBy` | enum DeliveryStatus | ✓ |  | PICKED_UP, CANCELLED or FAILED |
+| `endedBy` | enum DeliveryStatus | ✓ |  | PICKED_UP, CANCELLED or FAILED; SEARCHING when ops reassigned the delivery |
 | `waitedMins` | Float | ✓ |  |  |
 | `thresholdMins` | Int |  |  |  |
 | `amount` | Decimal |  | 0 |  |
 | `createdAt` | DateTime |  | now() |  |
+
+Constraints: unique (deliveryId, riderId)
 
 ## DeliveryZone
 

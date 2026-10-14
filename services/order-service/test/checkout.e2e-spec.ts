@@ -697,6 +697,43 @@ describe('order-service checkout & lifecycle (e2e)', () => {
     });
   });
 
+  it('prices by the last fee rule delivery-service sent while its quote is unavailable', async () => {
+    const quoteAt = async (feeRule: {
+      customerFlatFee: number;
+      freeDeliveryAbove: number | null;
+    }) => {
+      http.on('GET', 'delivery', 'internal/delivery/quote', {
+        serviceable: true,
+        distanceKm: 2.4,
+        deliveryFee: 15,
+        etaMins: 32,
+        surgeMultiplier: 1,
+        zoneId: 'zone_1',
+        ...feeRule,
+      });
+      await api()
+        .post('/api/v1/cart/quote')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ orderType: 'DELIVERY', lat: HOME.lat, lng: HOME.lng })
+        .expect(200);
+    };
+    const token = customer();
+    await fillCart(token); // ₹559 of food
+    await quoteAt({ customerFlatFee: 20, freeDeliveryAbove: 600 }); // finance changed the rule
+    try {
+      http.reset(); // delivery-service unavailable
+      const { body } = await api()
+        .post('/api/v1/cart/quote')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ orderType: 'DELIVERY', lat: HOME.lat, lng: HOME.lng })
+        .expect(200);
+      expect(body.cart.pricing.deliveryFee).toBe('20.00');
+      expect(body.cart.pricing.messages).toContain('Add items worth ₹41 more for free delivery');
+    } finally {
+      await quoteAt({ customerFlatFee: 15, freeDeliveryAbove: 399 }); // the launch rule again
+    }
+  });
+
   it('tells the customer how much more makes delivery free', async () => {
     http.on('GET', 'delivery', 'internal/delivery/quote', {
       serviceable: true,

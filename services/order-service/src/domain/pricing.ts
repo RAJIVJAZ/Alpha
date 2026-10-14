@@ -176,11 +176,25 @@ export function computePricing(input: PricingInput): PricingResult {
   };
 }
 
-/** The launch rules (delivery-service DEFAULT_PRICING), for when its quote is unavailable. */
-export const FALLBACK_FREE_DELIVERY_ABOVE = 399;
-const FALLBACK_FLAT_FEE = 15;
+/** The customer fee rule from delivery-service's pricing in force. */
+export interface DeliveryFeeRule {
+  customerFlatFee: number;
+  /** Food subtotal from which delivery is free; null: never. */
+  freeDeliveryAbove: number | null;
+}
+
+/** The launch rule (delivery-service DEFAULT_PRICING), until a quote has shown the one in force. */
+export const LAUNCH_DELIVERY_FEE_RULE: DeliveryFeeRule = {
+  customerFlatFee: 15,
+  freeDeliveryAbove: 399,
+};
 
 /** Local fallback when delivery-service quotes are unavailable: flat below the threshold. */
-export function fallbackDeliveryFee(foodSubtotal: number): number {
-  return foodSubtotal >= FALLBACK_FREE_DELIVERY_ABOVE ? 0 : FALLBACK_FLAT_FEE;
+export function fallbackDeliveryFee(
+  foodSubtotal: number,
+  rule: DeliveryFeeRule = LAUNCH_DELIVERY_FEE_RULE,
+): number {
+  return rule.freeDeliveryAbove != null && foodSubtotal >= rule.freeDeliveryAbove
+    ? 0
+    : rule.customerFlatFee;
 }

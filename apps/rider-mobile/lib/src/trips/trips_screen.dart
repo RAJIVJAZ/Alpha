@@ -131,7 +131,7 @@ class TripTile extends StatelessWidget {
             const SizedBox(width: 12),
             Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
               Text(money(d.totalEarning), style: text.titleMedium?.copyWith(fontWeight: FontWeight.w600, fontFeatures: const [FontFeature.tabularFigures()])),
-              if (d.tipAmount > 0) Caption('incl. ${money(d.tipAmount, whole: true)} tip'),
+              if (d.tipEarned > 0) Caption('incl. ${money(d.tipEarned, whole: true)} tip'),
               const SizedBox(height: 4),
               StatusChip(d.status),
             ]),

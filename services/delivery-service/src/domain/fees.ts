@@ -84,15 +84,24 @@ export interface WaitingResult {
   amount: number;
 }
 
+/** Time to hand an order over once it is ready; waiting beyond it is the rider's own. */
+export const HANDOVER_ALLOWANCE_MS = 2 * 60_000;
+
 /**
  * Waiting pay: a one-time amount when the rider waited longer than the threshold at the
- * pickup, counted from an arrival confirmed by GPS until pickup (or the cancellation).
+ * pickup, counted from an arrival confirmed by GPS until pickup (or the cancellation). Once
+ * the restaurant has marked the order ready, the wait counts only until then plus the
+ * handover allowance, so tapping "picked up" late does not add to it.
  */
 export function waitingPay(
   p: DeliveryPricing,
-  w: { arrivedAt: Date; endedAt: Date; verified: boolean },
+  w: { arrivedAt: Date; endedAt: Date; verified: boolean; readyAt?: Date | null },
 ): WaitingResult {
-  const ms = Math.max(0, w.endedAt.getTime() - w.arrivedAt.getTime());
+  const arrived = w.arrivedAt.getTime();
+  const end = w.readyAt
+    ? Math.min(w.endedAt.getTime(), Math.max(arrived, w.readyAt.getTime()) + HANDOVER_ALLOWANCE_MS)
+    : w.endedAt.getTime();
+  const ms = Math.max(0, end - arrived);
   const waitedMins = Math.round(ms / 6_000) / 10;
   const amount = w.verified && ms > p.waitingThresholdMins * 60_000 ? p.waitingPay : 0;
   return { waitedMins, amount };

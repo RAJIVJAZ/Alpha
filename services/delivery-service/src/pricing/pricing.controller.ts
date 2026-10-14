@@ -3,7 +3,7 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Permissions } from '@foodgrid/auth';
 import { CurrentUser, Public, RequirePermissions } from '@foodgrid/auth/nest';
 import { DeliveryPricingDto } from './dto/pricing.dto';
-import { PricingService, toPricingView } from './pricing.service';
+import { PricingService, toPricingView, toPublicPricing } from './pricing.service';
 
 @ApiTags('delivery')
 @Controller('delivery/pricing')
@@ -16,7 +16,7 @@ export class PricingController {
     summary: 'Delivery pricing in force: the customer fee rule and how riders are paid',
   })
   async current() {
-    return toPricingView(await this.pricing.current());
+    return toPublicPricing(await this.pricing.current());
   }
 }
 
@@ -30,7 +30,8 @@ export class PricingAdminController {
   @Get()
   @ApiOperation({ summary: 'Delivery pricing in force and its earlier versions (newest first)' })
   async list() {
-    const [current, history] = await Promise.all([this.pricing.current(), this.pricing.history()]);
+    // straight from the database: a replica's cached version may be up to 30 s old
+    const [current, history] = await Promise.all([this.pricing.fresh(), this.pricing.history()]);
     return { current: toPricingView(current), history: history.map(toPricingView) };
   }
 

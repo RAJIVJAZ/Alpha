@@ -479,7 +479,13 @@ export function RiderHistory() {
                 </span>
                 <span className="text-right">
                   <span className="block font-semibold tabular">
-                    {formatMoney(Number(d.riderEarning) + Number(d.tipAmount))}
+                    {formatMoney(
+                      Number(d.riderEarning) +
+                        // tips are paid on delivery; a cancelled or failed trip keeps none
+                        (d.status === 'CANCELLED' || d.status === 'FAILED'
+                          ? 0
+                          : Number(d.tipAmount)),
+                    )}
                   </span>
                   <StatusBadge status={d.status} />
                 </span>

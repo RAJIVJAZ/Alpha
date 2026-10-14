@@ -25,8 +25,9 @@ import { checkCouponEligibility, toCouponRecord } from '../domain/coupons';
 import {
   cartSubtotal,
   computePricing,
-  FALLBACK_FREE_DELIVERY_ABOVE,
+  DeliveryFeeRule,
   fallbackDeliveryFee,
+  LAUNCH_DELIVERY_FEE_RULE,
   MembershipBenefits,
   PricingResult,
 } from '../domain/pricing';
@@ -39,6 +40,8 @@ export interface DeliveryQuote {
   etaMins: number;
   surgeMultiplier: number;
   zoneId?: string | null;
+  /** Charged below `freeDeliveryAbove`, from the pricing in force. */
+  customerFlatFee?: number;
   /** Food subtotal from which delivery is free (null: never), from the pricing in force. */
   freeDeliveryAbove?: number | null;
 }
@@ -71,6 +74,11 @@ const ordersPlaced = businessCounter('orders_created_total', 'Orders created at 
 @Injectable()
 export class CheckoutService {
   private readonly logger = new Logger(CheckoutService.name);
+  /**
+   * The fee rule from the last quote delivery-service answered, so a timed-out quote is still
+   * priced by what finance set rather than the launch rule (this replica only; it starts there).
+   */
+  private feeRule: DeliveryFeeRule = LAUNCH_DELIVERY_FEE_RULE;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -274,6 +282,13 @@ export class CheckoutService {
         timeoutMs: 800,
         retries: 0,
       });
+      if (quote.customerFlatFee != null && quote.freeDeliveryAbove !== undefined) {
+        this.feeRule = {
+          customerFlatFee: Number(quote.customerFlatFee),
+          freeDeliveryAbove:
+            quote.freeDeliveryAbove == null ? null : Number(quote.freeDeliveryAbove),
+        };
+      }
       // pricing does arithmetic on the fee, whether it arrives as a number or a decimal string
       return { ...quote, deliveryFee: Number(quote.deliveryFee) };
     } catch (err) {
@@ -282,10 +297,10 @@ export class CheckoutService {
       return {
         serviceable: distanceKm <= outlet.deliveryRadiusKm,
         distanceKm,
-        deliveryFee: fallbackDeliveryFee(foodSubtotal),
+        deliveryFee: fallbackDeliveryFee(foodSubtotal, this.feeRule),
         etaMins: outlet.avgPrepTimeMins + Math.round((distanceKm / 22) * 60) + 5,
         surgeMultiplier: 1,
-        freeDeliveryAbove: FALLBACK_FREE_DELIVERY_ABOVE,
+        ...this.feeRule,
       };
     }
   }

@@ -192,6 +192,12 @@ export interface DeliveryEvent {
   status: string;
   distanceKm: number;
   riderEarning: Money;
+  /**
+   * What this event pays the rider (tip excluded): on delivered, failed and cancelled, the
+   * delivery's pay; on rider_released, the outgoing rider's waiting pay. Absent on events from
+   * releases before versioned pricing, which must not be credited from failed or cancelled.
+   */
+  riderPay?: Money;
   tipAmount: Money;
   isCod: boolean;
   codAmount: Money;
@@ -323,6 +329,7 @@ export const EventTypes = {
   DeliveryDelivered: 'delivery.delivered',
   DeliveryFailed: 'delivery.failed',
   DeliveryCancelled: 'delivery.cancelled',
+  DeliveryRiderReleased: 'delivery.rider_released',
   IncentiveAchieved: 'delivery.incentive.achieved',
 
   StockLow: 'inventory.stock.low',

@@ -1635,6 +1635,11 @@
       "DeliveryPricingDto": {
         "type": "object",
         "properties": {
+          "baseVersion": {
+            "type": "number",
+            "example": 1,
+            "description": "The version being changed; refused with 409 PRICING_CHANGED if it is no longer in force"
+          },
           "customerFlatFee": {
             "type": "number",
             "example": 15,
@@ -1680,6 +1685,7 @@
           }
         },
         "required": [
+          "baseVersion",
           "customerFlatFee",
           "freeDeliveryAbove",
           "riderPerKm",

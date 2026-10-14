@@ -91,6 +91,12 @@ describe('computePricing', () => {
     expect(fallbackDeliveryFee(399)).toBe(0);
   });
 
+  it('falls back to the last fee rule seen from delivery-service', () => {
+    expect(fallbackDeliveryFee(450, { customerFlatFee: 20, freeDeliveryAbove: 499 })).toBe(20);
+    expect(fallbackDeliveryFee(499, { customerFlatFee: 20, freeDeliveryAbove: 499 })).toBe(0);
+    expect(fallbackDeliveryFee(5000, { customerFlatFee: 20, freeDeliveryAbove: null })).toBe(20);
+  });
+
   it('splits CGST and SGST evenly on the bill, not line by line', () => {
     // 2.95 + 0.25 of tax: per-line halves would be 1.47/1.48 and 0.12/0.13
     const p = computePricing({

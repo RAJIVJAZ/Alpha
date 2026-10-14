@@ -180,6 +180,8 @@ function PricingDialog({
   const save = useApiMutation(
     () =>
       api.post('admin/delivery-pricing', {
+        // refused if someone changed pricing since this dialog opened
+        baseVersion: c.version,
         customerFlatFee: Number(f.customerFlatFee),
         freeDeliveryAbove: f.freeDeliveryAbove.trim() ? Number(f.freeDeliveryAbove) : null,
         riderPerKm: Number(f.riderPerKm),

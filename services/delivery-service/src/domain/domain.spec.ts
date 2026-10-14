@@ -78,6 +78,20 @@ describe('waiting pay', () => {
     expect(waitingPay(p, { arrivedAt: at, endedAt: after(5), verified: true }).amount).toBe(0);
     expect(waitingPay(p, { arrivedAt: at, endedAt: after(2), verified: true }).amount).toBe(0);
   });
+  it('counts the wait only until the order was ready, plus the handover allowance', () => {
+    // ready 1 min after arrival, picked up 10 min after: 3 minutes count
+    expect(
+      waitingPay(p, { arrivedAt: at, endedAt: after(10), verified: true, readyAt: after(1) }),
+    ).toEqual({ waitedMins: 3, amount: 0 });
+    // ready 8 min after arrival, picked up at 9: the whole wait counts
+    expect(
+      waitingPay(p, { arrivedAt: at, endedAt: after(9), verified: true, readyAt: after(8) }),
+    ).toEqual({ waitedMins: 9, amount: 3 });
+    // ready before the rider arrived: only the handover allowance counts
+    expect(
+      waitingPay(p, { arrivedAt: at, endedAt: after(12), verified: true, readyAt: after(-5) }),
+    ).toEqual({ waitedMins: 2, amount: 0 });
+  });
   it('pays nothing when GPS did not confirm the arrival', () => {
     expect(waitingPay(p, { arrivedAt: at, endedAt: after(20), verified: false })).toEqual({
       waitedMins: 20,

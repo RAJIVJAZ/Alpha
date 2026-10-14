@@ -9,6 +9,7 @@ import { toDeliveryEvent } from '../common/delivery-event';
 import { rankCandidates, searchRadiusKm, updateAcceptanceRate } from '../domain/dispatch';
 import { riderPayout } from '../domain/fees';
 import { PricingService, toPricing } from '../pricing/pricing.service';
+import { RiderPayService } from '../pricing/rider-pay.service';
 import { TrackingGateway } from '../tracking/tracking.gateway';
 import { ZonesService } from '../zones/zones.service';
 
@@ -35,6 +36,7 @@ export class DispatchService {
     private readonly outbox: OutboxService,
     private readonly internal: InternalHttpService,
     private readonly pricing: PricingService,
+    private readonly pay: RiderPayService,
   ) {}
 
   async createFromOrder(o: OrderStatusChangedEvent): Promise<Delivery | null> {
@@ -312,12 +314,29 @@ export class DispatchService {
     if (!delivery) throw notFound('Delivery', deliveryId);
     if (['PICKED_UP', 'AT_DROP', 'DELIVERED'].includes(delivery.status))
       throw conflict('Delivery already picked up', 'PICKED_UP');
+    const outgoing = delivery.riderId
+      ? await this.prisma.riderProfile.findUnique({ where: { id: delivery.riderId } })
+      : null;
+    const now = new Date();
     await this.prisma.$transaction(async (tx) => {
-      if (delivery.riderId)
+      if (delivery.riderId) {
+        // the outgoing rider keeps any waiting pay earned at the pickup
+        const lines = await this.pay.released(tx, delivery, now);
+        const released = await this.pay.record(tx, delivery, delivery.riderId, now, lines);
+        if (released > 0)
+          await this.outbox.enqueue<DeliveryEvent>(tx, {
+            stream: 'delivery',
+            type: EventTypes.DeliveryRiderReleased,
+            aggregateType: 'Delivery',
+            aggregateId: delivery.id,
+            tenantId: delivery.tenantId,
+            data: toDeliveryEvent(delivery, outgoing, released),
+          });
         await tx.riderProfile.update({
           where: { id: delivery.riderId },
           data: { isOnDelivery: false },
         });
+      }
       await tx.deliveryOffer.updateMany({
         where: { deliveryId, status: 'PENDING' },
         data: { status: 'CANCELLED' },

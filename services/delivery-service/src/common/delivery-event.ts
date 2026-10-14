@@ -3,10 +3,15 @@ import type { DeliveryEvent } from '@foodgrid/types';
 
 const m = (v: { toString(): string } | null | undefined) => Number(v?.toString() ?? 0).toFixed(2);
 
+const ENDED = ['DELIVERED', 'FAILED', 'CANCELLED'];
+
+/** `riderPay` overrides what the event pays (the outgoing rider's pay on a reassignment). */
 export function toDeliveryEvent(
   d: Delivery,
   rider: Pick<RiderProfile, 'id' | 'userId' | 'name' | 'phone'> | null,
+  riderPay?: number,
 ): DeliveryEvent {
+  const pay = riderPay ?? (ENDED.includes(d.status) ? Number(d.riderEarning) : undefined);
   return {
     deliveryId: d.id,
     orderId: d.orderId,
@@ -21,6 +26,7 @@ export function toDeliveryEvent(
     status: d.status,
     distanceKm: d.distanceKm,
     riderEarning: m(d.riderEarning),
+    ...(pay !== undefined ? { riderPay: m(pay) } : {}),
     tipAmount: m(d.tipAmount),
     isCod: d.isCod,
     codAmount: m(d.codAmount),

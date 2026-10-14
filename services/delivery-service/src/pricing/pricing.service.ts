@@ -22,7 +22,20 @@ export function toPricing(p: DeliveryPricingPolicy): DeliveryPricing {
   };
 }
 
-/** The public shape of a version: the rules plus who set them and when. */
+/** Key of the transaction lock that takes pricing changes one at a time. */
+const PRICING_LOCK = 4_207_001;
+
+/** The rules of a requested change, without the bookkeeping fields. */
+function rulesOf({ baseVersion: _base, note: _note, ...rules }: DeliveryPricingDto) {
+  return rules;
+}
+
+/** What anyone may see: the rules in force and their version. */
+export function toPublicPricing(p: DeliveryPricingPolicy) {
+  return { version: p.version, ...toPricing(p) };
+}
+
+/** The admin shape of a version: the rules plus who set them, why and when. */
 export function toPricingView(p: DeliveryPricingPolicy) {
   return {
     id: p.id,
@@ -63,6 +76,12 @@ export class PricingService {
     this.cached = null;
   }
 
+  /** The version in force read from the database now (admin screens, which must not lag). */
+  async fresh(): Promise<DeliveryPricingPolicy> {
+    this.reload();
+    return this.current();
+  }
+
   /** A version by id (versions never change, so they are cached for good). */
   async byId(id: string): Promise<DeliveryPricingPolicy | null> {
     const hit = this.byIdCache.get(id);
@@ -77,44 +96,52 @@ export class PricingService {
   }
 
   /**
-   * Adds the next version. Who changed what goes to the admin audit log first: a failed
-   * audit blocks the change, as for commission rules.
+   * Adds the next version on top of `dto.baseVersion`, the version the admin edited: if
+   * someone changed pricing since, nothing is saved (409 PRICING_CHANGED) rather than
+   * silently undoing their change. Changes are taken one at a time (a transaction lock), and
+   * who changed what goes to the admin audit log before the insert: a failed audit blocks
+   * the change, as for commission rules.
    */
   async create(dto: DeliveryPricingDto, actorId: string): Promise<DeliveryPricingPolicy> {
-    const last = (await this.latest()) ?? (await this.createDefaults());
-    const version = last.version + 1;
-    await this.internal.post('user', 'internal/audit-logs', {
-      actorId,
-      action: 'delivery_pricing.create',
-      entityType: 'DeliveryPricingPolicy',
-      changes: { version, from: toPricing(last), to: dto },
-    });
-    try {
-      const policy = await this.prisma.deliveryPricingPolicy.create({
-        data: {
-          version,
-          customerFlatFee: dto.customerFlatFee,
-          freeDeliveryAbove: dto.freeDeliveryAbove,
-          riderPerKm: dto.riderPerKm,
-          riderMinPayout: dto.riderMinPayout,
-          waitingThresholdMins: dto.waitingThresholdMins,
-          waitingPay: dto.waitingPay,
-          arrivalRadiusM: dto.arrivalRadiusM,
-          cancellationPay: dto.cancellationPay,
-          note: dto.note?.trim() || null,
-          createdBy: actorId,
-        },
-      });
-      this.cached = { at: Date.now(), policy };
-      return policy;
-    } catch (e) {
-      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002')
-        throw conflict(
-          'Someone else changed delivery pricing just now. Reload and try again',
-          'PRICING_CHANGED',
-        );
-      throw e;
-    }
+    await this.current(); // version 1 exists before anyone edits it
+    const policy = await this.prisma.$transaction(
+      async (tx) => {
+        await tx.$executeRawUnsafe(`SELECT pg_advisory_xact_lock(${PRICING_LOCK})`);
+        const last = await tx.deliveryPricingPolicy.findFirstOrThrow({
+          orderBy: { version: 'desc' },
+        });
+        if (last.version !== dto.baseVersion)
+          throw conflict(
+            `Delivery pricing changed to version ${last.version} since you opened it. Reload and try again`,
+            'PRICING_CHANGED',
+          );
+        const version = last.version + 1;
+        await this.internal.post('user', 'internal/audit-logs', {
+          actorId,
+          action: 'delivery_pricing.create',
+          entityType: 'DeliveryPricingPolicy',
+          changes: { version, from: toPricing(last), to: rulesOf(dto) },
+        });
+        return tx.deliveryPricingPolicy.create({
+          data: {
+            version,
+            customerFlatFee: dto.customerFlatFee,
+            freeDeliveryAbove: dto.freeDeliveryAbove,
+            riderPerKm: dto.riderPerKm,
+            riderMinPayout: dto.riderMinPayout,
+            waitingThresholdMins: dto.waitingThresholdMins,
+            waitingPay: dto.waitingPay,
+            arrivalRadiusM: dto.arrivalRadiusM,
+            cancellationPay: dto.cancellationPay,
+            note: dto.note?.trim() || null,
+            createdBy: actorId,
+          },
+        });
+      },
+      { timeout: 15_000 },
+    ); // the audit call happens under the lock
+    this.cached = { at: Date.now(), policy };
+    return policy;
   }
 
   private latest() {

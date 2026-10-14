@@ -13,6 +13,15 @@ import {
 /** A new pricing version: every value is restated, so a version reads on its own. */
 export class DeliveryPricingDto {
   @ApiProperty({
+    example: 1,
+    description:
+      'The version being changed; refused with 409 PRICING_CHANGED if it is no longer in force',
+  })
+  @IsInt()
+  @Min(1)
+  baseVersion!: number;
+
+  @ApiProperty({
     example: 15,
     description: 'Charged when the food subtotal is below the threshold',
   })

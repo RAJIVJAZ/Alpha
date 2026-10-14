@@ -132,7 +132,8 @@ road distance (M), and a third-party delivery partner option (L).
 - **vendor-web**: keep the pointer page at `business.` or delete the Vercel project.
 - **Rider pay details** left at the launch values and editable in admin-web: cancellation
   pay ₹0, no cap or extra rate for long distances, batched orders paid separately, waiting
-  counted from arrival to pickup even when the food was already ready.
+  counted from arrival until pickup or 2 minutes after the food was marked ready, whichever
+  is first.
 - **Suppliers buying on the marketplace**: today only retailers and wholesalers buy.
 
 The brief prefers a modular monolith. FoodGrid is already twelve services with one schema

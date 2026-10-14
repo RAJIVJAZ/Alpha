@@ -86,16 +86,34 @@ export class PaymentEventHandlers {
   @OnDomainEvent(EventTypes.DeliveryCancelled, EventTypes.DeliveryFailed)
   async riderEndedEarly(env: EventEnvelope<string, DeliveryEvent>) {
     const d = env.data;
-    if (!d.riderUserId || !(Number(d.riderEarning) > 0)) return;
+    // riderPay marks events from versioned pricing; older failed events carry the quote
+    if (!d.riderUserId || !(Number(d.riderPay) > 0)) return;
     await this.ledger.credit({
       ownerType: 'RIDER',
       ownerId: d.riderUserId,
-      amount: Number(d.riderEarning),
+      amount: Number(d.riderPay),
       reason: 'DELIVERY_EARNING',
       idempotencyKey: `earning:${d.deliveryId}`,
       referenceType: 'DELIVERY',
       referenceId: d.deliveryId,
       description: `${d.status === 'FAILED' ? 'Failed' : 'Cancelled'} delivery ${d.orderNumber}`,
+    });
+  }
+
+  /** Ops handed the delivery to another rider: the outgoing rider keeps their waiting pay. */
+  @OnDomainEvent(EventTypes.DeliveryRiderReleased)
+  async riderReleased(env: EventEnvelope<string, DeliveryEvent>) {
+    const d = env.data;
+    if (!d.riderUserId || !d.riderId || !(Number(d.riderPay) > 0)) return;
+    await this.ledger.credit({
+      ownerType: 'RIDER',
+      ownerId: d.riderUserId,
+      amount: Number(d.riderPay),
+      reason: 'DELIVERY_EARNING',
+      idempotencyKey: `released:${d.deliveryId}:${d.riderId}`,
+      referenceType: 'DELIVERY',
+      referenceId: d.deliveryId,
+      description: `Waiting pay for ${d.orderNumber}`,
     });
   }
 

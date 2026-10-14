@@ -32,7 +32,10 @@ const rupees = (n: number) => `₹${Number.isInteger(n) ? n : n.toFixed(2)}`;
  *   distance (two lines, DISTANCE_PAY and the BASE_PAY top-up), surge, and waiting pay;
  * - cancelled or failed after the rider reached the pickup (a GPS-verified arrival, or the
  *   food picked up): the cancellation pay and waiting pay;
+ * - handed to another rider by ops: the outgoing rider's waiting pay;
  * - otherwise nothing.
+ *
+ * Waits are kept per rider, so each rider's wait is priced and paid once, to that rider.
  *
  * Tips are added by the caller. Every amount becomes a RiderEarning line, and the total is
  * stored as Delivery.riderEarning, which payment-service credits to the rider wallet.
@@ -48,45 +51,68 @@ export class RiderPayService {
     );
   }
 
+  /** A rider's wait at this delivery's pickup, if they marked arrival. */
+  waitOf(tx: Tx, deliveryId: string, riderId: string | null) {
+    return riderId
+      ? tx.deliveryWait.findUnique({ where: { deliveryId_riderId: { deliveryId, riderId } } })
+      : Promise.resolve(null);
+  }
+
   /**
-   * Opens the wait at the pickup. The arrival counts for waiting pay when the rider's last
-   * fix is recent and within the policy's radius; the status changes either way.
+   * Opens the rider's wait at the pickup. The arrival counts for waiting pay when the rider's
+   * last fix is recent and within the policy's radius; the status changes either way. A rider
+   * handed the delivery back after ops reassigned it starts a new wait, unless the first one
+   * was already paid.
    */
   async openWait(tx: Tx, d: Delivery, riderId: string, at: Date, pos: LivePosition | null) {
+    const earlier = await this.waitOf(tx, d.id, riderId);
+    if (earlier && Number(earlier.amount) > 0) return earlier;
     const policy = await this.policyFor(d);
     const fix = pos && at.getTime() - new Date(pos.at).getTime() <= MAX_FIX_AGE_MS ? pos : null;
     const distanceM = fix
       ? Math.round(haversineKm(fix, { lat: d.pickupLat, lng: d.pickupLng }) * 1000)
       : null;
-    return tx.deliveryWait.create({
-      data: {
-        deliveryId: d.id,
-        riderId,
-        policyId: policy.id,
-        arrivedAt: at,
-        arrivalLat: fix?.lat ?? null,
-        arrivalLng: fix?.lng ?? null,
-        arrivalDistanceM: distanceM,
-        verified: distanceM != null && distanceM <= policy.arrivalRadiusM,
-        thresholdMins: policy.waitingThresholdMins,
-      },
+    const data = {
+      policyId: policy.id,
+      arrivedAt: at,
+      arrivalLat: fix?.lat ?? null,
+      arrivalLng: fix?.lng ?? null,
+      arrivalDistanceM: distanceM,
+      verified: distanceM != null && distanceM <= policy.arrivalRadiusM,
+      thresholdMins: policy.waitingThresholdMins,
+      orderReadyAt: null,
+      endedAt: null,
+      endedBy: null,
+      waitedMins: null,
+      amount: 0,
+    };
+    return tx.deliveryWait.upsert({
+      where: { deliveryId_riderId: { deliveryId: d.id, riderId } },
+      create: { deliveryId: d.id, riderId, ...data },
+      update: data,
     });
   }
 
-  /** Ends the wait (at pickup, or when the delivery ends at the pickup) and prices it, once. */
+  /**
+   * Ends the rider's wait (at pickup, when the delivery ends at the pickup, or when ops hand
+   * it to someone else) and prices it, once. `riderId` defaults to the delivery's rider.
+   */
   async closeWait(
     tx: Tx,
     d: Delivery,
     endedBy: DeliveryStatus,
     at: Date,
+    riderId: string | null = d.riderId,
   ): Promise<DeliveryWait | null> {
-    const wait = await tx.deliveryWait.findUnique({ where: { deliveryId: d.id } });
+    const wait = await this.waitOf(tx, d.id, riderId);
     if (!wait || wait.endedAt) return wait;
     const policy = (await this.pricing.byId(wait.policyId)) ?? (await this.policyFor(d));
+    const readyAt = d.orderReadyAt && d.orderReadyAt <= at ? d.orderReadyAt : null;
     const { waitedMins, amount } = waitingPay(toPricing(policy), {
       arrivedAt: wait.arrivedAt,
       endedAt: at,
       verified: wait.verified,
+      readyAt,
     });
     const closed = await tx.deliveryWait.updateMany({
       where: { id: wait.id, endedAt: null },
@@ -95,7 +121,7 @@ export class RiderPayService {
         endedBy,
         waitedMins,
         amount,
-        orderReadyAt: d.orderReadyAt && d.orderReadyAt <= at ? d.orderReadyAt : null,
+        orderReadyAt: readyAt,
       },
     });
     return closed.count ? tx.deliveryWait.findUnique({ where: { id: wait.id } }) : wait;
@@ -103,7 +129,7 @@ export class RiderPayService {
 
   /** Pay lines for a delivered order (tip excluded). */
   async delivered(tx: Tx, d: Delivery): Promise<PayLine[]> {
-    const wait = await tx.deliveryWait.findUnique({ where: { deliveryId: d.id } });
+    const wait = await this.waitOf(tx, d.id, d.riderId);
     if (!d.pricingPolicyId) {
       // created before pricing versions: pay the amount the rider accepted
       return [
@@ -153,6 +179,15 @@ export class RiderPayService {
         : []),
       ...this.waitingLine(wait),
     ];
+  }
+
+  /**
+   * Ops hand the delivery to another rider: the outgoing rider's wait ends here, and its
+   * waiting pay (if any) is theirs.
+   */
+  async released(tx: Tx, d: Delivery, at: Date): Promise<PayLine[]> {
+    if (!d.riderId) return [];
+    return this.waitingLine(await this.closeWait(tx, d, 'SEARCHING', at, d.riderId));
   }
 
   /** Writes the non-zero lines (plus the tip) as earnings and returns their total. */

@@ -57,7 +57,7 @@ CREATE TABLE "delivery"."DeliveryWait" (
 CREATE UNIQUE INDEX "DeliveryPricingPolicy_version_key" ON "delivery"."DeliveryPricingPolicy"("version");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "DeliveryWait_deliveryId_key" ON "delivery"."DeliveryWait"("deliveryId");
+CREATE UNIQUE INDEX "DeliveryWait_deliveryId_riderId_key" ON "delivery"."DeliveryWait"("deliveryId", "riderId");
 
 -- CreateIndex
 CREATE INDEX "DeliveryWait_riderId_arrivedAt_idx" ON "delivery"."DeliveryWait"("riderId", "arrivedAt");

@@ -219,7 +219,7 @@ model Delivery {
   zone          DeliveryZone?          @relation(fields: [zoneId], references: [id])
   pricingPolicy DeliveryPricingPolicy? @relation(fields: [pricingPolicyId], references: [id])
   offers        DeliveryOffer[]
-  wait          DeliveryWait?
+  waits         DeliveryWait[]
 
   @@index([riderId, status])
   @@index([status, createdAt])
@@ -258,11 +258,12 @@ model DeliveryPricingPolicy {
   @@schema("delivery")
 }
 
-/// Waiting at the pickup: opened when the rider marks arrival, closed at pickup or when the
-/// delivery ends. One per delivery (unique deliveryId), so a wait is paid at most once.
+/// Waiting at the pickup: opened when the rider marks arrival, closed at pickup, when the
+/// delivery ends or when ops hand it to another rider. One per delivery and rider (unique),
+/// so a wait is paid at most once.
 model DeliveryWait {
   id               String          @id @default(cuid())
-  deliveryId       String          @unique
+  deliveryId       String
   riderId          String
   policyId         String
   arrivedAt        DateTime
@@ -275,7 +276,7 @@ model DeliveryWait {
   /// When the restaurant marked the order ready, if it had by the end of the wait.
   orderReadyAt     DateTime?
   endedAt          DateTime?
-  /// PICKED_UP, CANCELLED or FAILED
+  /// PICKED_UP, CANCELLED or FAILED; SEARCHING when ops reassigned the delivery
   endedBy          DeliveryStatus?
   waitedMins       Float?
   thresholdMins    Int
@@ -285,6 +286,7 @@ model DeliveryWait {
   delivery Delivery              @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
   policy   DeliveryPricingPolicy @relation(fields: [policyId], references: [id])
 
+  @@unique([deliveryId, riderId])
   @@index([riderId, arrivedAt])
   @@schema("delivery")
 }

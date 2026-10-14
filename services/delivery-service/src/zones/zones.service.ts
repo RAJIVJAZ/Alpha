@@ -67,7 +67,12 @@ export class ZonesService {
     const distanceKm = round2(estimateRoadKm(pickup, drop));
     const policy = await this.pricing.current();
     const rules = toPricing(policy);
-    const pricing = { freeDeliveryAbove: rules.freeDeliveryAbove, pricingVersion: policy.version };
+    // the fee rule rides along so order-service can keep pricing by it if a later quote times out
+    const pricing = {
+      customerFlatFee: rules.customerFlatFee,
+      freeDeliveryAbove: rules.freeDeliveryAbove,
+      pricingVersion: policy.version,
+    };
     if (!zone)
       return {
         serviceable: false,
