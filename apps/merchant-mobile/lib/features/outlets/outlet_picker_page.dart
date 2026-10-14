@@ -37,7 +37,7 @@ class OutletPickerPage extends ConsumerWidget {
             return EmptyView(
               icon: Icons.storefront_outlined,
               title: 'No outlets yet',
-              message: 'Add an outlet from the FoodGrid web dashboard, then pull to refresh.',
+              message: 'Set up your outlet in the Food Seller Portal on the web (Outlet settings), then pull to refresh.',
               action: OutlinedButton(onPressed: () => ref.invalidate(outletControllerProvider), child: const Text('Refresh')),
             );
           }

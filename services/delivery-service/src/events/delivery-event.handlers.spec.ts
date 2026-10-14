@@ -1,7 +1,9 @@
 import 'reflect-metadata';
 import type { PrismaService } from '@foodgrid/database/nest';
+import type { OutboxService } from '@foodgrid/utils/server';
 import { EventTypes, type EventEnvelope, type OrderStatusChangedEvent } from '@foodgrid/types';
 import type { DispatchService } from '../dispatch/dispatch.service';
+import type { RiderPayService } from '../pricing/rider-pay.service';
 import type { TrackingGateway } from '../tracking/tracking.gateway';
 import { DeliveryEventHandlers } from './delivery-event.handlers';
 
@@ -24,6 +26,8 @@ function handle(type: string, data: Partial<OrderStatusChangedEvent> = {}) {
     {} as PrismaService,
     {} as DispatchService,
     gateway as unknown as TrackingGateway,
+    {} as RiderPayService,
+    {} as OutboxService,
   );
   const env = { id: 'evt-1', type, data: { ...ORDER, ...data } } as EventEnvelope<
     string,

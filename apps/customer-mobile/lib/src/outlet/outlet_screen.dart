@@ -382,7 +382,7 @@ class _ItemRowState extends ConsumerState<_ItemRow> {
           style: OutlinedButton.styleFrom(
             minimumSize: const Size(96, 38),
             backgroundColor: Theme.of(context).colorScheme.surface,
-            foregroundColor: Theme.of(context).colorScheme.primary,
+            foregroundColor: FoodGridTheme.primaryText(context),
             textStyle: const TextStyle(fontWeight: FontWeight.w700),
           ),
           onPressed: !widget.open || _busy ? null : () => _run(() => widget.onAdd(i)),
@@ -402,7 +402,7 @@ class _ItemRowState extends ConsumerState<_ItemRow> {
                 if (i.bestseller) ...[
                   const SizedBox(width: 8),
                   Icon(Icons.star_rounded, size: 14, color: Theme.of(context).colorScheme.primary),
-                  Text('Bestseller', style: text.labelSmall?.copyWith(color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.w600)),
+                  Text('Bestseller', style: text.labelSmall?.copyWith(color: FoodGridTheme.primaryText(context), fontWeight: FontWeight.w600)),
                 ],
                 if ((i.spiceLevel ?? 0) >= 2) ...[
                   const SizedBox(width: 8),

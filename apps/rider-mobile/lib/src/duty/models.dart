@@ -121,7 +121,10 @@ class Delivery {
   /// Still heading to (or waiting at) the restaurant.
   bool get toPickup => status == 'ASSIGNED' || status == 'AT_PICKUP';
 
-  double get totalEarning => riderEarning + tipAmount;
+  /// The tip is paid on delivery: a cancelled or failed trip keeps only its pay lines.
+  double get tipEarned => status == 'CANCELLED' || status == 'FAILED' ? 0 : tipAmount;
+
+  double get totalEarning => riderEarning + tipEarned;
 
   factory Delivery.fromJson(Json j) => Delivery(
         id: strOf(j['id']),

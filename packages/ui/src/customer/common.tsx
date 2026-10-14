@@ -80,17 +80,7 @@ export const placeOf = (a: Address): Place => ({
   addressId: a.id,
 });
 
-/** Device position as a promise (rejects with a readable message). */
-export const devicePosition = () =>
-  new Promise<{ lat: number; lng: number }>((resolve, reject) => {
-    if (typeof navigator === 'undefined' || !navigator.geolocation)
-      return reject(new Error('Location is not available on this device'));
-    navigator.geolocation.getCurrentPosition(
-      (p) => resolve({ lat: p.coords.latitude, lng: p.coords.longitude }),
-      () => reject(new Error('Allow location access, or pick an area')),
-      { enableHighAccuracy: false, timeout: 10_000, maximumAge: 60_000 },
-    );
-  });
+export { devicePosition } from '../lib/geo';
 
 /* ------------------------------------------------------------------ marks */
 
@@ -217,7 +207,7 @@ export function OutletCard({ outlet: o, compact }: { outlet: OutletSummary; comp
         !o.isOpenNow && 'opacity-60',
       )}
     >
-      <div className="relative overflow-hidden rounded-xl">
+      <div className="relative overflow-hidden rounded-xl" data-fg-pop>
         <Thumb
           src={o.coverImageUrl}
           className={cn(
@@ -227,7 +217,7 @@ export function OutletCard({ outlet: o, compact }: { outlet: OutletSummary; comp
         />
         {o.sponsored ? (
           <span className="absolute left-2 top-2 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-white">
-            Ad
+            Sponsored
           </span>
         ) : null}
         {!o.isOpenNow ? (
@@ -272,7 +262,8 @@ export function OutletRail({
         <h2 className="text-lg font-semibold">{title}</h2>
         {hint ? <p className="text-sm text-muted-foreground">{hint}</p> : null}
       </div>
-      <div className="-mx-4 flex snap-x gap-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
+      {/* room above and right for the pop cards' lift and offset shadow, which a scroller clips */}
+      <div className="-mx-4 flex snap-x gap-4 overflow-x-auto px-4 pb-3 pt-1 sm:-mx-1 sm:px-1">
         {outlets.map((o) => (
           <div key={o.id} className="w-60 shrink-0 snap-start">
             <OutletCard outlet={o} compact />
@@ -368,12 +359,12 @@ export function Stepper({
   label: string;
 }) {
   return (
-    <div className="inline-flex h-9 items-center overflow-hidden rounded-lg border border-primary/40 bg-card text-primary">
+    <div className="inline-flex h-9 items-center overflow-hidden rounded-lg border border-primary/40 bg-card text-primary-strong">
       <Button
         type="button"
         variant="ghost"
         size="icon"
-        className="h-9 w-8 rounded-none text-primary"
+        className="h-9 w-8 rounded-none text-primary-strong"
         onClick={() => onChange(value - 1)}
         disabled={busy}
         aria-label={`Remove one ${label}`}
@@ -387,7 +378,7 @@ export function Stepper({
         type="button"
         variant="ghost"
         size="icon"
-        className="h-9 w-8 rounded-none text-primary"
+        className="h-9 w-8 rounded-none text-primary-strong"
         onClick={() => onChange(value + 1)}
         disabled={busy}
         aria-label={`Add one more ${label}`}

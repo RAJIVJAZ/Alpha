@@ -1,4 +1,4 @@
-import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional, OmitType, PartialType } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
   ArrayMaxSize,
@@ -49,7 +49,11 @@ export class CreateOutletDto {
   tags?: string[];
   @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(20) phone?: string;
   @ApiProperty() @IsString() @MaxLength(200) addressLine1!: string;
-  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(200) addressLine2?: string;
+  @ApiPropertyOptional({ nullable: true, description: 'null clears it' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  addressLine2?: string | null;
   @ApiProperty() @IsString() @MaxLength(80) city!: string;
   @ApiProperty() @IsString() @MaxLength(80) state!: string;
   @ApiPropertyOptional({ example: '29' }) @IsOptional() @Matches(/^\d{2}$/) stateCode?: string;
@@ -78,10 +82,22 @@ export class CreateOutletDto {
   @ValidateNested({ each: true })
   @Type(() => OpeningWindowDto)
   openingHours?: OpeningWindowDto[];
-  @ApiPropertyOptional() @IsOptional() @Matches(/^\d{14}$/) fssaiNumber?: string;
-  @ApiPropertyOptional() @IsOptional() @IsString() gstin?: string;
-  @ApiPropertyOptional() @IsOptional() @IsUrl({ require_tld: false }) logoUrl?: string;
-  @ApiPropertyOptional() @IsOptional() @IsUrl({ require_tld: false }) coverImageUrl?: string;
+  @ApiPropertyOptional({ nullable: true, description: 'null clears it' })
+  @IsOptional()
+  @Matches(/^\d{14}$/)
+  fssaiNumber?: string | null;
+  @ApiPropertyOptional({ nullable: true, description: 'null clears it' })
+  @IsOptional()
+  @IsString()
+  gstin?: string | null;
+  @ApiPropertyOptional({ nullable: true, description: 'null clears it' })
+  @IsOptional()
+  @IsUrl({ require_tld: false })
+  logoUrl?: string | null;
+  @ApiPropertyOptional({ nullable: true, description: 'null clears it' })
+  @IsOptional()
+  @IsUrl({ require_tld: false })
+  coverImageUrl?: string | null;
   @ApiPropertyOptional({ type: [String] })
   @IsOptional()
   @IsArray()
@@ -98,7 +114,8 @@ export class CreateOutletDto {
   kdsStations?: string[];
 }
 
-export class UpdateOutletDto extends PartialType(CreateOutletDto) {}
+/** The type is fixed at creation: it decides the commission rule and whether the outlet moves. */
+export class UpdateOutletDto extends PartialType(OmitType(CreateOutletDto, ['type'] as const)) {}
 
 export class OutletAvailabilityDto {
   @ApiProperty({ description: 'Accepting orders right now' }) @IsBoolean() isOpen!: boolean;

@@ -67,7 +67,7 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(18),
-            gradient: const LinearGradient(colors: [Color(0xFFEA580C), Color(0xFF9F1239)], begin: Alignment.topLeft, end: Alignment.bottomRight),
+            color: FoodGridTheme.grape,
           ),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Row(children: [
@@ -142,6 +142,6 @@ class _Benefit extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.symmetric(vertical: 2),
-        child: Row(children: [const Icon(Icons.check, size: 18, color: FoodGridTheme.goodText), const SizedBox(width: 6), Expanded(child: Text(label))]),
+        child: Row(children: [Icon(Icons.check, size: 18, color: FoodGridTheme.goodTextOf(context)), const SizedBox(width: 6), Expanded(child: Text(label))]),
       );
 }

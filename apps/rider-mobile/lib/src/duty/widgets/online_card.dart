@@ -118,7 +118,7 @@ class _LocationLine extends StatelessWidget {
     final (IconData icon, Color color, String label) = error != null
         ? (Icons.location_disabled, scheme.error, error)
         : tracker.sentAt != null
-            ? (Icons.my_location, FoodGridTheme.goodText, 'Location shared ${relative(tracker.sentAt)}')
+            ? (Icons.my_location, FoodGridTheme.goodTextOf(context), 'Location shared ${relative(tracker.sentAt)}')
             : (Icons.location_searching, scheme.onSurfaceVariant, 'Finding your location…');
     return Row(children: [
       ExcludeSemantics(child: Icon(icon, size: 16, color: color)),

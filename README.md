@@ -7,27 +7,27 @@ wholesalers and retailers with an AI-assisted procurement engine.
 
 ## What's here
 
-| Area           | Path                              | What it is                                                                                                                                              |
-| -------------- | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Web apps       | `apps/customer-web`               | Storefront: discovery, menus, cart, checkout, tracking, QR table ordering                                                                               |
-|                | `apps/restaurant-web`             | Restaurant ERP: orders, KDS, menu, inventory, production, costing, procurement, POs, marketplace, reports                                               |
-|                | `apps/vendor-web`                 | Food carts (POS, QR ordering, inventory, purchasing), retailers (slots, analytics), wholesalers (bulk pricing, dealers); all buy on the B2B marketplace |
-|                | `apps/supplier-web`               | Supplier console: orders, products and stock, delivery zones, payouts                                                                                   |
-|                | `apps/rider-web`                  | Rider duty, offers, deliveries, earnings                                                                                                                |
-|                | `apps/admin-web`                  | Back office: approvals, users, finance, CMS, marketplace categories, ads, operations                                                                    |
-| Mobile apps    | `apps/customer-mobile`            | Flutter ordering app                                                                                                                                    |
-|                | `apps/rider-mobile`               | Flutter delivery partner app                                                                                                                            |
-|                | `apps/merchant-mobile`            | Flutter app for restaurants and food carts                                                                                                              |
-| Services       | `services/*-service`              | 12 NestJS services: auth, user, order, payment, inventory, procurement, delivery, supplier, analytics, ads, notification, ai                            |
-| Packages       | `packages/database`               | Prisma schema (12 PostgreSQL schemas), migrations, seed                                                                                                 |
-|                | `packages/types`, `utils`, `auth` | Shared types, server toolkit (events, locks, metrics), JWT/permissions and Next.js auth routes                                                          |
-|                | `packages/ui`                     | Shared React UI (Tailwind) for all web apps                                                                                                             |
-|                | `packages/flutter_core`           | Shared Flutter foundation: API client, session, socket, widgets                                                                                         |
-| Infrastructure | `infrastructure/docker`           | Dockerfiles and the local docker-compose stack                                                                                                          |
-|                | `infrastructure/kubernetes`       | Kustomize base (generated) and staging/production overlays                                                                                              |
-|                | `infrastructure/monitoring`       | ServiceMonitor, alert rules, Grafana dashboard                                                                                                          |
-|                | `infrastructure/terraform`        | AWS: VPC, EKS, RDS, ElastiCache, S3/CloudFront, IAM, secrets                                                                                            |
-| CI/CD          | `.github/workflows`               | CI, image builds, staging and production deploys, Flutter and Terraform checks                                                                          |
+| Area           | Path                              | What it is                                                                                                                                          |
+| -------------- | --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Web apps       | `apps/customer-web`               | Storefront: discovery, menus, cart, checkout, tracking, QR table ordering                                                                           |
+|                | `apps/restaurant-web`             | Food Seller Portal for restaurants and food carts: outlet setup, orders, POS, KDS, menu, inventory, costing, procurement, POs, marketplace, reports |
+|                | `apps/supplier-web`               | Product Seller Portal for suppliers, wholesalers and retailers: catalogue, bulk pricing, orders, slots, zones, dealers, payouts, marketplace buying |
+|                | `apps/vendor-web`                 | Former business app; now only links to the two portals                                                                                              |
+|                | `apps/rider-web`                  | Rider duty, offers, deliveries, earnings                                                                                                            |
+|                | `apps/admin-web`                  | Back office: approvals, users, finance, CMS, marketplace categories, ads, operations                                                                |
+| Mobile apps    | `apps/customer-mobile`            | Flutter ordering app                                                                                                                                |
+|                | `apps/rider-mobile`               | Flutter delivery partner app                                                                                                                        |
+|                | `apps/merchant-mobile`            | Flutter app for restaurants and food carts                                                                                                          |
+| Services       | `services/*-service`              | 12 NestJS services: auth, user, order, payment, inventory, procurement, delivery, supplier, analytics, ads, notification, ai                        |
+| Packages       | `packages/database`               | Prisma schema (12 PostgreSQL schemas), migrations, seed                                                                                             |
+|                | `packages/types`, `utils`, `auth` | Shared types, server toolkit (events, locks, metrics), JWT/permissions and Next.js auth routes                                                      |
+|                | `packages/ui`                     | Shared React UI (Tailwind) for all web apps                                                                                                         |
+|                | `packages/flutter_core`           | Shared Flutter foundation: API client, session, socket, widgets                                                                                     |
+| Infrastructure | `infrastructure/docker`           | Dockerfiles and the local docker-compose stack                                                                                                      |
+|                | `infrastructure/kubernetes`       | Kustomize base (generated) and staging/production overlays                                                                                          |
+|                | `infrastructure/monitoring`       | ServiceMonitor, alert rules, Grafana dashboard                                                                                                      |
+|                | `infrastructure/terraform`        | AWS: VPC, EKS, RDS, ElastiCache, S3/CloudFront, IAM, secrets                                                                                        |
+| CI/CD          | `.github/workflows`               | CI, image builds, staging and production deploys, Flutter and Terraform checks                                                                      |
 
 ## Architecture in brief
 
@@ -80,6 +80,7 @@ from source with hot reload, and the mobile apps are in
 | [Testing](docs/testing.md)                      | test layers and how to run them                                         |
 | [Deployment](docs/deployment.md)                | Terraform, GitHub setup, CI/CD, rollback                                |
 | [Runbooks](docs/runbooks.md)                    | what to do when an alert fires                                          |
+| [Roadmap](docs/roadmap.md)                      | the master brief against the code: what is built and what is left       |
 | [Terraform](infrastructure/terraform/README.md) | infrastructure step by step                                             |
 
 ## Status

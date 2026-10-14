@@ -176,9 +176,25 @@ export function computePricing(input: PricingInput): PricingResult {
   };
 }
 
-/** Local fallback when delivery-service quotes are unavailable. */
-export function fallbackDeliveryFee(distanceKm: number): number {
-  const base = 25;
-  const perKm = 8;
-  return round2(base + Math.max(0, distanceKm - 2) * perKm);
+/** The customer fee rule from delivery-service's pricing in force. */
+export interface DeliveryFeeRule {
+  customerFlatFee: number;
+  /** Food subtotal from which delivery is free; null: never. */
+  freeDeliveryAbove: number | null;
+}
+
+/** The launch rule (delivery-service DEFAULT_PRICING), until a quote has shown the one in force. */
+export const LAUNCH_DELIVERY_FEE_RULE: DeliveryFeeRule = {
+  customerFlatFee: 15,
+  freeDeliveryAbove: 399,
+};
+
+/** Local fallback when delivery-service quotes are unavailable: flat below the threshold. */
+export function fallbackDeliveryFee(
+  foodSubtotal: number,
+  rule: DeliveryFeeRule = LAUNCH_DELIVERY_FEE_RULE,
+): number {
+  return rule.freeDeliveryAbove != null && foodSubtotal >= rule.freeDeliveryAbove
+    ? 0
+    : rule.customerFlatFee;
 }

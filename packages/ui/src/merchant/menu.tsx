@@ -42,7 +42,8 @@ export function MenuManager() {
   const removeCategory = useApiMutation(
     (c: MenuCategory) => api.delete(`merchant/categories/${c.id}`),
     {
-      invalidate: [key],
+      // its dishes go too: the outlet list carries the dish count that unlocks submitting
+      invalidate: ['merchant/outlets'],
       success: 'Category deleted',
       onSuccess: () => setDeleting(null),
     },
@@ -358,13 +359,14 @@ function DishDialog({
         : api.post(`merchant/outlets/${outletId}/items`, body);
     },
     {
-      invalidate: [invalidateKey],
+      // a new dish changes the outlet's dish count, which unlocks submitting it for approval
+      invalidate: item ? [invalidateKey] : ['merchant/outlets'],
       success: item ? `${form.name} updated` : 'Dish added',
       onSuccess: onClose,
     },
   );
   const remove = useApiMutation(() => api.delete(`merchant/items/${item!.id}`), {
-    invalidate: [invalidateKey],
+    invalidate: ['merchant/outlets'], // the menu and the outlet's dish count
     success: `${item?.name} deleted`,
     onSuccess: onClose,
   });

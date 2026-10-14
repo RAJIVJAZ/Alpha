@@ -18,18 +18,22 @@ export class InternalController {
   ) {}
 
   @Get('delivery/quote')
-  @ApiOperation({ summary: 'Serviceability, distance, fee (with surge) and ETA for checkout' })
+  @ApiOperation({
+    summary: 'Serviceability, distance, delivery fee (from the food subtotal) and ETA for checkout',
+  })
   quote(
     @Query('pickupLat') pickupLat: string,
     @Query('pickupLng') pickupLng: string,
     @Query('dropLat') dropLat: string,
     @Query('dropLng') dropLng: string,
     @Query('prepMins') prepMins?: string,
+    @Query('subtotal') subtotal?: string,
   ) {
     return this.zones.quote(
       { lat: Number(pickupLat), lng: Number(pickupLng) },
       { lat: Number(dropLat), lng: Number(dropLng) },
       Number(prepMins) || 20,
+      Number(subtotal) || 0,
     );
   }
 

@@ -351,9 +351,9 @@ class _Timeline extends StatelessWidget {
                 child: IntrinsicHeight(
                   child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
                     Column(children: [
-                      Icon(s.at != null ? Icons.check_circle : Icons.radio_button_unchecked, size: 22, color: s.at != null ? FoodGridTheme.good : Theme.of(context).colorScheme.outline),
+                      Icon(s.at != null ? Icons.check_circle : Icons.radio_button_unchecked, size: 22, color: s.at != null ? FoodGridTheme.goodTextOf(context) : Theme.of(context).colorScheme.outline),
                       if (i < steps.length - 1)
-                        Expanded(child: Container(width: 2, margin: const EdgeInsets.symmetric(vertical: 2), color: s.at != null ? FoodGridTheme.good : Theme.of(context).colorScheme.outlineVariant)),
+                        Expanded(child: Container(width: 2, margin: const EdgeInsets.symmetric(vertical: 2), color: s.at != null ? FoodGridTheme.goodTextOf(context) : Theme.of(context).colorScheme.outlineVariant)),
                     ]),
                     const SizedBox(width: 10),
                     Expanded(
@@ -483,7 +483,7 @@ class _CancelButtonState extends ConsumerState<_CancelButton> {
         padding: const EdgeInsets.only(bottom: 8),
         child: OutlinedButton.icon(
           key: const Key('cancel-order'),
-          style: OutlinedButton.styleFrom(foregroundColor: FoodGridTheme.critical),
+          style: OutlinedButton.styleFrom(foregroundColor: FoodGridTheme.criticalTextOf(context)),
           onPressed: _busy ? null : _cancel,
           icon: _busy ? const ButtonSpinner() : const Icon(Icons.cancel_outlined),
           label: const Text('Cancel order'),

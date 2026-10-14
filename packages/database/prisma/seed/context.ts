@@ -84,17 +84,15 @@ export interface SeedContext {
   outlets: OutletRef[];
   customers: CustomerRef[];
   riders: RiderRef[];
-  zones: Map<
-    string,
-    {
-      id: string;
-      baseFee: number;
-      perKmFee: number;
-      freeKm: number;
-      riderBasePay: number;
-      riderPerKm: number;
-    }
-  >;
+  zones: Map<string, { id: string }>;
+  /** Delivery pricing version 1 (delivery-service DEFAULT_PRICING), set by seedDelivery. */
+  pricing: {
+    id: string;
+    customerFlatFee: number;
+    freeDeliveryAbove: number;
+    riderPerKm: number;
+    riderMinPayout: number;
+  };
   coupons: Map<
     string,
     {
@@ -148,6 +146,13 @@ export function createContext(
     customers: [],
     riders: [],
     zones: new Map(),
+    pricing: {
+      id: '',
+      customerFlatFee: 15,
+      freeDeliveryAbove: 399,
+      riderPerKm: 10,
+      riderMinPayout: 33,
+    },
     coupons: new Map(),
     products: [],
     counters,

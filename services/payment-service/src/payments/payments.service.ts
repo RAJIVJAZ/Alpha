@@ -134,7 +134,8 @@ export class PaymentsService {
         prefill: { contact: user.phone, name: user.name },
         method: payment.method ? { [payment.method.toLowerCase()]: true } : undefined,
         notes: { paymentId: payment.id },
-        theme: { color: '#F97316' },
+        // Chili Deep: Razorpay puts white text on it (Chili Pop would be 3.1:1)
+        theme: { color: '#C4320A' },
       },
     };
   }

@@ -240,7 +240,7 @@ function PoDetail({ id, outletName }: { id: string; outletName: (id: string) => 
                 {t.driverPhone ? (
                   <a
                     href={`tel:${t.driverPhone}`}
-                    className="inline-flex items-center gap-1 text-primary hover:underline"
+                    className="inline-flex items-center gap-1 text-link hover:underline"
                   >
                     <Phone className="size-3" aria-hidden /> {t.driverPhone}
                   </a>
@@ -254,7 +254,7 @@ function PoDetail({ id, outletName }: { id: string; outletName: (id: string) => 
             ) : null}
             {t.lat && t.lng ? (
               <a
-                className="inline-flex items-center gap-1 text-primary hover:underline"
+                className="inline-flex items-center gap-1 text-link hover:underline"
                 href={`https://maps.google.com/?q=${t.lat},${t.lng}`}
                 target="_blank"
                 rel="noreferrer"

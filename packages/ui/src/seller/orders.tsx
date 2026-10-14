@@ -307,7 +307,7 @@ export function OrderSummary({ order: o }: { order: SellerOrder }) {
           {a.contactPhone ? (
             <a
               href={`tel:${a.contactPhone}`}
-              className="inline-flex items-center gap-1 text-primary hover:underline"
+              className="inline-flex items-center gap-1 text-link hover:underline"
             >
               <Phone className="size-3" aria-hidden /> {a.contactPhone}
             </a>

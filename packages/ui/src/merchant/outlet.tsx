@@ -12,6 +12,9 @@ interface OutletState {
   outletId: string | null;
   setOutletId: (id: string) => void;
   loading: boolean;
+  /** The outlet list could not be loaded (an empty list is not the same as no outlets). */
+  failed: boolean;
+  retry: () => void;
 }
 
 const OutletContext = React.createContext<OutletState | null>(null);
@@ -19,7 +22,7 @@ const KEY = 'fg-outlet';
 
 /** Current outlet for merchant screens; remembered per browser. */
 export function OutletProvider({ children }: { children: React.ReactNode }) {
-  const { data, isLoading } = useApi<Outlet[]>('merchant/outlets');
+  const { data, isLoading, isError, refetch } = useApi<Outlet[]>('merchant/outlets');
   const [selected, setSelected] = React.useState<string | null>(null);
   React.useEffect(() => {
     try {
@@ -38,9 +41,19 @@ export function OutletProvider({ children }: { children: React.ReactNode }) {
       /* ignore */
     }
   }, []);
+  const failed = isError && !data;
+  const retry = React.useCallback(() => void refetch(), [refetch]);
   const value = React.useMemo(
-    () => ({ outlets, outlet, outletId: outlet?.id ?? null, setOutletId, loading: isLoading }),
-    [outlets, outlet, setOutletId, isLoading],
+    () => ({
+      outlets,
+      outlet,
+      outletId: outlet?.id ?? null,
+      setOutletId,
+      loading: isLoading,
+      failed,
+      retry,
+    }),
+    [outlets, outlet, setOutletId, isLoading, failed, retry],
   );
   return <OutletContext.Provider value={value}>{children}</OutletContext.Provider>;
 }

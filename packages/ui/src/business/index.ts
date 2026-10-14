@@ -1,2 +1,2 @@
-/** Business registration and its review, shared by restaurant-web, vendor-web and supplier-web. */
+/** Business registration and its review, shared by the two seller portals. */
 export { BusinessApplication } from './apply';

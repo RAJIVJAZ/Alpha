@@ -1,8 +1,9 @@
 import { approvedBusiness, createAuthMiddleware } from '@foodgrid/auth/next/middleware';
 
+// the Product Seller Portal: suppliers, wholesalers and retailers
 export default createAuthMiddleware({
   publicPaths: [],
-  allow: approvedBusiness('SUPPLIER'),
+  allow: approvedBusiness('SUPPLIER', 'WHOLESALER', 'RETAILER'),
 });
 
 export const config = {

@@ -100,7 +100,7 @@ export function DocumentInput({
   return (
     <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-dashed p-3 text-sm focus-within:ring-2 focus-within:ring-ring/30 hover:bg-muted">
       {file || sent ? (
-        <FileCheck2 className="size-5 shrink-0 text-primary" aria-hidden />
+        <FileCheck2 className="size-5 shrink-0 text-primary-strong" aria-hidden />
       ) : (
         <Upload className="size-5 shrink-0 text-muted-foreground" aria-hidden />
       )}

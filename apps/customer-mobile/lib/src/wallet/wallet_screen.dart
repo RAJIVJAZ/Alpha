@@ -115,12 +115,12 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                 for (final (i, t) in s.transactions.indexed) ...[
                   if (i > 0) const Divider(height: 1),
                   ListTile(
-                    leading: Icon(t.isCredit ? Icons.south_west : Icons.north_east, color: t.isCredit ? FoodGridTheme.goodText : muted, semanticLabel: t.isCredit ? 'Credit' : 'Debit'),
+                    leading: Icon(t.isCredit ? Icons.south_west : Icons.north_east, color: t.isCredit ? FoodGridTheme.goodTextOf(context) : muted, semanticLabel: t.isCredit ? 'Credit' : 'Debit'),
                     title: Text(t.description ?? humanize(t.reason)),
                     subtitle: Text(dateTime(t.createdAt)),
                     trailing: Text(
                       money(t.isCredit ? t.amount : -t.amount, signed: true),
-                      style: text.bodyMedium?.copyWith(fontWeight: FontWeight.w600, color: t.isCredit ? FoodGridTheme.goodText : null, fontFeatures: const [FontFeature.tabularFigures()]),
+                      style: text.bodyMedium?.copyWith(fontWeight: FontWeight.w600, color: t.isCredit ? FoodGridTheme.goodTextOf(context) : null, fontFeatures: const [FontFeature.tabularFigures()]),
                     ),
                   ),
                 ],

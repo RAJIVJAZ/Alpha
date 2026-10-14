@@ -703,8 +703,11 @@ export function CartView() {
                 {blocker}
               </p>
             ) : null}
+            {/* phones pay from the sticky bar below, so the key action shows once */}
             <Button
+              variant="key"
               size="lg"
+              className="hidden lg:inline-flex"
               disabled={!!blocker || !pricing || quote.isFetching}
               loading={placing}
               onClick={place}
@@ -727,6 +730,9 @@ export function CartView() {
             <span className="text-xs text-muted-foreground">{blocker ?? 'Total to pay'}</span>
           </span>
           <Button
+            variant="key"
+            size="xl"
+            className="px-6"
             disabled={!!blocker || !pricing || quote.isFetching}
             loading={placing}
             onClick={place}
@@ -840,7 +846,7 @@ function CouponCard({
         {cart.couponCode ? (
           <div className="flex items-center justify-between gap-2">
             <span className="flex items-center gap-2 text-sm">
-              <Ticket className="size-4 text-primary" aria-hidden />
+              <Ticket className="size-4 text-primary-strong" aria-hidden />
               <span className="grid">
                 <span>
                   <span className="font-semibold">{cart.couponCode}</span>{' '}

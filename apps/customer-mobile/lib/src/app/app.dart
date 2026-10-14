@@ -12,7 +12,7 @@ class CustomerApp extends ConsumerWidget {
     return MaterialApp.router(
       title: 'FoodGrid',
       debugShowCheckedModeBanner: false,
-      theme: FoodGridTheme.light(),
+      theme: FoodGridTheme.customerLight(),
       darkTheme: FoodGridTheme.dark(),
       routerConfig: ref.watch(routerProvider),
       builder: (_, child) => PushListener(child: child!),

@@ -11,7 +11,7 @@ All routes are prefixed with `/api/v1`. Routes under `/api/v1/internal/*` are se
 | ai-service | 13 | 12 | [ai-service.json](./ai-service.json) |
 | analytics-service | 12 | 0 | [analytics-service.json](./analytics-service.json) |
 | auth-service | 11 | 1 | [auth-service.json](./auth-service.json) |
-| delivery-service | 33 | 4 | [delivery-service.json](./delivery-service.json) |
+| delivery-service | 36 | 4 | [delivery-service.json](./delivery-service.json) |
 | inventory-service | 24 | 5 | [inventory-service.json](./inventory-service.json) |
 | notification-service | 13 | 2 | [notification-service.json](./notification-service.json) |
 | order-service | 83 | 10 | [order-service.json](./order-service.json) |
@@ -116,6 +116,8 @@ Riders, dispatch & offers, live tracking, navigation routes, proof of delivery, 
 | --- | --- | --- | --- |
 | GET | `/api/v1/admin/deliveries` | bearer |  |
 | POST | `/api/v1/admin/deliveries/{id}/reassign` | bearer |  |
+| GET | `/api/v1/admin/delivery-pricing` | bearer | Delivery pricing in force and its earlier versions (newest first) |
+| POST | `/api/v1/admin/delivery-pricing` | bearer | Change delivery pricing: adds the next version, used by new quotes and deliveries |
 | GET | `/api/v1/admin/delivery-zones` | bearer |  |
 | POST | `/api/v1/admin/delivery-zones` | bearer |  |
 | PATCH | `/api/v1/admin/delivery-zones/{id}` | bearer |  |
@@ -134,8 +136,9 @@ Riders, dispatch & offers, live tracking, navigation routes, proof of delivery, 
 | POST | `/api/v1/deliveries/{id}/picked-up` | bearer |  |
 | POST | `/api/v1/deliveries/offers/{offerId}/accept` | bearer |  |
 | POST | `/api/v1/deliveries/offers/{offerId}/reject` | bearer |  |
+| GET | `/api/v1/delivery/pricing` | public | Delivery pricing in force: the customer fee rule and how riders are paid |
 | GET | `/api/v1/internal/deliveries/by-order/{orderId}` | service token | Tracking snapshot for order-service |
-| GET | `/api/v1/internal/delivery/quote` | service token | Serviceability, distance, fee (with surge) and ETA for checkout |
+| GET | `/api/v1/internal/delivery/quote` | service token | Serviceability, distance, delivery fee (from the food subtotal) and ETA for checkout |
 | POST | `/api/v1/internal/riders/batch` | service token | Rider names for read models (analytics) |
 | GET | `/api/v1/internal/riders/by-user/{userId}` | service token |  |
 | GET | `/api/v1/riders/heatmap` | bearer | Demand heat map: where orders are and riders are not |

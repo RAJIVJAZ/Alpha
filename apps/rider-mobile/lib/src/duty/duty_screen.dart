@@ -31,6 +31,7 @@ class DutyScreen extends ConsumerWidget {
             ),
         ]),
         actions: [
+          const ThemeButton(),
           SignOutButton(
             beforeSignOut: () async {
               // best effort: leave the dispatch pool before handing the phone over

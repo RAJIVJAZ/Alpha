@@ -27,8 +27,8 @@ Redis for events, locks and live state.
 flowchart LR
   subgraph people["People and their apps"]
     cust["Customers<br/>customer-web, customer-mobile"]
-    merch["Restaurants and food carts<br/>restaurant-web, vendor-web, merchant-mobile"]
-    sell["Suppliers, wholesalers, retailers<br/>supplier-web, vendor-web"]
+    merch["Restaurants and food carts<br/>restaurant-web (Food Seller Portal), merchant-mobile"]
+    sell["Suppliers, wholesalers, retailers<br/>supplier-web (Product Seller Portal)"]
     rider["Riders<br/>rider-web, rider-mobile"]
     staff["FoodGrid staff<br/>admin-web"]
   end
@@ -58,7 +58,8 @@ Browsers never call the gateway themselves: each web app's route handlers
 keep the tokens in httpOnly cookies and forward requests to `API_URL`. The mobile apps
 call the gateway directly with a bearer token. In Kubernetes the public hosts are
 `api.foodgrid.in` (gateway), `foodgrid.in` and `www.foodgrid.in` (customer-web),
-`partner.` (restaurant-web), `business.` (vendor-web), `supplier.` (supplier-web),
+`partner.` (restaurant-web), `business.` (vendor-web, which now only points to the two
+portals), `supplier.` (supplier-web),
 `rider.` (rider-web) and `admin.` (admin-web, behind an IP allow-list); staging uses the
 same names under `staging.foodgrid.in`.
 
@@ -271,7 +272,7 @@ stateDiagram-v2
 - **Tenants** are businesses: `RESTAURANT`, `FOOD_CART`, `SUPPLIER`, `WHOLESALER`,
   `RETAILER` (and `PLATFORM`), with status `PENDING_APPROVAL`, `ACTIVE`, `SUSPENDED` or
   `REJECTED`. A new business is created with `POST /api/v1/tenants` (the `/apply` page of
-  restaurant-web, vendor-web and supplier-web) and becomes active through the approvals
+  restaurant-web and supplier-web) and becomes active through the approvals
   queue in admin-web. A reviewer asking for changes or rejecting it leaves the notes in
   `Tenant.rejectionReason`; the owner fixes and resubmits with
   `POST /api/v1/tenants/current/kyc`, which puts it back under review.
@@ -314,8 +315,14 @@ Permissions (`packages/auth/src/permissions.ts`):
 | FINANCE         | `platform:finance`, `platform:analytics`, `platform:users:read`                                          |
 | OPS             | `platform:approvals`, `platform:riders`, `platform:users:read`, `platform:analytics`, `platform:content` |
 
-admin-web admits only the staff roles at sign-in. restaurant-web (`RESTAURANT`),
-vendor-web (`FOOD_CART`, `WHOLESALER`, `RETAILER`) and supplier-web (`SUPPLIER`) let any
+admin-web admits only the staff roles at sign-in. Businesses work in two portals:
+restaurant-web, the **Food Seller Portal** (`RESTAURANT`, `FOOD_CART`: one set of screens,
+with a phone-first nav for carts and outlet setup under Outlet settings), and
+supplier-web, the **Product Seller Portal** (`SUPPLIER`, `WHOLESALER`, `RETAILER`: one
+catalogue, bulk pricing, orders and delivery set-up, with distribution tools for wholesale
+and supply and marketplace buying for retailers and wholesalers). vendor-web, which used
+to serve carts, retailers and wholesalers, now only links to the two (set
+`FOOD_SELLER_PORTAL_URL` and `PRODUCT_SELLER_PORTAL_URL`). Both portals let any
 account sign in, but their middleware (`approvedBusiness` in `@foodgrid/auth`) opens the
 dashboards only to a token whose business is of those types and `ACTIVE`; everyone else
 gets `/apply`: register a business, follow its review, resubmit after changes or a
@@ -405,8 +412,9 @@ sequenceDiagram
 ## Delivery
 
 - **Dispatch.** On `order.accepted` for a delivery order, delivery-service creates the
-  delivery: zone by point-in-polygon on the pickup, distance, rider earning from the
-  zone tariff and current surge, and the handover OTP from the order. It then offers it
+  delivery: zone by point-in-polygon on the pickup, distance, rider pay from the
+  [delivery pricing](#delivery-pricing-and-rider-pay) in force and the zone's current
+  surge, and the handover OTP from the order. It then offers it
   to the best rider found by a Redis GEO search (`riders:geo`) among active, online
   riders with a fix in the last 5 minutes. Candidates are scored on proximity (50 %),
   acceptance rate (20 %), rating (15 %) and idle time (15 %), riders with two active
@@ -426,8 +434,8 @@ sequenceDiagram
   positions for 10 minutes are taken offline; their shift ends at their last position.
 - **Attendance.** Going offline (or being taken offline) credits the online session to
   the rider's attendance days, split at IST midnight.
-- **Earnings and incentives.** Completion writes earnings lines (base, distance,
-  surge, tip), attendance and incentive progress in the same transaction. `ORDER_COUNT`,
+- **Earnings and incentives.** Completion writes the pay lines (see below) and the tip,
+  attendance and incentive progress in the same transaction. `ORDER_COUNT`,
   `PEAK_HOURS` (inside the peak windows) and `RATING` (while the rider's rating is at
   least `minRating`) count deliveries; `STREAK` is the longest run of consecutive days
   with a delivery inside the scheme window; `LOGIN_HOURS` is whole hours online in the
@@ -439,6 +447,43 @@ sequenceDiagram
   `GET /api/v1/admin/rider-cash` and records hand-ins with
   `POST /api/v1/admin/rider-cash/{userId}/deposits` (see the
   [rider cash runbook](./runbooks.md#rider-cash-reconciliation)).
+
+### Delivery pricing and rider pay
+
+One platform-wide `DeliveryPricingPolicy` (delivery schema) sets both sides. Rows are never
+edited: finance or an admin adds the next version in admin-web (Finance, Delivery pricing;
+`POST /api/v1/admin/delivery-pricing`, `platform:finance`), the change is written to the
+admin audit log first (no audit, no change), and new quotes and deliveries use it within
+30 seconds. A change names the version it was based on (`baseVersion`); changes are
+serialized with a Postgres advisory lock, and one based on an older version is refused with
+409 `PRICING_CHANGED`, so two editors cannot silently overwrite each other. Each delivery
+stores the version it was created with (`pricingPolicyId`), so a change never alters the
+pay of a delivery already offered. Version 1 holds the launch rules below and is created on
+first use. `GET /api/v1/delivery/pricing` (public) returns the version and the rules in
+force, without the note or who made the change; the rider app shows them next to the
+earnings statement. The rules are
+pure functions in `services/delivery-service/src/domain/fees.ts`, unit-tested in
+`domain.spec.ts`.
+
+| Rule                   | Launch value                     | Definition                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| ---------------------- | -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Customer delivery fee  | ₹15 below ₹399, ₹0 from ₹399     | Flat, on the food subtotal (items before discounts; no packaging, taxes or tip). Distance and surge never change it. A `FREE_DELIVERY` coupon or a membership can still waive it. Each quote carries the fee rule, and order-service falls back to the last rule it saw (the launch rule until a quote arrives) when the quote is unavailable; it tells the customer how much more makes delivery free.                                                                                                                                                                                                                                                                                                                       |
+| Rider pay per delivery | greater of ₹33 and ₹10 × km      | Never both: `max(minimum, perKm × payable km)`, written as `DISTANCE_PAY` plus a `BASE_PAY` top-up to the minimum. ₹33 covers everything up to 3.3 km.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| Payable distance       | pickup to drop, to 0.1 km        | The road estimate fixed when the delivery is created (`Delivery.distanceKm`, `payableKm`), halves rounded up; not the rider's GPS trail and not the ride to the pickup.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| Surge                  | zone multiplier                  | Paid on top of the delivery pay as its own `SURGE` line while the zone surges; customers do not pay it.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| Waiting pay            | ₹3 once, after 5 minutes         | `DeliveryWait`, one per delivery and rider (unique `deliveryId`, `riderId`): opened when the rider marks arrival at the pickup, with the GPS fix and its distance; verified when the fix is under 5 minutes old and within 200 m. Closed at pickup, cancellation or reassignment with the wait, the time the order was marked ready, and the amount. The wait counted ends 2 minutes after the order was marked ready (the handover allowance), so a rider who lingers by ready food is not paid for it. Only a verified wait longer than the threshold pays, once (`WAITING_TIME`). A rider moved off the delivery after such a wait keeps the pay (`delivery.rider_released`); the next rider's wait is counted on its own. |
+| Cancelled or failed    | waiting pay; cancellation pay ₹0 | After the rider reached the pickup (verified arrival, or the food picked up) the rider gets the cancellation pay (set in the policy, ₹0 at launch) and any waiting pay; before that, nothing. Credited from `delivery.cancelled` / `delivery.failed`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| Batched orders         | each paid on its own             | A rider may carry two deliveries; each is paid on its own pickup-to-drop distance, minimum included.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| Long distance          | no cap, no extra rate            | Every payable km is paid at the per-km rate; orders beyond the 15 km serviceable distance are not taken.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+
+`Delivery.riderEarning` is the quoted pay while the delivery runs and what the rider was
+paid (tip excluded) once it ends. Events carry what their rider is paid as `riderPay`, and
+payment-service credits it to the rider wallet once per delivery (idempotency key
+`earning:<deliveryId>`), or once per delivery and rider for a released rider's waiting pay
+(`released:<deliveryId>:<riderId>`). Delivery fees, rider pay, commissions,
+merchant settlements, refunds and taxes stay separate entries: the fee and its GST are on
+the order and the customer's invoice, rider pay is in `RiderEarning` and the wallet ledger,
+commission and the merchant payable are settlement lines.
 
 ## Realtime
 

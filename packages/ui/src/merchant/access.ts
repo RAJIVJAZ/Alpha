@@ -13,6 +13,13 @@ export function useCan(permission: string): boolean {
   return !!active?.permissions?.includes(permission);
 }
 
+/** Staff limited to some outlets: they work only there and cannot add outlets. */
+export function useOutletScoped(): boolean {
+  const { data: session } = useSession();
+  const active = session?.memberships.find((m) => m.tenantId === session.activeTenantId);
+  return !!active?.outletIds?.length;
+}
+
 /** Sales and revenue (pos/summary, analytics reports) need reports:read. */
 export const useCanSeeSales = () => useCan('reports:read');
 

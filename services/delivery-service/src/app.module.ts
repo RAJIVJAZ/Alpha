@@ -12,6 +12,9 @@ import { HeatmapService } from './heatmap/heatmap.service';
 import { IncentivesService } from './incentives/incentives.service';
 import { InternalController } from './internal/internal.controller';
 import { DeliveryJobsService } from './jobs/delivery-jobs.service';
+import { PricingAdminController, PricingController } from './pricing/pricing.controller';
+import { PricingService } from './pricing/pricing.service';
+import { RiderPayService } from './pricing/rider-pay.service';
 import { RidersService } from './riders/riders.service';
 import { SERVICE_NAME, SUBSCRIBED_STREAMS } from './service.config';
 import { TrackingGateway } from './tracking/tracking.gateway';
@@ -28,10 +31,14 @@ import { ZonesService } from './zones/zones.service';
     DeliveriesController,
     DeliveryAdminController,
     ZonesController,
+    PricingController,
+    PricingAdminController,
     InternalController,
   ],
   providers: [
     GeoStore,
+    PricingService,
+    RiderPayService,
     ZonesService,
     RidersService,
     DispatchService,

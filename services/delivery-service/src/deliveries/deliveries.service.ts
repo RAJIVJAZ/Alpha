@@ -17,8 +17,8 @@ import { businessCounter, InternalHttpService, OutboxService, REDIS } from '@foo
 import { GeoStore } from '../common/geo-store';
 import { toDeliveryEvent } from '../common/delivery-event';
 import { isOwnUpload } from '../common/own-upload';
-import { DEFAULT_TARIFF, splitEarning } from '../domain/fees';
 import { IncentivesService } from '../incentives/incentives.service';
+import { RiderPayService, total } from '../pricing/rider-pay.service';
 import { TrackingGateway } from '../tracking/tracking.gateway';
 import { CompleteDeliveryDto, FailDeliveryDto } from './dto/delivery.dto';
 
@@ -67,6 +67,7 @@ export class DeliveriesService {
     private readonly geo: GeoStore,
     private readonly internal: InternalHttpService,
     private readonly incentives: IncentivesService,
+    private readonly pay: RiderPayService,
     @Inject(REDIS) private readonly redis: Redis,
   ) {}
 
@@ -117,25 +118,33 @@ export class DeliveriesService {
     return delivery;
   }
 
+  /** Arrival at the pickup starts the wait that waiting pay is measured on (see RiderPayService). */
   async arrivedAtPickup(userId: string, id: string) {
     const { rider, delivery } = await this.ownDelivery(userId, id);
-    return this.prisma.$transaction((tx) =>
-      this.move(tx, delivery, rider, 'AT_PICKUP', { arrivedPickupAt: new Date() }),
-    );
+    const pos = await this.geo.last(rider.id);
+    const now = new Date();
+    return this.prisma.$transaction(async (tx) => {
+      const d = await this.move(tx, delivery, rider, 'AT_PICKUP', { arrivedPickupAt: now });
+      await this.pay.openWait(tx, d, rider.id, now, pos);
+      return d;
+    });
   }
 
   async pickedUp(userId: string, id: string) {
     const { rider, delivery } = await this.ownDelivery(userId, id);
-    return this.prisma.$transaction((tx) =>
-      this.move(
+    const now = new Date();
+    return this.prisma.$transaction(async (tx) => {
+      const d = await this.move(
         tx,
         delivery,
         rider,
         'PICKED_UP',
-        { pickedUpAt: new Date() },
+        { pickedUpAt: now },
         EventTypes.DeliveryPickedUp,
-      ),
-    );
+      );
+      await this.pay.closeWait(tx, d, 'PICKED_UP', now);
+      return d;
+    });
   }
 
   async arrivedAtDrop(userId: string, id: string) {
@@ -198,6 +207,7 @@ export class DeliveriesService {
 
     const now = new Date();
     const updated = await this.prisma.$transaction(async (tx) => {
+      const lines = await this.pay.delivered(tx, delivery);
       const d = await this.move(
         tx,
         delivery,
@@ -208,10 +218,12 @@ export class DeliveriesService {
           proofPhotoUrl: dto.proofPhotoUrl,
           proofSignatureUrl: dto.proofSignatureUrl,
           proofNote: dto.note,
+          // what delivery.delivered credits to the wallet: the pay lines, tip apart
+          riderEarning: total(lines),
         },
         EventTypes.DeliveryDelivered,
       );
-      await this.recordEarnings(tx, d, rider.id, now);
+      await this.pay.record(tx, d, rider.id, now, lines, Number(d.tipAmount));
       const remaining = await tx.delivery.count({
         where: {
           riderId: rider.id,
@@ -243,57 +255,29 @@ export class DeliveriesService {
   async fail(userId: string, id: string, dto: FailDeliveryDto) {
     const { rider, delivery } = await this.ownDelivery(userId, id);
     assertOwnProof(dto.proofPhotoUrl, userId);
+    const now = new Date();
     const updated = await this.prisma.$transaction(async (tx) => {
+      const wait = await this.pay.closeWait(tx, delivery, 'FAILED', now);
+      const lines = await this.pay.endedEarly(tx, delivery, wait);
       const d = await this.move(
         tx,
         delivery,
         rider,
         'FAILED',
-        { failureReason: dto.reason, proofPhotoUrl: dto.proofPhotoUrl },
+        {
+          failureReason: dto.reason,
+          proofPhotoUrl: dto.proofPhotoUrl,
+          // what delivery.failed credits to the wallet (cancellation and waiting pay)
+          riderEarning: total(lines),
+        },
         EventTypes.DeliveryFailed,
       );
+      await this.pay.record(tx, d, rider.id, now, lines);
       await tx.riderProfile.update({ where: { id: rider.id }, data: { isOnDelivery: false } });
       return d;
     });
     completed.inc({ outcome: 'failed' });
     return updated;
-  }
-
-  /** Earnings statement lines: the quoted pay split into base, distance and surge, plus the tip. */
-  private async recordEarnings(tx: Tx, d: Delivery, riderId: string, at: Date) {
-    const zone = d.zoneId
-      ? await tx.deliveryZone.findUnique({
-          where: { id: d.zoneId },
-          select: { riderBasePay: true },
-        })
-      : null;
-    const pay = splitEarning(
-      Number(d.riderEarning),
-      d.surgeMultiplier,
-      zone ? Number(zone.riderBasePay) : DEFAULT_TARIFF.riderBasePay,
-    );
-    const lines = [
-      { type: 'BASE_PAY' as const, amount: pay.basePay, description: `Delivery ${d.orderNumber}` },
-      {
-        type: 'DISTANCE_PAY' as const,
-        amount: pay.distancePay,
-        description: `${d.distanceKm.toFixed(1)} km`,
-      },
-      { type: 'SURGE' as const, amount: pay.surgePay, description: `Surge ×${d.surgeMultiplier}` },
-      { type: 'TIP' as const, amount: Number(d.tipAmount), description: 'Customer tip' },
-    ];
-    for (const l of lines.filter((x) => x.amount > 0)) {
-      await tx.riderEarning.create({
-        data: {
-          riderId,
-          deliveryId: d.id,
-          type: l.type,
-          amount: l.amount,
-          description: l.description,
-          earnedAt: at,
-        },
-      });
-    }
   }
 
   /** Post-delivery GPS trail audit (fraud detection, fire-and-forget). */

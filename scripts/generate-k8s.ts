@@ -336,6 +336,9 @@ function main() {
         PLATFORM_STATE_CODE: '29',
         CORS_ORIGINS: 'https://foodgrid.in,https://www.foodgrid.in',
         CUSTOMER_WEB_URL: 'https://foodgrid.in',
+        // vendor-web only links to the two seller portals
+        FOOD_SELLER_PORTAL_URL: 'https://partner.foodgrid.in',
+        PRODUCT_SELLER_PORTAL_URL: 'https://supplier.foodgrid.in',
         // web apps call the API through the in-cluster gateway
         API_URL: 'http://gateway:8080/api/v1',
         ...serviceUrls(),

@@ -203,14 +203,14 @@ export function roleRequiredMessage(roles: readonly PlatformRole[]): string {
   return `This is only available to ${orList(audience)}.`;
 }
 
-/** Which merchant dashboard each tenant type uses. */
+/** The portal each kind of business works in: one for food sellers, one for product sellers. */
 export const TENANT_APP: Record<TenantType, string> = {
   PLATFORM: 'admin-web',
   RESTAURANT: 'restaurant-web',
-  FOOD_CART: 'vendor-web',
+  FOOD_CART: 'restaurant-web',
   SUPPLIER: 'supplier-web',
-  WHOLESALER: 'vendor-web',
-  RETAILER: 'vendor-web',
+  WHOLESALER: 'supplier-web',
+  RETAILER: 'supplier-web',
 };
 
 /** Outlet-level restriction check for staff assigned to specific outlets. */

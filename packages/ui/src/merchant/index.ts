@@ -1,5 +1,6 @@
-/** Restaurant, cloud-kitchen and food-cart screens shared by restaurant-web and vendor-web. */
+/** Restaurant, cloud-kitchen and food-cart screens of the Food Seller Portal (restaurant-web) and its outlet setup. */
 export { OutletProvider, OutletPicker, useOutlet } from './outlet';
+export { OutletOpenSwitch, OutletSettings, type FoodBusinessKind } from './outlet-settings';
 export { MerchantOverview } from './overview';
 export { SalesReportView } from './sales';
 export { OrdersBoard } from './orders';

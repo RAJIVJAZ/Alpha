@@ -41,11 +41,11 @@ void main() {
 
     expect(find.text('Momo Wagon - Koramangala'), findsOneWidget);
     expect(find.text('Dosa Corner - Jayanagar'), findsOneWidget);
-    // closed places (isOpenNow false) are dimmed and labelled; sponsored ones carry "Ad"
+    // closed places (isOpenNow false) are dimmed and labelled; sponsored ones carry "Sponsored"
     expect(find.text('Closed now'), findsOneWidget);
     expect(find.bySemanticsLabel(RegExp(r'^Momo Wagon - Koramangala, Closed now')), findsOneWidget);
     expect(find.bySemanticsLabel(RegExp(r'^Spice Garden - Koramangala, rated')), findsWidgets);
-    expect(find.text('Ad'), findsOneWidget);
+    expect(find.text('Sponsored'), findsOneWidget);
 
     final q = api.callsTo('GET /outlets/nearby').single.queryParameters;
     expect(q['lat'], 12.9352);

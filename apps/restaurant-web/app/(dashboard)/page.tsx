@@ -1,9 +1,12 @@
 import type { Metadata } from 'next';
-import { MerchantOverview } from '@foodgrid/ui/merchant';
+import { MerchantOverview, PointOfSale } from '@foodgrid/ui/merchant';
+import { foodKind } from './kind';
 
-export const metadata: Metadata = { title: 'Overview' };
+export const metadata: Metadata = { title: 'Home' };
 
-export default function Page() {
+export default async function Page() {
+  // carts sell from a phone at the counter: the point of sale is their home
+  if ((await foodKind()) === 'FOOD_CART') return <PointOfSale />;
   return (
     <MerchantOverview
       links={{

@@ -5,6 +5,7 @@ import type { InternalHttpService, OutboxService } from '@foodgrid/utils/server'
 import type { GeoStore, LivePosition } from '../common/geo-store';
 import { riderView } from '../common/rider-view';
 import type { IncentivesService } from '../incentives/incentives.service';
+import type { RiderPayService } from '../pricing/rider-pay.service';
 import type { TrackingGateway } from '../tracking/tracking.gateway';
 import { isOwnUpload } from '../common/own-upload';
 import { DeliveriesService } from './deliveries.service';
@@ -55,6 +56,7 @@ function service(
     geo as unknown as GeoStore,
     {} as InternalHttpService,
     {} as IncentivesService,
+    {} as RiderPayService,
     redis as unknown as Redis,
   );
 }

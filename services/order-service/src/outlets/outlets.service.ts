@@ -6,6 +6,7 @@ import type { AccessTokenClaims } from '@foodgrid/types';
 import {
   conflict,
   encodeGeohash,
+  forbidden,
   isWithinOpeningHours,
   notFound,
   OpeningWindow,
@@ -13,6 +14,10 @@ import {
 import { InternalHttpService } from '@foodgrid/utils/server';
 import { assertOutletAccess } from '../common/outlet-access';
 import { CreateOutletDto, OutletLocationDto, UpdateOutletDto } from './dto/outlet.dto';
+
+/** A cloud kitchen has no seats or tables, so it never takes dine-in or table QR orders. */
+const kitchenRules = (type: string) =>
+  type === 'CLOUD_KITCHEN' ? { acceptsDineIn: false, acceptsQrOrders: false } : {};
 
 const slugify = (v: string) =>
   v
@@ -34,6 +39,9 @@ export class OutletsService {
 
   // ─── merchant ──────────────────────────────────────────────────────────────
   async create(user: AccessTokenClaims, dto: CreateOutletDto) {
+    // staff limited to some outlets would not see a new one (listMine filters by outletIds)
+    if (user.outletIds?.length)
+      throw forbidden('Only staff of the whole business can add outlets', 'OUTLET_SCOPE');
     if (user.tenantType === 'FOOD_CART' && dto.type !== 'FOOD_CART') {
       throw conflict(
         'Food cart businesses can only create food cart outlets',
@@ -48,6 +56,7 @@ export class OutletsService {
         slug: `${slugify(dto.name)}-${randomBytes(3).toString('hex')}`,
         geohash: encodeGeohash(dto.lat, dto.lng, 9),
         isMobile: dto.type === 'FOOD_CART',
+        ...kitchenRules(dto.type),
         openingHours: (openingHours ?? []) as unknown as Prisma.InputJsonValue,
         costForTwo,
         minOrderValue,
@@ -66,12 +75,13 @@ export class OutletsService {
   }
 
   async update(user: AccessTokenClaims, id: string, dto: UpdateOutletDto) {
-    await assertOutletAccess(this.prisma, user, id);
+    const outlet = await assertOutletAccess(this.prisma, user, id);
     const { openingHours, ...rest } = dto;
     return this.prisma.forTenant(user.tenantId!).outlet.update({
       where: { id },
       data: {
         ...rest,
+        ...kitchenRules(outlet.type),
         ...(dto.lat !== undefined && dto.lng !== undefined
           ? { geohash: encodeGeohash(dto.lat, dto.lng, 9) }
           : {}),
@@ -118,7 +128,8 @@ export class OutletsService {
       throw conflict('Outlet is not paused', 'OUTLET_STATE');
     return this.prisma.outlet.update({
       where: { id },
-      data: { status: paused ? 'PAUSED' : 'ACTIVE', isOpen: paused ? false : outlet.isOpen },
+      // reopening takes orders again (opening hours still apply); pausing stops them
+      data: { status: paused ? 'PAUSED' : 'ACTIVE', isOpen: !paused },
     });
   }
 
