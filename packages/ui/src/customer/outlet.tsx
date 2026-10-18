@@ -220,7 +220,14 @@ function MenuBrowser({ menu }: { menu: Menu }) {
     itemIds: mine?.lines.map((l) => l.menuItemId),
   });
   const inCart = new Set(mine?.lines.map((l) => l.menuItemId));
-  const goesWell = (pairs.data ?? []).filter((i) => !inCart.has(i.id) && i.isAvailable).slice(0, 4);
+  // suggested dishes arrive without their sizes and add-ons: add from the menu's own copy
+  const byId = new Map(
+    [...menu.recommended, ...menu.categories.flatMap((c) => c.items)].map((i) => [i.id, i]),
+  );
+  const goesWell = (pairs.data ?? [])
+    .map((i) => byId.get(i.id))
+    .filter((i): i is MenuItem => !!i && !inCart.has(i.id) && i.isAvailable)
+    .slice(0, 4);
 
   const onAdd = (item: MenuItem) => {
     if (!session) return signInFirst();
