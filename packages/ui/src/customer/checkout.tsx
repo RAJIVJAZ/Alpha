@@ -496,7 +496,8 @@ export function CartView() {
       idem.current = newIdempotencyKey();
       // the server emptied the cart; refresh it only after paying, or this page
       // would switch to the empty state and unmount the payment sheet
-      if (res.payment.required && method !== 'COD') {
+      // cash on delivery returns no payment (null): the order is placed as it is
+      if (res.payment?.required && method !== 'COD') {
         const outcome = await pay({
           purpose: 'ORDER',
           referenceId: res.order.id,

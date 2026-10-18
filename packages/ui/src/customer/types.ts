@@ -214,13 +214,14 @@ export type PaymentMethod = 'UPI' | 'CARD' | 'NETBANKING' | 'WALLET' | 'COD';
 export interface CheckoutResult {
   order: { id: string; orderNumber: string; status: string; total: Dec; paymentStatus: string };
   pricing: Pricing;
+  /** What to pay next; null for cash on delivery. */
   payment: {
     required: boolean;
     purpose: string;
     referenceId: string;
     amount: Dec;
     method: PaymentMethod;
-  };
+  } | null;
 }
 
 export interface PaymentIntent {
