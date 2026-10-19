@@ -10,6 +10,7 @@ import { api, ApiError } from '../lib/api';
 import { formatMoney } from '../lib/format';
 import { toast, useApi, useSession } from '../lib/hooks';
 import { cn } from '../lib/utils';
+import { CITY } from './city';
 import type { Address, Cart, OpeningHours, OutletSummary } from './types';
 
 /* ------------------------------------------------------------------ place */
@@ -21,7 +22,8 @@ export interface Place {
   addressId?: string;
 }
 
-export const DEFAULT_PLACE: Place = { lat: 12.9352, lng: 77.6245, label: 'Koramangala, Bengaluru' };
+/** Where the site opens before the customer chooses: the first area of the deployment's city. */
+export const DEFAULT_PLACE: Place = { ...CITY.areas[0]! };
 const PLACE_KEY = 'fg.place';
 
 const PlaceContext = React.createContext<{ place: Place; setPlace: (p: Place) => void } | null>(

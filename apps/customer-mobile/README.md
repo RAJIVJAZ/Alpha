@@ -60,6 +60,7 @@ flutter run --dart-define=API_URL=http://192.168.1.20:8080/api/v1 \
             --dart-define=GOOGLE_SERVER_CLIENT_ID=xxxx.apps.googleusercontent.com
 ```
 
+- `CITY` picks the city the app opens in: `prayagraj` (default, the launch city) or `bengaluru`, where the demo data is (`--dart-define=CITY=bengaluru` against a seeded database).
 - `GOOGLE_SERVER_CLIENT_ID` is the web OAuth client id that the API verifies. Without it, the "Continue with Google" button is hidden. Google sign-in also needs the platform setup from `google_sign_in`: the Android SHA-1 and the iOS URL scheme.
 - Demo customer: `+919845000001`. In development the OTP request returns `devCode`, and the sign-in screen shows it. If you hit the OTP rate limit, clear it with `redis-cli --scan --pattern 'otp:*' | xargs -r redis-cli del`.
 - At night (IST) most demo restaurants are closed. You can still browse, the UI shows when each one opens, and the server rejects orders with `OUTLET_CLOSED`.

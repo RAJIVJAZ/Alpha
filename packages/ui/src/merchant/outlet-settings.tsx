@@ -385,7 +385,7 @@ function OutletEditor({
                 required
                 maxLength={120}
                 placeholder={
-                  cart ? 'e.g. Raju Momos, Forum Mall gate' : 'e.g. Spice Route, Indiranagar'
+                  cart ? 'e.g. Raju Momos, Civil Lines crossing' : 'e.g. Spice Route, Civil Lines'
                 }
               />
             </Field>

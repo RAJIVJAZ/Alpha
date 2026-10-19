@@ -35,19 +35,12 @@ import {
 import { ThemeToggle } from '../components/theme';
 import { useApi, useSession } from '../lib/hooks';
 import { cn } from '../lib/utils';
+import { CITY } from './city';
 import { devicePosition, PlaceProvider, placeOf, useCart, usePlace } from './common';
 import type { Address, Notification, Suggestions } from './types';
 
 /** Popular delivery areas (area centres) for choosing a location without GPS or a saved address. */
-export const AREAS = [
-  { label: 'Koramangala, Bengaluru', lat: 12.9352, lng: 77.6245 },
-  { label: 'Indiranagar, Bengaluru', lat: 12.9784, lng: 77.6408 },
-  { label: 'HSR Layout, Bengaluru', lat: 12.9116, lng: 77.6474 },
-  { label: 'BTM Layout, Bengaluru', lat: 12.9166, lng: 77.6101 },
-  { label: 'Jayanagar, Bengaluru', lat: 12.925, lng: 77.5938 },
-  { label: 'MG Road, Bengaluru', lat: 12.9756, lng: 77.605 },
-  { label: 'Whitefield, Bengaluru', lat: 12.9698, lng: 77.75 },
-];
+export const AREAS = CITY.areas;
 
 /** Storefront chrome: header with location, search, cart and account; bottom tabs on phones. */
 export function Storefront({ children }: { children: React.ReactNode }) {

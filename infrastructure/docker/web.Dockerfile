@@ -18,6 +18,9 @@ RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
     pnpm install --frozen-lockfile
 # declared after the install so all images share the cached dependency layer
 ARG APP
+# the customer site's city, built into its pages (empty: Prayagraj, the launch city)
+ARG NEXT_PUBLIC_CITY=
+ENV NEXT_PUBLIC_CITY=${NEXT_PUBLIC_CITY}
 RUN pnpm turbo run build --filter="@foodgrid/${APP}..."
 
 FROM node:${NODE_VERSION}-alpine AS runtime

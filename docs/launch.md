@@ -1,6 +1,7 @@
 # Launch checklist
 
-Going live on Vercel (web apps) and Railway (API, PostgreSQL, Redis), in order. The
+Going live in **Prayagraj** on Vercel (web apps) and Railway (API, PostgreSQL, Redis), in
+order. The
 technical steps are detailed in [deployment](./deployment.md#vercel-web-apps--railway-api--alternative-to-aws).
 
 ## 1. Start now: accounts that take days
@@ -20,13 +21,19 @@ technical steps are detailed in [deployment](./deployment.md#vercel-web-apps--ra
    Railway deploy.
 2. Railway: the 12 services and the gateway with their variables, then check every service
    is running and `https://<gateway-domain>/api/v1/delivery/pricing` answers.
-3. Run the first-time setup once (the first admin and a city-wide delivery zone):
+3. Run the first-time setup once (the first admin and the Prayagraj delivery zone, 15 km
+   around the city centre: Civil Lines to Phaphamau, Naini, Jhunsi and Bamrauli):
    `pnpm --filter @foodgrid/database db:setup` (see deployment, Railway step 7). Use a
    database that has never had demo data: if `pnpm db:seed` ever ran against it, start from
-   a new database, or customers will see made-up restaurants.
-4. Vercel: the customer, admin, restaurant, supplier and rider projects with `API_URL` and
-   `GOOGLE_WEB_CLIENT_ID`, then their domains. vendor-web is optional.
-5. Disconnect any other deploy hook you do not use (a Cloudflare Workers project connected
+   a new database, or customers will see made-up restaurants in Bengaluru.
+4. Railway shared variables for GST: `PLATFORM_GSTIN` (your GSTIN) and
+   `PLATFORM_STATE_CODE` (its first two digits: `09` for Uttar Pradesh). Commission and
+   delivery-fee invoices use them to choose CGST and SGST or IGST.
+5. Vercel: the customer, admin, restaurant, supplier and rider projects with `API_URL` and
+   `GOOGLE_WEB_CLIENT_ID`, then their domains. vendor-web is optional. The customer site
+   opens in Prayagraj (Civil Lines) with area shortcuts for Civil Lines, George Town,
+   Katra, Teliyarganj, Naini, Jhunsi and Phaphamau; `NEXT_PUBLIC_CITY` changes the city.
+6. Disconnect any other deploy hook you do not use (a Cloudflare Workers project connected
    to the repository fails on every push).
 
 ## 3. Before opening to the public
@@ -38,7 +45,8 @@ technical steps are detailed in [deployment](./deployment.md#vercel-web-apps--ra
    riders ₹10 a km, at least ₹33).
 3. Bring the first sellers and riders on board:
    - restaurants and food carts sign up at `partner.<domain>`, add their outlet and dishes
-     and submit; approve the business and the outlet in Approvals;
+     and submit; approve the business and the outlet in Approvals (for Prayagraj outlets the
+     state is Uttar Pradesh and PIN codes start with 211);
    - suppliers, wholesalers and retailers sign up at `supplier.<domain>`;
    - riders apply at `rider.<domain>/apply`; approve them in Riders.
      Outlets must be inside the delivery zone to take delivery orders.
@@ -59,6 +67,8 @@ technical steps are detailed in [deployment](./deployment.md#vercel-web-apps--ra
 ## Known limits at launch
 
 - Phones use the websites; the Flutter apps need separate Play Store and App Store releases.
-- The customer site's default location and area shortcuts are in Bengaluru.
+- One city at a time: the customer site and the Flutter customer app open in Prayagraj. For
+  another city, add it to `packages/ui/src/customer/city.ts` and
+  `apps/customer-mobile/lib/src/location/place.dart`, and run `db:setup` with its `ZONE_*`.
 - Demo photos are not used in production; outlets and dishes show photos once sellers
   upload them.

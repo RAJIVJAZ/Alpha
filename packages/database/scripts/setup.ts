@@ -10,8 +10,9 @@
  *   DATABASE_URL=<postgres url> ADMIN_EMAIL=you@example.com ADMIN_NAME="Your Name" \
  *   ADMIN_PASSWORD='<12+ characters>' pnpm --filter @foodgrid/database db:setup
  *
- * Zone options (default: Bengaluru, 20 km around the city centre; ZONE_CITY=none skips it):
- *   ZONE_CITY=Mumbai ZONE_LAT=19.0760 ZONE_LNG=72.8777 ZONE_RADIUS_KM=25
+ * Zone options (default: Prayagraj, 15 km around the city centre; ZONE_CITY=Bengaluru is the
+ * other preset; ZONE_CITY=none skips it). Any other city needs its centre:
+ *   ZONE_CITY=Lucknow ZONE_LAT=26.8467 ZONE_LNG=80.9462 ZONE_RADIUS_KM=18
  * An existing admin's password is only replaced with ADMIN_RESET_PASSWORD=true.
  */
 import path from 'node:path';

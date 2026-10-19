@@ -230,7 +230,7 @@ function ZoneDialog({ zone: z, onClose }: { zone: DeliveryZone | null; onClose: 
               <Input
                 value={f.pincodes}
                 onChange={set('pincodes')}
-                placeholder="560001, 560034"
+                placeholder="211001, 211002"
                 required
               />
             </Field>

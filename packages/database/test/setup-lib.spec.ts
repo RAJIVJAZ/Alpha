@@ -25,8 +25,28 @@ describe('production setup', () => {
     expect(pointInPolygon({ lat: 12.7409, lng: 77.8253 }, ring)).toBe(false);
   });
 
-  it('defaults the zone to Bengaluru and needs a centre for any other city', () => {
+  it('covers Prayagraj across both rivers', () => {
+    const ring = circleZone({ lat: 25.4448, lng: 81.8432 }, 15);
+    // Civil Lines, Naini, Jhunsi, Phaphamau and Bamrauli airport are in; Kaushambi road (~22 km) is not
+    for (const [lat, lng] of [
+      [25.4553, 81.8353],
+      [25.3905, 81.8632],
+      [25.429, 81.914],
+      [25.5339, 81.8539],
+      [25.4401, 81.7339],
+    ])
+      expect(pointInPolygon({ lat: lat!, lng: lng! }, ring)).toBe(true);
+    expect(pointInPolygon({ lat: 25.45, lng: 81.62 }, ring)).toBe(false);
+  });
+
+  it('defaults the zone to Prayagraj, knows Bengaluru, and needs a centre for any other city', () => {
     expect(readSetupConfig({}).zone).toEqual({
+      city: 'Prayagraj',
+      lat: 25.4448,
+      lng: 81.8432,
+      radiusKm: 15,
+    });
+    expect(readSetupConfig({ ZONE_CITY: 'bengaluru' }).zone).toEqual({
       city: 'Bengaluru',
       lat: 12.9716,
       lng: 77.5946,

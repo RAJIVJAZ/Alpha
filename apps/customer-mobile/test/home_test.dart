@@ -37,7 +37,8 @@ void main() {
     // "Top rated" repeats the recommended list exactly, so it is skipped
     expect(find.text('Top rated'), findsNothing);
     expect(find.text('Restaurants and food carts near you'), findsOneWidget);
-    expect(find.text('3 places deliver to Koramangala'), findsOneWidget);
+    // the app opens in the launch city's first area
+    expect(find.text('3 places deliver to Civil Lines'), findsOneWidget);
 
     expect(find.text('Momo Wagon - Koramangala'), findsOneWidget);
     expect(find.text('Dosa Corner - Jayanagar'), findsOneWidget);
@@ -48,8 +49,8 @@ void main() {
     expect(find.text('Sponsored'), findsOneWidget);
 
     final q = api.callsTo('GET /outlets/nearby').single.queryParameters;
-    expect(q['lat'], 12.9352);
-    expect(q['lng'], 77.6245);
+    expect(q['lat'], 25.4553);
+    expect(q['lng'], 81.8353);
     expect(q['sort'], 'relevance');
     expect(q['page'], 1);
     expect(q['pageSize'], 12);
@@ -82,12 +83,12 @@ void main() {
     final api = homeApi();
     final h = await pumpApp(tester, api);
 
-    await tester.tapAndSettle(find.bySemanticsLabel(RegExp('Delivering to Koramangala')));
-    await tester.tapAndSettle(find.widgetWithText(ChoiceChip, 'Indiranagar'));
+    await tester.tapAndSettle(find.bySemanticsLabel(RegExp('Delivering to Civil Lines')));
+    await tester.tapAndSettle(find.widgetWithText(ChoiceChip, 'George Town'));
 
     final q = api.callsTo('GET /outlets/nearby').last.queryParameters;
-    expect(q['lat'], 12.9784);
-    expect(q['lng'], 77.6408);
-    expect(h.store.values['fg.place'], contains('Indiranagar'));
+    expect(q['lat'], 25.4519);
+    expect(q['lng'], 81.8552);
+    expect(h.store.values['fg.place'], contains('George Town'));
   });
 }

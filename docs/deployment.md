@@ -133,6 +133,8 @@ files.
    RAZORPAY_KEY_ID=          # required: payment-service does not start in production without them
    RAZORPAY_KEY_SECRET=
    RAZORPAY_WEBHOOK_SECRET=  # Razorpay dashboard → Webhooks → https://<gateway-domain>/api/v1/payments/webhooks/razorpay
+   PLATFORM_GSTIN=           # your GSTIN, printed on commission and delivery-fee invoices
+   PLATFORM_STATE_CODE=      # its first two digits, e.g. 09 for Uttar Pradesh (default 29, Karnataka)
    S3_MEDIA_BUCKET=          # S3-compatible storage for uploads (e.g. Cloudflare R2)
    S3_ENDPOINT=
    S3_FORCE_PATH_STYLE=true
@@ -183,8 +185,9 @@ files.
    ADMIN_PASSWORD='<12+ characters>' pnpm --filter @foodgrid/database db:setup
    ```
 
-   The zone defaults to Bengaluru, 20 km around the city centre. For another city, add
-   `ZONE_CITY=Mumbai ZONE_LAT=19.0760 ZONE_LNG=72.8777 ZONE_RADIUS_KM=25`; run it once per
+   The zone defaults to Prayagraj, 15 km around the city centre; `ZONE_CITY=Bengaluru` is
+   the other preset. For any other city, add its centre:
+   `ZONE_CITY=Lucknow ZONE_LAT=26.8467 ZONE_LNG=80.9462 ZONE_RADIUS_KM=18`; run it once per
    city. Then sign in to admin-web with that email and password.
 
    Demo data is for a separate test database only, never production: from your machine,
@@ -225,7 +228,9 @@ For each app:
    client ID, type Web; add each app's `https://` domain under Authorized JavaScript
    origins, and the same client id to `GOOGLE_CLIENT_IDS` on Railway). Until SMS login
    codes are set up (DLT), Google is the only way new customers, riders and sellers can
-   sign up.
+   sign up. `NEXT_PUBLIC_CITY` on `customer-web` picks the city the site opens in
+   (`prayagraj` by default, `bengaluru` for the demo data); it is built into the pages, so
+   redeploy after changing it.
 3. Deploy, then Settings → Domains → add the app's domain.
 4. Settings → Build and Deployment → Root Directory: keep **Skip deployment** on, so a
    push that does not touch the app or the packages it uses does not redeploy it.

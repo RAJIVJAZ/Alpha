@@ -35,6 +35,7 @@ import { api, ApiError, newIdempotencyKey } from '../lib/api';
 import { formatMoney } from '../lib/format';
 import { toast, useApi, useApiMutation, useSession } from '../lib/hooks';
 import { cn } from '../lib/utils';
+import { CITY } from './city';
 import { devicePosition, Stepper, useCart, usePlace, VegMark } from './common';
 import type {
   Address,
@@ -194,8 +195,8 @@ const blankAddress = {
   line1: '',
   line2: '',
   landmark: '',
-  city: 'Bengaluru',
-  state: 'Karnataka',
+  city: CITY.name,
+  state: CITY.state,
   pincode: '',
 };
 

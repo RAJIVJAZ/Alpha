@@ -13,6 +13,7 @@ import { api, type Paged } from '../lib/api';
 import { formatMoney, formatRelative } from '../lib/format';
 import { toast, useApi, useSession } from '../lib/hooks';
 import { cn } from '../lib/utils';
+import { CITY } from './city';
 import { OutletCard, OutletRail, reportAdClick, usePlace, VegMark, webLink } from './common';
 import type { Banner, HomeFeed, OutletSummary, SearchResult } from './types';
 
@@ -22,7 +23,7 @@ export function HomeView() {
   const { place } = usePlace();
   const { data: session } = useSession();
   const feed = useApi<HomeFeed>('recommendations/home', { lat: place.lat, lng: place.lng });
-  const banners = useApi<Banner[]>('cms/banners', { city: 'Bengaluru', audience: 'CUSTOMER' });
+  const banners = useApi<Banner[]>('cms/banners', { city: CITY.name, audience: 'CUSTOMER' });
   const f = feed.data;
   const hero = (banners.data ?? []).filter((b) => b.placement === 'HOME_HERO');
   const strip = (banners.data ?? []).filter((b) => b.placement !== 'HOME_HERO');
@@ -193,7 +194,8 @@ function AllOutlets() {
           </h2>
           {list.data ? (
             <p className="text-sm text-muted-foreground">
-              {list.data.meta.total} places deliver to {place.label}
+              {list.data.meta.total}{' '}
+              {list.data.meta.total === 1 ? 'place delivers' : 'places deliver'} to {place.label}
             </p>
           ) : null}
         </div>

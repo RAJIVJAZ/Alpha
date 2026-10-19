@@ -339,7 +339,7 @@ class _NearbyHeader extends ConsumerWidget {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       SectionTitle(
         'Restaurants and food carts near you',
-        hint: total == null ? null : '$total place${total == 1 ? '' : 's'} deliver to ${place.shortLabel}',
+        hint: total == null ? null : '$total ${total == 1 ? 'place delivers' : 'places deliver'} to ${place.shortLabel}',
         trailing: PopupMenuButton<OutletSort>(
           tooltip: 'Sort by: ${f.sort.label}',
           initialValue: f.sort,

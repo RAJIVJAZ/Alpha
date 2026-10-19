@@ -31,8 +31,8 @@ class _AddressFormScreenState extends ConsumerState<AddressFormScreen> {
   late final _line1 = TextEditingController(text: a?.line1);
   late final _line2 = TextEditingController(text: a?.line2);
   late final _landmark = TextEditingController(text: a?.landmark);
-  late final _city = TextEditingController(text: a?.city ?? 'Bengaluru');
-  late final _state = TextEditingController(text: a?.state ?? 'Karnataka');
+  late final _city = TextEditingController(text: a?.city ?? city.name);
+  late final _state = TextEditingController(text: a?.state ?? city.state);
   late final _pincode = TextEditingController(text: a?.pincode);
   late final _contactName = TextEditingController(text: a?.contactName);
   late final _contactPhone = TextEditingController(text: a?.contactPhone);

@@ -47,8 +47,12 @@ pnpm db:seed                # demo data (resets the database)
 pnpm build:packages         # shared packages, which the services load from dist/
 pnpm dev:services           # the 12 services with nest --watch
 pnpm dev:gateway            # the API gateway on :8080 (separate terminal)
-pnpm dev:web                # the six web apps (separate terminal)
+NEXT_PUBLIC_CITY=bengaluru pnpm dev:web   # the six web apps (separate terminal)
 ```
+
+The demo data is in Bengaluru, while the customer site opens in Prayagraj (the launch city)
+unless `NEXT_PUBLIC_CITY=bengaluru`; docker compose sets it for you. The customer app takes
+`--dart-define=CITY=bengaluru`.
 
 After changing a shared package (`packages/types`, `utils`, `auth`, `database`), rebuild
 it (`pnpm build:packages`) so the services pick it up.
