@@ -79,6 +79,7 @@ from source with hot reload, and the mobile apps are in
 | [Local development](docs/local-development.md)  | running it on a laptop                                                  |
 | [Testing](docs/testing.md)                      | test layers and how to run them                                         |
 | [Deployment](docs/deployment.md)                | Terraform, GitHub setup, CI/CD, rollback                                |
+| [Launch checklist](docs/launch.md)              | accounts to open, deploy steps and checks before going live             |
 | [Runbooks](docs/runbooks.md)                    | what to do when an alert fires                                          |
 | [Roadmap](docs/roadmap.md)                      | the master brief against the code: what is built and what is left       |
 | [Terraform](infrastructure/terraform/README.md) | infrastructure step by step                                             |

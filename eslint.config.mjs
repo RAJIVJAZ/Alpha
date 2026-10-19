@@ -39,6 +39,7 @@ export default tseslint.config(
       '**/*.e2e-spec.ts',
       '**/test/**/*.ts',
       'scripts/**/*.ts',
+      'packages/*/scripts/**/*.ts',
       '**/prisma/seed/**/*.ts',
     ],
     rules: {

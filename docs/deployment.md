@@ -173,8 +173,23 @@ files.
 6. Deploy. Each API service runs `prisma migrate deploy` before it starts (it is
    idempotent and takes a lock; services that time out waiting for the lock while another
    one migrates retry), so the database schema is created on the first deploy.
-   Demo data (optional, never in production): from your machine,
-   `DATABASE_URL=<Postgres public URL> pnpm db:seed`.
+7. **First-time setup** (once, from your machine, against the production database): the
+   first admin account and a city-wide delivery zone. Deliveries are only quoted for
+   restaurants inside an active zone, and admin-web has no screen for zones yet. It never
+   adds demo data and is safe to run again.
+
+   ```sh
+   DATABASE_URL='<Postgres public URL>' ADMIN_EMAIL=you@example.com ADMIN_NAME='Your Name' \
+   ADMIN_PASSWORD='<12+ characters>' pnpm --filter @foodgrid/database db:setup
+   ```
+
+   The zone defaults to Bengaluru, 20 km around the city centre. For another city, add
+   `ZONE_CITY=Mumbai ZONE_LAT=19.0760 ZONE_LNG=72.8777 ZONE_RADIUS_KM=25`; run it once per
+   city. Then sign in to admin-web with that email and password.
+
+   Demo data is for a separate test database only, never production: from your machine,
+   `DATABASE_URL=<test database URL> pnpm db:seed`. It adds made-up restaurants, riders and
+   orders that customers would see.
 
 ### 2. Vercel: the web apps
 
@@ -204,8 +219,13 @@ For each app:
    **Root Directory** to the app's folder. Framework, install and build commands come from
    the app's `vercel.json`; leave them on their defaults. Keep "Include files outside the
    root directory in the Build Step" on (the app builds the shared packages).
-2. Environment variables: `API_URL=https://<gateway-domain>/api/v1`; on `customer-web` and
-   `rider-web` also `GOOGLE_WEB_CLIENT_ID` for Google sign-in.
+2. Environment variables: `API_URL=https://<gateway-domain>/api/v1`; on `customer-web`,
+   `rider-web`, `restaurant-web` and `supplier-web` also `GOOGLE_WEB_CLIENT_ID` for
+   "Continue with Google" (Google Cloud Console → APIs & Services → Credentials → OAuth
+   client ID, type Web; add each app's `https://` domain under Authorized JavaScript
+   origins, and the same client id to `GOOGLE_CLIENT_IDS` on Railway). Until SMS login
+   codes are set up (DLT), Google is the only way new customers, riders and sellers can
+   sign up.
 3. Deploy, then Settings → Domains → add the app's domain.
 4. Settings → Build and Deployment → Root Directory: keep **Skip deployment** on, so a
    push that does not touch the app or the packages it uses does not redeploy it.
