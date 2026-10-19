@@ -1,6 +1,6 @@
 # `delivery` schema
 
-Owner: delivery-service · 9 models · [all contexts](./README.md)
+Owner: delivery-service · 11 models · [all contexts](./README.md)
 
 The diagram shows keys and relations; every column is listed in the reference below.
 
@@ -14,11 +14,22 @@ erDiagram
     String customerId "-> identity.User"
     String riderId FK
     String zoneId FK
+    String pricingPolicyId FK
   }
   DeliveryOffer {
     String id PK
     String deliveryId FK
     String riderId FK
+  }
+  DeliveryPricingPolicy {
+    String id PK
+    Int version UK
+  }
+  DeliveryWait {
+    String id PK
+    String deliveryId FK
+    String riderId "-> delivery.RiderProfile"
+    String policyId FK
   }
   DeliveryZone {
     String id PK
@@ -52,6 +63,9 @@ erDiagram
     String zoneId FK
   }
   Delivery ||--o{ DeliveryOffer : "delivery"
+  Delivery ||--o{ DeliveryWait : "delivery"
+  DeliveryPricingPolicy |o--o{ Delivery : "pricingPolicy"
+  DeliveryPricingPolicy ||--o{ DeliveryWait : "policy"
   DeliveryZone |o--o{ Delivery : "zone"
   DeliveryZone |o--o{ IncentiveScheme : "zone"
   DeliveryZone |o--o{ RiderProfile : "zone"
@@ -94,8 +108,10 @@ Table `delivery."Delivery"`
 | `isCod` | Boolean |  | false |  |
 | `codAmount` | Decimal |  | 0 |  |
 | `tipAmount` | Decimal |  | 0 |  |
-| `riderEarning` | Decimal |  | 0 |  |
+| `riderEarning` | Decimal |  | 0 | The quoted pay while the delivery runs; once it ends, what the rider was paid (tip excluded). |
 | `surgeMultiplier` | Float |  | 1 |  |
+| `pricingPolicyId` | String | ✓ |  | Pricing version the rider pay follows; null for deliveries created before versions. |
+| `payableKm` | Float | ✓ |  | Distance the rider is paid for (distanceKm to 0.1 km). |
 | `deliveryOtp` | String | ✓ |  |  |
 | `proofPhotoUrl` | String | ✓ |  |  |
 | `proofSignatureUrl` | String | ✓ |  |  |
@@ -104,7 +120,8 @@ Table `delivery."Delivery"`
 | `route` | Json | ✓ |  | Optimised route: ordered stops + polyline. |
 | `batchId` | String | ✓ |  |  |
 | `searchAttempts` | Int |  | 0 |  |
-| `readyAt` | DateTime | ✓ |  |  |
+| `readyAt` | DateTime | ✓ |  | The kitchen's estimate until the order is marked ready, then when it was. |
+| `orderReadyAt` | DateTime | ✓ |  | When the restaurant marked the order ready (null until it does). |
 | `assignedAt` | DateTime | ✓ |  |  |
 | `arrivedPickupAt` | DateTime | ✓ |  |  |
 | `pickedUpAt` | DateTime | ✓ |  |  |
@@ -132,6 +149,58 @@ Table `delivery."DeliveryOffer"`
 | `respondedAt` | DateTime | ✓ |  |  |
 | `rejectReason` | String | ✓ |  |  |
 
+## DeliveryPricingPolicy
+
+Delivery pricing: the customer delivery fee and the rider pay. Rows are never edited: a
+change adds the next version, and each delivery keeps the version it was priced with.
+
+Table `delivery."DeliveryPricingPolicy"`
+
+| Column | Type | Null | Default | Notes |
+| --- | --- | :---: | --- | --- |
+| `id` | String |  | cuid() | PK |
+| `version` | Int |  |  | unique |
+| `customerFlatFee` | Decimal |  |  | Charged when the food subtotal is below freeDeliveryAbove. |
+| `freeDeliveryAbove` | Decimal | ✓ |  | Food subtotal from which delivery is free; null means never free. |
+| `riderPerKm` | Decimal |  |  |  |
+| `riderMinPayout` | Decimal |  |  | A delivered order pays at least this (the greater of it and riderPerKm x payable km). |
+| `waitingThresholdMins` | Int |  |  |  |
+| `waitingPay` | Decimal |  |  | Paid once per delivery for a verified wait longer than the threshold. |
+| `arrivalRadiusM` | Int |  |  | An arrival counts for waiting pay only within this distance of the pickup. |
+| `cancellationPay` | Decimal |  |  | Paid when a delivery is cancelled or fails after the rider reached the pickup. |
+| `note` | String | ✓ |  | Why it changed, shown in the history. |
+| `createdBy` | String |  |  | User who made this version; "system" for the launch defaults. |
+| `createdAt` | DateTime |  | now() |  |
+
+## DeliveryWait
+
+Waiting at the pickup: opened when the rider marks arrival, closed at pickup, when the
+delivery ends or when ops hand it to another rider. One per delivery and rider (unique),
+so a wait is paid at most once.
+
+Table `delivery."DeliveryWait"`
+
+| Column | Type | Null | Default | Notes |
+| --- | --- | :---: | --- | --- |
+| `id` | String |  | cuid() | PK |
+| `deliveryId` | String |  |  |  |
+| `riderId` | String |  |  | → delivery.RiderProfile |
+| `policyId` | String |  |  |  |
+| `arrivedAt` | DateTime |  |  |  |
+| `arrivalLat` | Float | ✓ |  | The rider's last GPS fix when marking arrival; null without a recent fix. |
+| `arrivalLng` | Float | ✓ |  |  |
+| `arrivalDistanceM` | Int | ✓ |  |  |
+| `verified` | Boolean |  |  | The fix was recent and inside the policy's arrival radius. |
+| `orderReadyAt` | DateTime | ✓ |  | When the restaurant marked the order ready, if it had by the end of the wait. |
+| `endedAt` | DateTime | ✓ |  |  |
+| `endedBy` | enum DeliveryStatus | ✓ |  | PICKED_UP, CANCELLED or FAILED; SEARCHING when ops reassigned the delivery |
+| `waitedMins` | Float | ✓ |  |  |
+| `thresholdMins` | Int |  |  |  |
+| `amount` | Decimal |  | 0 |  |
+| `createdAt` | DateTime |  | now() |  |
+
+Constraints: unique (deliveryId, riderId)
+
 ## DeliveryZone
 
 Table `delivery."DeliveryZone"`
@@ -144,12 +213,12 @@ Table `delivery."DeliveryZone"`
 | `polygon` | Json |  |  | GeoJSON Polygon coordinates: [[[lng, lat], ...]] |
 | `centerLat` | Float |  |  |  |
 | `centerLng` | Float |  |  |  |
-| `baseFee` | Decimal |  |  |  |
-| `perKmFee` | Decimal |  |  |  |
+| `baseFee` | Decimal |  | 25 | The five tariff columns below are unused since delivery pricing versions (DeliveryPricingPolicy); they stay, with defaults, for the release that still reads them, and can be dropped in the next one. |
+| `perKmFee` | Decimal |  | 8 |  |
 | `freeKm` | Float |  | 2 |  |
-| `surgeMultiplier` | Float |  | 1 |  |
-| `riderBasePay` | Decimal |  |  |  |
-| `riderPerKm` | Decimal |  |  |  |
+| `riderBasePay` | Decimal |  | 30 |  |
+| `riderPerKm` | Decimal |  | 6 |  |
+| `surgeMultiplier` | Float |  | 1 | Floor for the live surge; surge raises rider pay, not the customer's delivery fee. |
 | `isActive` | Boolean |  | true |  |
 | `createdAt` | DateTime |  | now() |  |
 | `updatedAt` | DateTime |  |  |  |

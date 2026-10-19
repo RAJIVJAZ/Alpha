@@ -247,6 +247,55 @@ describe('payment-service (e2e)', () => {
       .send({ amount: 1 })
       .expect(403);
   });
+  it('credits cancellation and waiting pay for a delivery that ended early, once', async () => {
+    const RIDER = 'usr_rider_cancel';
+    const handlers = app.get(PaymentEventHandlers);
+    const event = (id: string, type: string, status: string, pay?: string, riderId = 'rdr_1') => ({
+      id: `evt_${id}_${type}_${riderId}`,
+      type,
+      data: {
+        deliveryId: id,
+        orderNumber: `ORD-${id}`,
+        riderId,
+        riderUserId: RIDER,
+        status,
+        riderEarning: pay ?? '41.00',
+        ...(pay !== undefined ? { riderPay: pay } : {}),
+        tipAmount: '0.00',
+        isCod: false,
+        codAmount: '0.00',
+      },
+    });
+    const ended = (id: string, type: string, status: string, pay?: string) =>
+      handlers.riderEndedEarly(event(id, type, status, pay) as never);
+    await ended('c1', 'delivery.cancelled', 'CANCELLED', '23.00');
+    await ended('c1', 'delivery.cancelled', 'CANCELLED', '23.00'); // redelivered
+    await ended('c2', 'delivery.cancelled', 'CANCELLED', '0.00'); // rider never reached it
+    await ended('f1', 'delivery.failed', 'FAILED', '3.00');
+    // a failed delivery from before versioned pricing carries the quote, not pay: skipped
+    await ended('f0', 'delivery.failed', 'FAILED');
+    // ops handed r1 to another rider: the first rider keeps their waiting pay, once
+    const released = () =>
+      handlers.riderReleased(
+        event('r1', 'delivery.rider_released', 'SEARCHING', '3.00', 'rdr_first') as never,
+      );
+    await released();
+    await released();
+
+    const wallet = await prisma.wallet.findFirstOrThrow({
+      where: { ownerType: 'RIDER', ownerId: RIDER },
+    });
+    expect(Number(wallet.balance)).toBe(29);
+    const txns = await prisma.walletTransaction.findMany({
+      where: { walletId: wallet.id },
+      orderBy: { createdAt: 'asc' },
+    });
+    expect(txns.map((t) => [t.reason, Number(t.amount), t.description])).toEqual([
+      ['DELIVERY_EARNING', 23, 'Cancelled delivery ORD-c1'],
+      ['DELIVERY_EARNING', 3, 'Failed delivery ORD-f1'],
+      ['DELIVERY_EARNING', 3, 'Waiting pay for ORD-r1'],
+    ]);
+  });
   it('refunds a payment nothing needs any more, once, for other services only', async () => {
     const payment = await prisma.payment.create({
       data: {

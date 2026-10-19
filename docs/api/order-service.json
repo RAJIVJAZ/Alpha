@@ -4130,7 +4130,9 @@
             "type": "string"
           },
           "addressLine2": {
-            "type": "string"
+            "type": "object",
+            "nullable": true,
+            "description": "null clears it"
           },
           "city": {
             "type": "string"
@@ -4179,16 +4181,24 @@
             }
           },
           "fssaiNumber": {
-            "type": "string"
+            "type": "object",
+            "nullable": true,
+            "description": "null clears it"
           },
           "gstin": {
-            "type": "string"
+            "type": "object",
+            "nullable": true,
+            "description": "null clears it"
           },
           "logoUrl": {
-            "type": "string"
+            "type": "object",
+            "nullable": true,
+            "description": "null clears it"
           },
           "coverImageUrl": {
-            "type": "string"
+            "type": "object",
+            "nullable": true,
+            "description": "null clears it"
           },
           "images": {
             "type": "array",
@@ -4234,14 +4244,6 @@
       "UpdateOutletDto": {
         "type": "object",
         "properties": {
-          "type": {
-            "type": "string",
-            "enum": [
-              "RESTAURANT",
-              "FOOD_CART",
-              "CLOUD_KITCHEN"
-            ]
-          },
           "name": {
             "type": "string",
             "example": "Spice Route — Indiranagar"
@@ -4272,7 +4274,9 @@
             "type": "string"
           },
           "addressLine2": {
-            "type": "string"
+            "type": "object",
+            "nullable": true,
+            "description": "null clears it"
           },
           "city": {
             "type": "string"
@@ -4321,16 +4325,24 @@
             }
           },
           "fssaiNumber": {
-            "type": "string"
+            "type": "object",
+            "nullable": true,
+            "description": "null clears it"
           },
           "gstin": {
-            "type": "string"
+            "type": "object",
+            "nullable": true,
+            "description": "null clears it"
           },
           "logoUrl": {
-            "type": "string"
+            "type": "object",
+            "nullable": true,
+            "description": "null clears it"
           },
           "coverImageUrl": {
-            "type": "string"
+            "type": "object",
+            "nullable": true,
+            "description": "null clears it"
           },
           "images": {
             "type": "array",

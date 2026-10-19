@@ -19,4 +19,5 @@ export 'src/ui/format.dart';
 export 'src/ui/login_screen.dart';
 export 'src/ui/routing.dart';
 export 'src/ui/theme.dart';
+export 'src/ui/theme_mode.dart';
 export 'src/ui/widgets.dart';

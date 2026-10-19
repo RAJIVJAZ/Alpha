@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import Link from 'next/link';
 import {
   Banknote,
   CreditCard,
@@ -37,9 +38,9 @@ import {
   humanize,
   istDate,
 } from '../lib/format';
-import { useApi, useApiMutation } from '../lib/hooks';
+import { useApi, useApiMutation, useSession } from '../lib/hooks';
 import { cn } from '../lib/utils';
-import { useCanSeeSales } from './access';
+import { useCan, useCanSeeSales } from './access';
 import { OutletPicker, useOutlet } from './outlet';
 import type { MerchantOrder } from './types';
 
@@ -116,16 +117,54 @@ const PAYMENT = [
 
 /** Counter billing for food carts and quick-service outlets; built for a phone or a small tablet. */
 export function PointOfSale() {
-  const { outletId } = useOutlet();
+  const { outletId, loading } = useOutlet();
+  const session = useSession();
+  const canBill = useCan('pos:operate');
   // the day's revenue is for roles with reports:read; cashiers bill without seeing it
   const canSeeSales = useCanSeeSales();
+  const header = (
+    <PageHeader
+      title="Point of sale"
+      description="Bill counter and table orders; tickets go straight to the kitchen"
+      actions={<OutletPicker />}
+    />
+  );
+  if (loading || session.isLoading) return header;
+  if (!outletId)
+    return (
+      <>
+        {header}
+        <EmptyState
+          icon={<ShoppingBag />}
+          title="Set up where you sell first"
+          description="Add your location, hours and how customers order, then your dishes. Billing opens here once that is done."
+          action={
+            <Button asChild>
+              <Link href="/settings">Go to settings</Link>
+            </Button>
+          }
+        />
+      </>
+    );
+  if (!canBill)
+    return (
+      <>
+        {header}
+        <EmptyState
+          icon={<ShoppingBag />}
+          title="Billing is for cashiers, managers and owners"
+          description="Your role can't take payments at the counter. Ask the owner if you need to."
+          action={
+            <Button variant="outline" asChild>
+              <Link href="/orders">See orders</Link>
+            </Button>
+          }
+        />
+      </>
+    );
   return (
     <>
-      <PageHeader
-        title="Point of sale"
-        description="Bill counter and table orders; tickets go straight to the kitchen"
-        actions={<OutletPicker />}
-      />
+      {header}
       <Tabs defaultValue="bill">
         <TabsList>
           <TabsTrigger value="bill">New bill</TabsTrigger>

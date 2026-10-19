@@ -528,7 +528,7 @@ function TerritoryDialog({
             <Input value={f.code} onChange={set('code')} placeholder="BLR-N" />
           </Field>
           <Field label="Cities" className="sm:col-span-2">
-            <Input value={f.cities} onChange={set('cities')} placeholder="Bengaluru" />
+            <Input value={f.cities} onChange={set('cities')} placeholder="Prayagraj" />
           </Field>
           <Field label="Pincodes" hint="Separate with commas or spaces" className="sm:col-span-2">
             <Input value={f.pincodes} onChange={set('pincodes')} />

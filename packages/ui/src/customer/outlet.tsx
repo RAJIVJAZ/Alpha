@@ -178,7 +178,7 @@ function OutletHeader({ outlet: o }: { outlet: OutletDetail }) {
               key={c.code}
               className="flex min-w-60 shrink-0 items-center gap-3 rounded-xl border border-dashed border-primary/50 bg-accent px-3 py-2"
             >
-              <Ticket className="size-5 text-primary" aria-hidden />
+              <Ticket className="size-5 text-primary-strong" aria-hidden />
               <span className="grid">
                 <span className="text-sm font-semibold">{c.title}</span>
                 <span className="text-xs text-muted-foreground">
@@ -220,7 +220,14 @@ function MenuBrowser({ menu }: { menu: Menu }) {
     itemIds: mine?.lines.map((l) => l.menuItemId),
   });
   const inCart = new Set(mine?.lines.map((l) => l.menuItemId));
-  const goesWell = (pairs.data ?? []).filter((i) => !inCart.has(i.id) && i.isAvailable).slice(0, 4);
+  // suggested dishes arrive without their sizes and add-ons: add from the menu's own copy
+  const byId = new Map(
+    [...menu.recommended, ...menu.categories.flatMap((c) => c.items)].map((i) => [i.id, i]),
+  );
+  const goesWell = (pairs.data ?? [])
+    .map((i) => byId.get(i.id))
+    .filter((i): i is MenuItem => !!i && !inCart.has(i.id) && i.isAvailable)
+    .slice(0, 4);
 
   const onAdd = (item: MenuItem) => {
     if (!session) return signInFirst();
@@ -387,7 +394,7 @@ function ItemRow({
         <div className="flex items-center gap-2">
           <VegMark veg={i.isVeg} />
           {i.tags.includes('bestseller') ? (
-            <span className="flex items-center gap-0.5 text-xs font-medium text-primary">
+            <span className="flex items-center gap-0.5 text-xs font-medium text-primary-strong">
               <Star className="size-3 fill-current" aria-hidden /> Bestseller
             </span>
           ) : null}
@@ -430,7 +437,7 @@ function ItemRow({
           ) : (
             <Button
               variant="outline"
-              className="h-9 w-24 border-primary/40 bg-card font-semibold text-primary shadow-sm hover:bg-accent"
+              className="h-9 w-24 border-primary/40 bg-card font-semibold text-primary-strong shadow-sm hover:bg-accent"
               disabled={!open}
               onClick={() => onAdd(i)}
               aria-label={`Add ${i.name}`}

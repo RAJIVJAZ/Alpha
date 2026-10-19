@@ -35,19 +35,12 @@ import {
 import { ThemeToggle } from '../components/theme';
 import { useApi, useSession } from '../lib/hooks';
 import { cn } from '../lib/utils';
+import { CITY } from './city';
 import { devicePosition, PlaceProvider, placeOf, useCart, usePlace } from './common';
 import type { Address, Notification, Suggestions } from './types';
 
 /** Popular delivery areas (area centres) for choosing a location without GPS or a saved address. */
-export const AREAS = [
-  { label: 'Koramangala, Bengaluru', lat: 12.9352, lng: 77.6245 },
-  { label: 'Indiranagar, Bengaluru', lat: 12.9784, lng: 77.6408 },
-  { label: 'HSR Layout, Bengaluru', lat: 12.9116, lng: 77.6474 },
-  { label: 'BTM Layout, Bengaluru', lat: 12.9166, lng: 77.6101 },
-  { label: 'Jayanagar, Bengaluru', lat: 12.925, lng: 77.5938 },
-  { label: 'MG Road, Bengaluru', lat: 12.9756, lng: 77.605 },
-  { label: 'Whitefield, Bengaluru', lat: 12.9698, lng: 77.75 },
-];
+export const AREAS = CITY.areas;
 
 /** Storefront chrome: header with location, search, cart and account; bottom tabs on phones. */
 export function Storefront({ children }: { children: React.ReactNode }) {
@@ -75,12 +68,14 @@ function Header() {
       <div className="mx-auto flex h-16 max-w-6xl items-center gap-2 px-4 sm:gap-3 sm:px-6">
         <Link href="/" className="flex shrink-0 items-center gap-2" aria-label="FoodGrid home">
           <span
-            className="flex size-9 items-center justify-center rounded-xl bg-primary text-sm font-bold text-primary-foreground"
+            className="flex size-9 items-center justify-center rounded-xl bg-primary font-display text-sm font-extrabold text-primary-foreground"
             aria-hidden
           >
             FG
           </span>
-          <span className="hidden text-lg font-semibold tracking-tight lg:inline">FoodGrid</span>
+          <span className="hidden font-display text-xl font-extrabold tracking-tight lg:inline">
+            FoodGrid
+          </span>
         </Link>
         <LocationButton />
         <div className="hidden flex-1 md:block">
@@ -131,7 +126,7 @@ function LocationButton() {
         onClick={() => setOpen(true)}
         aria-label={`Delivering to ${place.label}. Change location`}
       >
-        <MapPin className="text-primary" />
+        <MapPin className="text-primary-strong" />
         <span className="truncate text-sm font-medium">{place.label}</span>
         <ChevronDown className="opacity-60" />
       </Button>
@@ -205,6 +200,7 @@ export function LocationDialog({ onClose }: { onClose: () => void }) {
                 key={a.label}
                 size="sm"
                 variant={place.label === a.label ? 'default' : 'outline'}
+                aria-pressed={place.label === a.label}
                 onClick={() => choose(a)}
               >
                 {a.label.split(',')[0]}
@@ -411,7 +407,7 @@ function BottomTabs() {
             aria-current={on ? 'page' : undefined}
             className={cn(
               'flex flex-col items-center gap-0.5 py-2 text-[11px]',
-              on ? 'font-semibold text-primary' : 'text-muted-foreground',
+              on ? 'font-semibold text-primary-strong' : 'text-muted-foreground',
             )}
           >
             <t.icon className="size-5" aria-hidden />

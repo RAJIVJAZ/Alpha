@@ -150,8 +150,9 @@ class _OfferCardState extends ConsumerState<OfferCard> {
               child: SizedBox(
                 height: 56,
                 child: FilledButton.icon(
+                  style: FoodGridTheme.keyButton,
                   onPressed: _busy ? null : _accept,
-                  icon: _busy ? const ButtonSpinner(color: Colors.white) : const Icon(Icons.check),
+                  icon: _busy ? const ButtonSpinner(color: FoodGridTheme.ink) : const Icon(Icons.check),
                   label: const Text('Accept'),
                 ),
               ),

@@ -13,6 +13,7 @@ import { api, type Paged } from '../lib/api';
 import { formatMoney, formatRelative } from '../lib/format';
 import { toast, useApi, useSession } from '../lib/hooks';
 import { cn } from '../lib/utils';
+import { CITY } from './city';
 import { OutletCard, OutletRail, reportAdClick, usePlace, VegMark, webLink } from './common';
 import type { Banner, HomeFeed, OutletSummary, SearchResult } from './types';
 
@@ -22,7 +23,7 @@ export function HomeView() {
   const { place } = usePlace();
   const { data: session } = useSession();
   const feed = useApi<HomeFeed>('recommendations/home', { lat: place.lat, lng: place.lng });
-  const banners = useApi<Banner[]>('cms/banners', { city: 'Bengaluru', audience: 'CUSTOMER' });
+  const banners = useApi<Banner[]>('cms/banners', { city: CITY.name, audience: 'CUSTOMER' });
   const f = feed.data;
   const hero = (banners.data ?? []).filter((b) => b.placement === 'HOME_HERO');
   const strip = (banners.data ?? []).filter((b) => b.placement !== 'HOME_HERO');
@@ -66,24 +67,22 @@ function BannerRow({ banners }: { banners: Banner[] }) {
             key={b.id}
             href={href}
             className={cn(
-              'relative flex h-36 w-[85%] shrink-0 snap-start flex-col justify-end overflow-hidden rounded-2xl p-5 text-white sm:w-[26rem]',
-              // brand-tinted gradients behind the creative so text stays readable when images are slow or missing
-              [
-                'bg-gradient-to-br from-orange-600 to-rose-700',
-                'bg-gradient-to-br from-emerald-700 to-teal-900',
-                'bg-gradient-to-br from-indigo-700 to-slate-900',
-              ][i % 3],
+              'relative flex h-36 w-[85%] shrink-0 snap-start flex-col justify-end overflow-hidden rounded-2xl p-5 text-ink sm:w-[26rem]',
+              // flavour washes behind the creative keep the Ink text readable when images are slow or missing
+              ['bg-wash-mango', 'bg-wash-sky', 'bg-wash-bubblegum', 'bg-wash-pista'][i % 4],
             )}
           >
             {b.imageUrl ? (
               <img
                 src={b.imageUrl}
                 alt=""
-                className="absolute inset-0 size-full object-cover opacity-40"
+                className="absolute inset-0 size-full object-cover opacity-30"
                 onError={(e) => (e.currentTarget.style.display = 'none')}
               />
             ) : null}
-            <span className="relative text-xl font-semibold leading-tight">{b.title}</span>
+            <span className="relative font-display text-2xl font-extrabold leading-tight">
+              {b.title}
+            </span>
             {b.subtitle ? <span className="relative text-sm opacity-90">{b.subtitle}</span> : null}
           </Link>
         );
@@ -178,8 +177,8 @@ function AllOutlets() {
     <Button
       size="sm"
       variant={on ? 'default' : 'outline'}
-      className="rounded-full"
       aria-pressed={on}
+      className="rounded-full"
       onClick={() => (toggle(), setPages(1))}
     >
       {label}
@@ -195,7 +194,8 @@ function AllOutlets() {
           </h2>
           {list.data ? (
             <p className="text-sm text-muted-foreground">
-              {list.data.meta.total} places deliver to {place.label}
+              {list.data.meta.total}{' '}
+              {list.data.meta.total === 1 ? 'place delivers' : 'places deliver'} to {place.label}
             </p>
           ) : null}
         </div>
@@ -337,6 +337,7 @@ export function SearchView() {
                         </span>
                         <span className="text-sm">{formatMoney(d.price, { whole: true })}</span>
                         <span className="truncate text-xs text-muted-foreground">
+                          {d.outlet.sponsored ? 'Sponsored · ' : ''}
                           {d.outlet.name} · {d.outlet.etaMins} min
                           {d.outlet.isOpenNow ? '' : ' · closed now'}
                         </span>

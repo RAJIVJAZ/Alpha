@@ -203,7 +203,12 @@ services:
 
   customer-web:
     <<: *web
-    build: { <<: *web-build, args: { APP: customer-web } }
+    # the demo data is in Bengaluru
+    build:
+      {
+        <<: *web-build,
+        args: { APP: customer-web, NEXT_PUBLIC_CITY: '${NEXT_PUBLIC_CITY:-bengaluru}' },
+      }
     image: foodgrid/customer-web:${TAG:-local}
     ports: ['${CUSTOMER_WEB_PORT:-3000}:3000']
   admin-web:
@@ -231,6 +236,11 @@ services:
     build: { <<: *web-build, args: { APP: vendor-web } }
     image: foodgrid/vendor-web:${TAG:-local}
     ports: ['${VENDOR_WEB_PORT:-3005}:3000']
+    environment:
+      API_URL: http://gateway:8080/api/v1
+      # the pointer page links to the two seller portals as published on this machine
+      FOOD_SELLER_PORTAL_URL: http://localhost:${RESTAURANT_WEB_PORT:-3002}
+      PRODUCT_SELLER_PORTAL_URL: http://localhost:${SUPPLIER_WEB_PORT:-3003}
 
 volumes:
   postgres:

@@ -470,7 +470,7 @@ function BannerDialog({ banner: b, onClose }: { banner: Banner | null; onClose: 
             </Select>
           </Field>
           <Field label="Cities" hint="Empty = everywhere">
-            <Input value={f.cities} onChange={set('cities')} placeholder="Bengaluru, Mumbai" />
+            <Input value={f.cities} onChange={set('cities')} placeholder="Prayagraj, Lucknow" />
           </Field>
           <Field label="Order">
             <Input inputMode="numeric" value={f.sortOrder} onChange={set('sortOrder')} />

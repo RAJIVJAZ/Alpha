@@ -387,13 +387,11 @@ export function buildOrder(
   // ── fees & tax ───────────────────────────────────────────────────────────
   let distanceKm: number | null = null;
   let deliveryFee = 0;
-  const zone = ctx.zones.get(outlet.zoneKey)!;
   const surge = outlet.zoneKey === 'whitefield' ? 1.1 : 1;
   if (type === 'DELIVERY' && customer) {
     distanceKm = Math.round(haversineKm(outlet, customer.address) * 1.3 * 10) / 10;
-    deliveryFee = Math.round(
-      (zone.baseFee + Math.max(0, distanceKm - zone.freeKm) * zone.perKmFee) * surge,
-    );
+    // delivery-service customerDeliveryFee: flat below the threshold, free from it
+    deliveryFee = subtotal >= ctx.pricing.freeDeliveryAbove ? 0 : ctx.pricing.customerFlatFee;
     if (freeDelivery || (member && subtotal >= 149)) deliveryFee = 0;
   }
   const packagingCharge = type === 'DINE_IN' ? 0 : def.packagingCharge;

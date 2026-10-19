@@ -202,6 +202,10 @@ describe('order-service checkout & lifecycle (e2e)', () => {
     expect(p.couponDiscount).toBe('50.00');
     expect(p.packagingCharge).toBe('20.00');
     expect(p.deliveryFee).toBe('31.00');
+    // the fee is quoted on the food subtotal, before the coupon
+    expect(http.callsTo('delivery', 'internal/delivery/quote').at(-1)!.opts.query).toMatchObject({
+      subtotal: 559,
+    });
     expect(body.coupon).toEqual({ code: 'SAVE50', valid: true });
     const sum =
       [
@@ -684,11 +688,71 @@ describe('order-service checkout & lifecycle (e2e)', () => {
       .send({ orderType: 'DELIVERY', paymentMethod: 'UPI', deliveryAddress: HOME })
       .expect(201);
     expect(res.body.order.status).toBe('PENDING_PAYMENT');
+    // the launch delivery rules stand in for the quote: free from a ₹399 food subtotal
+    expect(res.body.pricing.deliveryFee).toBe('0.00');
     expect(res.body.payment).toMatchObject({
       required: true,
       purpose: 'ORDER',
       referenceId: res.body.order.id,
     });
+  });
+
+  it('prices by the last fee rule delivery-service sent while its quote is unavailable', async () => {
+    const quoteAt = async (feeRule: {
+      customerFlatFee: number;
+      freeDeliveryAbove: number | null;
+    }) => {
+      http.on('GET', 'delivery', 'internal/delivery/quote', {
+        serviceable: true,
+        distanceKm: 2.4,
+        deliveryFee: 15,
+        etaMins: 32,
+        surgeMultiplier: 1,
+        zoneId: 'zone_1',
+        ...feeRule,
+      });
+      await api()
+        .post('/api/v1/cart/quote')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ orderType: 'DELIVERY', lat: HOME.lat, lng: HOME.lng })
+        .expect(200);
+    };
+    const token = customer();
+    await fillCart(token); // ₹559 of food
+    await quoteAt({ customerFlatFee: 20, freeDeliveryAbove: 600 }); // finance changed the rule
+    try {
+      http.reset(); // delivery-service unavailable
+      const { body } = await api()
+        .post('/api/v1/cart/quote')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ orderType: 'DELIVERY', lat: HOME.lat, lng: HOME.lng })
+        .expect(200);
+      expect(body.cart.pricing.deliveryFee).toBe('20.00');
+      expect(body.cart.pricing.messages).toContain('Add items worth ₹41 more for free delivery');
+    } finally {
+      await quoteAt({ customerFlatFee: 15, freeDeliveryAbove: 399 }); // the launch rule again
+    }
+  });
+
+  it('tells the customer how much more makes delivery free', async () => {
+    http.on('GET', 'delivery', 'internal/delivery/quote', {
+      serviceable: true,
+      distanceKm: 2.4,
+      deliveryFee: 15,
+      etaMins: 32,
+      surgeMultiplier: 1,
+      zoneId: 'zone_1',
+      freeDeliveryAbove: 600,
+    });
+    const token = customer();
+    await fillCart(token); // ₹559 of food
+    const { body } = await api()
+      .post('/api/v1/cart/quote')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ orderType: 'DELIVERY', lat: HOME.lat, lng: HOME.lng })
+      .expect(200);
+    expect(body.cart.pricing.deliveryFee).toBe('15.00');
+    expect(body.cart.pricing.messages).toContain('Add items worth ₹41 more for free delivery');
   });
   // ─── coupons are validated when applied (K8) ─────────────────────────────
   it('rejects a coupon that cannot be used on this cart with a 422 and a readable reason', async () => {
@@ -1001,6 +1065,25 @@ describe('order-service checkout & lifecycle (e2e)', () => {
     });
   });
 
+  it('finds dishes and outlets despite typos, exact matches first', async () => {
+    const search = (q: string) =>
+      api().get('/api/v1/search').query({ q, lat: 12.9352, lng: 77.6245 }).expect(200);
+    const dishes = async (q: string) =>
+      ((await search(q)).body.dishes as { name: string }[]).map((d) => d.name);
+
+    expect(await dishes('panner')).toEqual(['Paneer Tikka']);
+    expect(await dishes('lasi')).toEqual(['Sweet Lassi']);
+    // the menu category finds every dish in it
+    expect((await dishes('mains')).sort()).toEqual(['Paneer Tikka', 'Sweet Lassi']);
+    expect((await search('kitchn')).body.outlets.map((o: { id: string }) => o.id)).toEqual([
+      'outlet_1',
+    ]);
+    // nothing close enough, and wildcards are taken literally
+    expect(await dishes('roti')).toEqual([]);
+    const wild = await search('%_');
+    expect([wild.body.outlets, wild.body.dishes]).toEqual([[], []]);
+  });
+
   // ─── merchant access (M2, M5) ──────────────────────────────────────────────
   it('lets any staff member list the outlets they work at, honouring outlet limits', async () => {
     await prisma.outlet.create({
@@ -1039,6 +1122,56 @@ describe('order-service checkout & lifecycle (e2e)', () => {
       .get('/api/v1/merchant/outlets')
       .set('Authorization', `Bearer ${customer()}`)
       .expect(403);
+  });
+
+  it('outlet settings: clears emptied fields, keeps the type, cloud kitchens never seat guests', async () => {
+    const as = { Authorization: `Bearer ${merchant()}` };
+    const outlet = (id: string) => api().patch(`/api/v1/merchant/outlets/${id}`).set(as);
+    await prisma.outlet.update({
+      where: { id: 'outlet_1' },
+      data: { logoUrl: 'https://cdn.example.com/logo.png', gstin: '29ABCDE1234F1Z5' },
+    });
+    const cleared = await outlet('outlet_1').send({ logoUrl: null, gstin: null }).expect(200);
+    expect(cleared.body).toMatchObject({ logoUrl: null, gstin: null, name: 'Test Kitchen' });
+    // the type decides the commission rule and whether the outlet moves: fixed at creation
+    await outlet('outlet_1').send({ type: 'FOOD_CART' }).expect(400);
+    const place = {
+      name: 'Night Kitchen',
+      addressLine1: '1 Main Road',
+      city: 'Bengaluru',
+      state: 'Karnataka',
+      pincode: '560034',
+      lat: 12.93,
+      lng: 77.62,
+      acceptsDineIn: true,
+      acceptsQrOrders: true,
+    };
+    const kitchen = await api()
+      .post('/api/v1/merchant/outlets')
+      .set(as)
+      .send({ type: 'CLOUD_KITCHEN', ...place })
+      .expect(201);
+    expect(kitchen.body).toMatchObject({ acceptsDineIn: false, acceptsQrOrders: false });
+    const edited = await outlet(kitchen.body.id).send({ acceptsDineIn: true }).expect(200);
+    expect(edited.body.acceptsDineIn).toBe(false);
+    // staff limited to some outlets would never see one they added
+    const scoped = await api()
+      .post('/api/v1/merchant/outlets')
+      .set('Authorization', `Bearer ${staff('MANAGER', ['outlet_1'])}`)
+      .send({ type: 'RESTAURANT', ...place, name: 'Annexe' })
+      .expect(403);
+    expect(scoped.body.code).toBe('OUTLET_SCOPE');
+  });
+
+  it('closing an outlet temporarily stops orders and reopening takes them again', async () => {
+    const as = { Authorization: `Bearer ${merchant()}` };
+    const paused = await api().post('/api/v1/merchant/outlets/outlet_1/pause').set(as).expect(201);
+    expect(paused.body).toMatchObject({ status: 'PAUSED', isOpen: false });
+    const reopened = await api()
+      .post('/api/v1/merchant/outlets/outlet_1/resume')
+      .set(as)
+      .expect(201);
+    expect(reopened.body).toMatchObject({ status: 'ACTIVE', isOpen: true });
   });
 
   it('shows the daily sales summary only to roles that can read reports, amounts as strings', async () => {

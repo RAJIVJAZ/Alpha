@@ -6,7 +6,7 @@ import '../location/place.dart';
 import 'models.dart';
 
 final bannersProvider = FutureProvider<List<HomeBanner>>((ref) async {
-  final list = await ref.watch(apiClientProvider).get<List<dynamic>>('cms/banners', query: {'city': 'Bengaluru', 'audience': 'CUSTOMER'});
+  final list = await ref.watch(apiClientProvider).get<List<dynamic>>('cms/banners', query: {'city': city.name, 'audience': 'CUSTOMER'});
   final banners = listOf(list, HomeBanner.fromJson);
   // hero banners first, then the strip
   return [...banners.where((b) => b.placement == 'HOME_HERO'), ...banners.where((b) => b.placement != 'HOME_HERO')];

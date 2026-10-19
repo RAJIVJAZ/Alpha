@@ -47,8 +47,12 @@ pnpm db:seed                # demo data (resets the database)
 pnpm build:packages         # shared packages, which the services load from dist/
 pnpm dev:services           # the 12 services with nest --watch
 pnpm dev:gateway            # the API gateway on :8080 (separate terminal)
-pnpm dev:web                # the six web apps (separate terminal)
+NEXT_PUBLIC_CITY=bengaluru pnpm dev:web   # the six web apps (separate terminal)
 ```
+
+The demo data is in Bengaluru, while the customer site opens in Prayagraj (the launch city)
+unless `NEXT_PUBLIC_CITY=bengaluru`; docker compose sets it for you. The customer app takes
+`--dart-define=CITY=bengaluru`.
 
 After changing a shared package (`packages/types`, `utils`, `auth`, `database`), rebuild
 it (`pnpm build:packages`) so the services pick it up.
@@ -80,17 +84,19 @@ notification 4011, ai 4012. The gateway routes `/api/v1/*` to them
 The seed prints these when it finishes. Staff and merchant accounts share the password
 `FoodGrid@2026` (override with `SEED_PASSWORD`).
 
-| Who                     | Sign in with                                            | App                                |
-| ----------------------- | ------------------------------------------------------- | ---------------------------------- |
-| Customer                | `+919845000001` (OTP)                                   | customer-web, customer-mobile      |
-| Riders                  | `+919740010101`, `…102`, … (OTP)                        | rider-web, rider-mobile            |
-| Rider applicant         | any other number (OTP): signs in to the application     | rider-web, rider-mobile            |
-| Restaurant owner / chef | `owner@spicegarden.demo`, `chef@spicegarden.demo`       | restaurant-web, merchant-mobile    |
-| Food cart               | `owner@annapurna.demo`                                  | vendor-web, merchant-mobile        |
-| Supplier                | `owner@bharat.demo`                                     | supplier-web                       |
-| Business applicant      | any other number (OTP): signs in to register a business | restaurant-, vendor-, supplier-web |
-| Applications in review  | `owner@biryanibros.demo`, `owner@greenleaf.demo`        | restaurant-web, supplier-web       |
-| Back office             | `admin@foodgrid.dev`, `finance@…`, `ops@…`, `support@…` | admin-web                          |
+| Who                     | Sign in with                                            | App                             |
+| ----------------------- | ------------------------------------------------------- | ------------------------------- |
+| Customer                | `+919845000001` (OTP)                                   | customer-web, customer-mobile   |
+| Riders                  | `+919740010101`, `…102`, … (OTP)                        | rider-web, rider-mobile         |
+| Rider applicant         | any other number (OTP): signs in to the application     | rider-web, rider-mobile         |
+| Restaurant owner / chef | `owner@spicegarden.demo`, `chef@spicegarden.demo`       | restaurant-web, merchant-mobile |
+| Food cart               | `owner@momowagon.demo`, `owner@chaatstreet.demo`        | restaurant-web, merchant-mobile |
+| Supplier                | `owner@annapurna.demo`, `owner@packright.demo`, …       | supplier-web                    |
+| Wholesaler              | `owner@bharat.demo`                                     | supplier-web                    |
+| Retailer                | `owner@lakshmi.demo`                                    | supplier-web                    |
+| Business applicant      | any other number (OTP): signs in to register a business | restaurant-web, supplier-web    |
+| Applications in review  | `owner@biryanibros.demo`, `owner@greenleaf.demo`        | restaurant-web, supplier-web    |
+| Back office             | `admin@foodgrid.dev`, `finance@…`, `ops@…`, `support@…` | admin-web                       |
 
 With `OTP_EXPOSE_IN_RESPONSE=true` the OTP request returns the code as `devCode`, and
 the web and mobile login screens show it under the code field. OTP requests are rate-limited; to reset during testing,

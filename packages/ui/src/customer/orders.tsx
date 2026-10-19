@@ -418,7 +418,7 @@ function TrackingMap({ tracking: t }: { tracking: Tracking }) {
       {t.drop ? (
         <figcaption className="text-right text-xs">
           <a
-            className="text-primary underline-offset-4 hover:underline"
+            className="text-link underline underline-offset-4"
             href={`https://www.google.com/maps/dir/?api=1&origin=${t.outlet.lat},${t.outlet.lng}&destination=${t.drop.lat},${t.drop.lng}`}
             target="_blank"
             rel="noreferrer"
@@ -491,7 +491,10 @@ function Timeline({
             <span
               className={cn(
                 'relative z-10 flex size-6 shrink-0 items-center justify-center rounded-full border-2',
-                done ? 'border-status-good bg-status-good text-white' : 'border-border bg-card',
+                // the text-strength green keeps the tick (and the step) above 3:1 in both modes
+                done
+                  ? 'border-status-good-text bg-status-good-text text-background'
+                  : 'border-border bg-card',
               )}
             >
               {done ? <Check className="size-3.5" aria-hidden /> : null}

@@ -24,17 +24,15 @@ export class DeliveryZoneDto {
   polygon!: [number, number][];
   @ApiProperty() @IsLatitude() centerLat!: number;
   @ApiProperty() @IsLongitude() centerLng!: number;
-  @ApiProperty({ example: 25 }) @IsNumber() @Min(0) baseFee!: number;
-  @ApiProperty({ example: 8 }) @IsNumber() @Min(0) perKmFee!: number;
-  @ApiPropertyOptional({ example: 2 }) @IsOptional() @IsNumber() @Min(0) freeKm?: number;
-  @ApiPropertyOptional({ example: 1 })
+  @ApiPropertyOptional({
+    example: 1,
+    description: 'Floor for the live surge, which raises rider pay (fees: /admin/delivery-pricing)',
+  })
   @IsOptional()
   @IsNumber()
   @Min(1)
   @Max(3)
   surgeMultiplier?: number;
-  @ApiProperty({ example: 30 }) @IsNumber() @Min(0) riderBasePay!: number;
-  @ApiProperty({ example: 6 }) @IsNumber() @Min(0) riderPerKm!: number;
   @ApiPropertyOptional() @IsOptional() @IsBoolean() isActive?: boolean;
 }
 export class UpdateDeliveryZoneDto extends PartialType(DeliveryZoneDto) {}

@@ -160,8 +160,9 @@ class _ActiveDeliveryCardState extends ConsumerState<ActiveDeliveryCard> {
             SizedBox(
               height: 60,
               child: FilledButton.icon(
+                style: FoodGridTheme.keyButton,
                 onPressed: _busy ? null : () => _advance(step),
-                icon: _busy ? const ButtonSpinner(color: Colors.white) : Icon(step.icon),
+                icon: _busy ? const ButtonSpinner(color: FoodGridTheme.ink) : Icon(step.icon),
                 label: Text(step.next),
               ),
             ),

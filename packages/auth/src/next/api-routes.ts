@@ -3,6 +3,7 @@
 export const API_ROUTES: readonly (readonly [prefix: string, env: string])[] = [
   ['/api/v1/admin/notification-templates', 'NOTIFICATION_SERVICE_URL'],
   ['/api/v1/admin/commission-rules', 'PAYMENT_SERVICE_URL'],
+  ['/api/v1/admin/delivery-pricing', 'DELIVERY_SERVICE_URL'],
   ['/api/v1/admin/delivery-zones', 'DELIVERY_SERVICE_URL'],
   ['/api/v1/admin/push-campaigns', 'NOTIFICATION_SERVICE_URL'],
   ['/api/v1/meal-subscriptions', 'ORDER_SERVICE_URL'],
@@ -37,6 +38,7 @@ export const API_ROUTES: readonly (readonly [prefix: string, env: string])[] = [
   ['/api/v1/analytics', 'ANALYTICS_SERVICE_URL'],
   ['/api/v1/inventory', 'INVENTORY_SERVICE_URL'],
   ['/api/v1/admin/ai', 'AI_SERVICE_URL'],
+  ['/api/v1/delivery', 'DELIVERY_SERVICE_URL'],
   ['/api/v1/merchant', 'ORDER_SERVICE_URL'],
   ['/api/v1/payments', 'PAYMENT_SERVICE_URL'],
   ['/api/v1/coupons', 'ORDER_SERVICE_URL'],

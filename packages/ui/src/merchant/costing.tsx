@@ -121,7 +121,8 @@ export function CostingView() {
         />
         <StatTile label="Dishes on menu" value={r ? formatNumber(r.items.length) : '—'} />
       </StatGrid>
-      <div className="mt-6 grid gap-4 xl:grid-cols-[1fr_24rem]">
+      {/* side by side only when the table keeps room for dish names; above it otherwise */}
+      <div className="mt-6 grid grid-cols-1 gap-4 2xl:grid-cols-[minmax(0,1fr)_22rem]">
         <DataTable
           caption="Food cost by dish. Select a dish for its recipe breakdown."
           columns={columns}
@@ -131,7 +132,9 @@ export function CostingView() {
           fetching={report.isFetching}
           onRowClick={(i) => (i.foodCost === null ? undefined : setOpen(i))}
         />
-        <PriceSuggestions outletId={outletId} />
+        <div className="order-first 2xl:order-none">
+          <PriceSuggestions outletId={outletId} />
+        </div>
       </div>
       <RecipeDialog row={open} onClose={() => setOpen(null)} />
       {editing && outletId ? (

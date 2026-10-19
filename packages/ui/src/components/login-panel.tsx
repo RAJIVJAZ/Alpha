@@ -276,7 +276,10 @@ export function AuthScreen({
   return (
     <main className="grid min-h-dvh lg:grid-cols-2">
       <div className="flex items-center justify-center p-6">{children}</div>
-      <div className="hidden flex-col justify-end bg-gradient-to-br from-orange-700 to-orange-950 p-12 text-white lg:flex">
+      <div className="hidden flex-col justify-end gap-6 bg-night p-12 text-white lg:flex">
+        <p className="font-display text-6xl font-extrabold tracking-tight text-[var(--fg-chili)]">
+          FoodGrid
+        </p>
         {aside}
       </div>
     </main>

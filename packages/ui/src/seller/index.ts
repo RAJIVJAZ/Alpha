@@ -1,4 +1,4 @@
-/** Supplier, wholesaler and retailer screens shared by supplier-web and vendor-web. */
+/** Supplier, wholesaler and retailer screens of the Product Seller Portal (supplier-web). */
 export { SellerOverview } from './overview';
 export { ProductCatalog } from './products';
 export { SellerOrders } from './orders';

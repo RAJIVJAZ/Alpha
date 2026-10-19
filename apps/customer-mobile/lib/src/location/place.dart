@@ -34,18 +34,46 @@ class Place {
   int get hashCode => Object.hash(lat, lng, label, addressId);
 }
 
-/// Popular Bengaluru delivery areas (area centres) for choosing without GPS or a saved address.
-const areas = [
-  Place(label: 'Koramangala, Bengaluru', lat: 12.9352, lng: 77.6245),
-  Place(label: 'Indiranagar, Bengaluru', lat: 12.9784, lng: 77.6408),
-  Place(label: 'HSR Layout, Bengaluru', lat: 12.9116, lng: 77.6474),
-  Place(label: 'BTM Layout, Bengaluru', lat: 12.9166, lng: 77.6101),
-  Place(label: 'Jayanagar, Bengaluru', lat: 12.925, lng: 77.5938),
-  Place(label: 'MG Road, Bengaluru', lat: 12.9756, lng: 77.605),
-  Place(label: 'Whitefield, Bengaluru', lat: 12.9698, lng: 77.75),
-];
+/// A city FoodGrid serves: its name and state as stored on addresses and banners, and
+/// popular delivery areas (area centres) for choosing without GPS or a saved address.
+class City {
+  const City({required this.name, required this.state, required this.areas});
 
-const defaultPlace = Place(label: 'Koramangala, Bengaluru', lat: 12.9352, lng: 77.6245);
+  final String name;
+  final String state;
+  final List<Place> areas;
+}
+
+const _cities = {
+  'prayagraj': City(name: 'Prayagraj', state: 'Uttar Pradesh', areas: [
+    Place(label: 'Civil Lines, Prayagraj', lat: 25.4553, lng: 81.8353),
+    Place(label: 'George Town, Prayagraj', lat: 25.4519, lng: 81.8552),
+    Place(label: 'Katra, Prayagraj', lat: 25.4646, lng: 81.8521),
+    Place(label: 'Teliyarganj, Prayagraj', lat: 25.4889, lng: 81.8657),
+    Place(label: 'Naini, Prayagraj', lat: 25.3905, lng: 81.8632),
+    Place(label: 'Jhunsi, Prayagraj', lat: 25.429, lng: 81.914),
+    Place(label: 'Phaphamau, Prayagraj', lat: 25.5339, lng: 81.8539),
+  ]),
+  // the demo data (pnpm db:seed) is in Bengaluru
+  'bengaluru': City(name: 'Bengaluru', state: 'Karnataka', areas: [
+    Place(label: 'Koramangala, Bengaluru', lat: 12.9352, lng: 77.6245),
+    Place(label: 'Indiranagar, Bengaluru', lat: 12.9784, lng: 77.6408),
+    Place(label: 'HSR Layout, Bengaluru', lat: 12.9116, lng: 77.6474),
+    Place(label: 'BTM Layout, Bengaluru', lat: 12.9166, lng: 77.6101),
+    Place(label: 'Jayanagar, Bengaluru', lat: 12.925, lng: 77.5938),
+    Place(label: 'MG Road, Bengaluru', lat: 12.9756, lng: 77.605),
+    Place(label: 'Whitefield, Bengaluru', lat: 12.9698, lng: 77.75),
+  ]),
+};
+
+/// The city this build opens in: --dart-define=CITY=bengaluru for the demo data; Prayagraj,
+/// the launch city, otherwise.
+final City city = _cities[const String.fromEnvironment('CITY').trim().toLowerCase()] ?? _cities['prayagraj']!;
+
+final List<Place> areas = city.areas;
+
+/// Where the app opens before the customer chooses: the city's first area.
+final Place defaultPlace = city.areas.first;
 
 const _placeKey = 'fg.place';
 

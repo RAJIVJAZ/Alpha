@@ -34,6 +34,7 @@
     "db:deploy": "prisma migrate deploy",
     "db:deploy:retry": "node scripts/migrate-deploy.mjs",
     "db:seed": "tsx prisma/seed/index.ts",
+    "db:setup": "tsx scripts/setup.ts",
     "db:reset": "prisma migrate reset --force",
     "db:studio": "prisma studio",
     "docs:erd": "tsx scripts/generate-erd.ts",

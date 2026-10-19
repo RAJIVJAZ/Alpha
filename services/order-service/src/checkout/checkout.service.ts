@@ -14,6 +14,7 @@ import {
   istParts,
   isWithinOpeningHours,
   OpeningWindow,
+  round2,
   unprocessable,
 } from '@foodgrid/utils';
 import { businessCounter, InternalHttpService, OutboxService } from '@foodgrid/utils/server';
@@ -24,7 +25,9 @@ import { checkCouponEligibility, toCouponRecord } from '../domain/coupons';
 import {
   cartSubtotal,
   computePricing,
+  DeliveryFeeRule,
   fallbackDeliveryFee,
+  LAUNCH_DELIVERY_FEE_RULE,
   MembershipBenefits,
   PricingResult,
 } from '../domain/pricing';
@@ -37,6 +40,10 @@ export interface DeliveryQuote {
   etaMins: number;
   surgeMultiplier: number;
   zoneId?: string | null;
+  /** Charged below `freeDeliveryAbove`, from the pricing in force. */
+  customerFlatFee?: number;
+  /** Food subtotal from which delivery is free (null: never), from the pricing in force. */
+  freeDeliveryAbove?: number | null;
 }
 
 /** Why a coupon cannot be used: a COUPON_* error code and a message for the customer. */
@@ -67,6 +74,11 @@ const ordersPlaced = businessCounter('orders_created_total', 'Orders created at 
 @Injectable()
 export class CheckoutService {
   private readonly logger = new Logger(CheckoutService.name);
+  /**
+   * The fee rule from the last quote delivery-service answered, so a timed-out quote is still
+   * priced by what finance set rather than the launch rule (this replica only; it starts there).
+   */
+  private feeRule: DeliveryFeeRule = LAUNCH_DELIVERY_FEE_RULE;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -137,7 +149,7 @@ export class CheckoutService {
     const outlet = cart.outlet!;
     const delivery =
       opts.orderType === 'DELIVERY' && opts.drop
-        ? await this.deliveryQuote(outlet, opts.drop)
+        ? await this.deliveryQuote(outlet, opts.drop, cartSubtotal(cart.lines))
         : null;
     const membership = await this.activeMembership(userId);
     const isFirstOrder = (await this.completedOrders(userId)) === 0;
@@ -179,6 +191,12 @@ export class CheckoutService {
     if (couponError) pricing.messages.unshift(couponError);
     if (pricing.subtotal < Number(outlet.minOrderValue)) {
       pricing.messages.push(`Minimum order value is ₹${Number(outlet.minOrderValue)}`);
+    }
+    const freeAbove = delivery?.freeDeliveryAbove;
+    if (freeAbove != null && pricing.deliveryFee > 0 && pricing.subtotal < freeAbove) {
+      pricing.messages.push(
+        `Add items worth ₹${round2(freeAbove - pricing.subtotal)} more for free delivery`,
+      );
     }
     return {
       pricing,
@@ -245,7 +263,12 @@ export class CheckoutService {
       : { coupon: null, rejection: { code: check.code, reason: check.reason } };
   }
 
-  async deliveryQuote(outlet: Outlet, drop: { lat: number; lng: number }): Promise<DeliveryQuote> {
+  /** `foodSubtotal`: the items before discounts, which decides the delivery fee. */
+  async deliveryQuote(
+    outlet: Outlet,
+    drop: { lat: number; lng: number },
+    foodSubtotal: number,
+  ): Promise<DeliveryQuote> {
     try {
       const quote = await this.internal.get<DeliveryQuote>('delivery', 'internal/delivery/quote', {
         query: {
@@ -254,10 +277,18 @@ export class CheckoutService {
           dropLat: drop.lat,
           dropLng: drop.lng,
           prepMins: outlet.avgPrepTimeMins,
+          subtotal: foodSubtotal,
         },
         timeoutMs: 800,
         retries: 0,
       });
+      if (quote.customerFlatFee != null && quote.freeDeliveryAbove !== undefined) {
+        this.feeRule = {
+          customerFlatFee: Number(quote.customerFlatFee),
+          freeDeliveryAbove:
+            quote.freeDeliveryAbove == null ? null : Number(quote.freeDeliveryAbove),
+        };
+      }
       // pricing does arithmetic on the fee, whether it arrives as a number or a decimal string
       return { ...quote, deliveryFee: Number(quote.deliveryFee) };
     } catch (err) {
@@ -266,9 +297,10 @@ export class CheckoutService {
       return {
         serviceable: distanceKm <= outlet.deliveryRadiusKm,
         distanceKm,
-        deliveryFee: fallbackDeliveryFee(distanceKm),
+        deliveryFee: fallbackDeliveryFee(foodSubtotal, this.feeRule),
         etaMins: outlet.avgPrepTimeMins + Math.round((distanceKm / 22) * 60) + 5,
         surgeMultiplier: 1,
+        ...this.feeRule,
       };
     }
   }

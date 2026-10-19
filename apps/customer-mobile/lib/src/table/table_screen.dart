@@ -79,7 +79,7 @@ class _TableScreenState extends ConsumerState<TableScreen> {
               child: Column(children: [
                 for (final p in cart.placed)
                   ListTile(
-                    leading: const Icon(Icons.check_circle, color: FoodGridTheme.goodText, semanticLabel: 'Sent'),
+                    leading: Icon(Icons.check_circle, color: FoodGridTheme.goodTextOf(context), semanticLabel: 'Sent'),
                     title: Text('${p.orderNumber} sent to the kitchen'),
                     subtitle: Text('${money(p.total)} ${p.paid ? 'paid' : 'to pay at the counter'}'),
                     trailing: signedIn ? TextButton(onPressed: () => context.push('/orders/${p.id}'), child: const Text('Track')) : null,

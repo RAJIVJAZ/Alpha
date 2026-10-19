@@ -7,7 +7,7 @@ export default function Page() {
   return (
     <ProductCatalog
       title="Products & stock"
-      description="Catalogue, pricing, MOQ and stock for restaurants buying on FoodGrid"
+      description="Catalogue, price tiers, MOQ, pack sizes and stock for restaurants, food carts and shops buying on FoodGrid"
     />
   );
 }

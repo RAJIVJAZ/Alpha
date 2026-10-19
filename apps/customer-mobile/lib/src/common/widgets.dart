@@ -111,7 +111,7 @@ class QtyStepper extends StatelessWidget {
           child: ExcludeSemantics(
             child: SizedBox(
               width: 22,
-              child: Text('$value', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.w700, color: scheme.primary)),
+              child: Text('$value', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.w700, color: FoodGridTheme.primaryText(context))),
             ),
           ),
         ),
@@ -271,7 +271,8 @@ Future<bool> confirm(BuildContext context, {required String title, String? messa
 class ButtonSpinner extends StatelessWidget {
   const ButtonSpinner({super.key});
   @override
-  Widget build(BuildContext context) => const SizedBox.square(dimension: 18, child: CircularProgressIndicator(strokeWidth: 2));
+  // the button's own text colour, so it shows on Chili, Lime and outlined buttons alike
+  Widget build(BuildContext context) => SizedBox.square(dimension: 18, child: CircularProgressIndicator(strokeWidth: 2, color: DefaultTextStyle.of(context).style.color));
 }
 
 /// Label/value row used in bills and summaries.

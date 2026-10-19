@@ -167,7 +167,7 @@ export function ProcurementCenter({ purchaseOrdersHref }: { purchaseOrdersHref: 
         <span>
           {d ? `${formatPercent(d.autoPoShare, 0)} of POs this month raised automatically` : null}
         </span>
-        <Link href={purchaseOrdersHref} className="text-primary hover:underline">
+        <Link href={purchaseOrdersHref} className="text-link hover:underline">
           View purchase orders →
         </Link>
       </div>

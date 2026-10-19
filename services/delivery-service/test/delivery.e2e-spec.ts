@@ -9,12 +9,14 @@ import { InternalHttpService, REDIS } from '@foodgrid/utils/server';
 import {
   createTestApp,
   FakeInternalHttp,
+  issueServiceToken,
   issueTestToken,
   truncateSchemas,
 } from '@foodgrid/utils/testing';
 import { AppModule } from '../src/app.module';
 import { DeliveryEventHandlers } from '../src/events/delivery-event.handlers';
 import { DeliveryJobsService } from '../src/jobs/delivery-jobs.service';
+import { PricingService } from '../src/pricing/pricing.service';
 import { SERVICE } from '../src/service.config';
 
 const PICKUP = { lat: 12.9352, lng: 77.6245 };
@@ -32,6 +34,19 @@ type RiderKey = keyof typeof RIDERS;
 const auth = (key: RiderKey) =>
   `Bearer ${issueTestToken({ sub: RIDERS[key].userId, roles: ['RIDER'] })}`;
 const admin = () => `Bearer ${issueTestToken({ sub: 'admin', roles: ['ADMIN'] })}`;
+
+/** A change to pricing version `v`, as POST /admin/delivery-pricing takes it. */
+const pick = (v: Record<string, unknown>) => ({
+  baseVersion: v.version,
+  customerFlatFee: v.customerFlatFee,
+  freeDeliveryAbove: v.freeDeliveryAbove,
+  riderPerKm: v.riderPerKm,
+  riderMinPayout: v.riderMinPayout,
+  waitingThresholdMins: v.waitingThresholdMins,
+  waitingPay: v.waitingPay,
+  arrivalRadiusM: v.arrivalRadiusM,
+  cancellationPay: v.cancellationPay,
+});
 
 const orderAccepted = (n: number) =>
   ({
@@ -85,6 +100,7 @@ describe('delivery-service dispatch, proof of delivery and incentives (e2e)', ()
 
   beforeEach(async () => {
     await truncateSchemas(prisma, ['delivery', 'platform']);
+    app.get(PricingService).reload();
     await redis.flushdb();
     http.reset();
     http.on('POST', 'notification', 'internal/notifications/send', { queued: true });
@@ -214,6 +230,10 @@ describe('delivery-service dispatch, proof of delivery and incentives (e2e)', ()
     await step(id, 'arrived-pickup').expect(200);
     const picked = await step(id, 'picked-up').expect(200);
     expect(picked.body).toMatchObject({ status: 'PICKED_UP' });
+    // marked arrived ~1 km away: the wait is recorded but cannot be paid
+    expect(await prisma.deliveryWait.findFirstOrThrow({ where: { deliveryId: id } })).toMatchObject(
+      { verified: false, endedBy: 'PICKED_UP', amount: expect.anything() },
+    );
     expect(picked.body).not.toHaveProperty('deliveryOtp');
     await step(id, 'arrived-drop').expect(200);
 
@@ -292,6 +312,330 @@ describe('delivery-service dispatch, proof of delivery and incentives (e2e)', ()
       where: { type: EventTypes.DeliveryDelivered },
     });
     expect(delivered).toBe(1);
+  });
+
+  const moveTo = (key: RiderKey, at: { lat: number; lng: number }) =>
+    api().post('/api/v1/riders/me/location').set('Authorization', auth(key)).send(at).expect(200);
+  const earnings = async (deliveryId: string) =>
+    (await prisma.riderEarning.findMany({ where: { deliveryId }, orderBy: { type: 'asc' } })).map(
+      (e) => [e.type, Number(e.amount), e.description],
+    );
+  /** Puts the rider's arrival at the pickup `mins` minutes in the past. */
+  const arrivedAgo = (deliveryId: string, mins: number) =>
+    prisma.deliveryWait.updateMany({
+      where: { deliveryId },
+      data: { arrivedAt: new Date(Date.now() - mins * 60_000) },
+    });
+
+  it('pays the greater of ₹33 and ₹10 a km, keeps the pricing version and credits it once', async () => {
+    const { id } = await dispatchToNext();
+    const created = await prisma.delivery.findUniqueOrThrow({ where: { id } });
+    const v1 = await prisma.deliveryPricingPolicy.findUniqueOrThrow({ where: { version: 1 } });
+    expect(created).toMatchObject({ pricingPolicyId: v1.id, payableKm: 2.6 });
+    expect(Number(created.riderEarning)).toBe(33);
+    expect(Number((await prisma.deliveryOffer.findFirstOrThrow()).estimatedEarning)).toBe(33);
+
+    await step(id, 'picked-up').expect(200);
+    await moveTo('next', DROP);
+    await complete(id, { otp: OTP }).expect(200);
+
+    expect(await earnings(id)).toEqual([
+      ['BASE_PAY', 7, 'Top-up to the ₹33 minimum'],
+      ['DISTANCE_PAY', 26, '2.6 km × ₹10'],
+      ['TIP', 20, 'Customer tip'],
+    ]);
+    const event = await prisma.outboxEvent.findFirstOrThrow({
+      where: { type: EventTypes.DeliveryDelivered },
+    });
+    expect(event.payload).toMatchObject({ riderEarning: '33.00', tipAmount: '20.00' });
+  });
+
+  it('pays ₹3 once for a GPS-verified wait of more than five minutes at the pickup', async () => {
+    const { id } = await dispatchToNext();
+    await moveTo('next', PICKUP);
+    await step(id, 'arrived-pickup').expect(200);
+    await arrivedAgo(id, 7);
+    await app.get(DeliveryEventHandlers).onReady({
+      data: { orderId: 'ord_1' },
+    } as unknown as EventEnvelope<string, OrderStatusChangedEvent>);
+    await step(id, 'picked-up').expect(200);
+
+    const wait = await prisma.deliveryWait.findFirstOrThrow({ where: { deliveryId: id } });
+    expect(wait).toMatchObject({ verified: true, arrivalDistanceM: 0, thresholdMins: 5 });
+    expect(wait.endedBy).toBe('PICKED_UP');
+    expect(wait.waitedMins).toBeGreaterThanOrEqual(7);
+    expect(Number(wait.amount)).toBe(3);
+    expect(wait.orderReadyAt).not.toBeNull();
+
+    await moveTo('next', DROP);
+    await complete(id, { otp: OTP }).expect(200);
+    expect(await earnings(id)).toEqual(
+      expect.arrayContaining([['WAITING_TIME', 3, expect.stringMatching(/^Waited 7(\.\d)? min/)]]),
+    );
+    expect(Number((await prisma.delivery.findUniqueOrThrow({ where: { id } })).riderEarning)).toBe(
+      36,
+    );
+  });
+
+  it('pays nothing for a wait of five minutes or less', async () => {
+    const { id } = await dispatchToNext();
+    await moveTo('next', PICKUP);
+    await step(id, 'arrived-pickup').expect(200);
+    await arrivedAgo(id, 4);
+    await step(id, 'picked-up').expect(200);
+    const wait = await prisma.deliveryWait.findFirstOrThrow({ where: { deliveryId: id } });
+    expect(wait).toMatchObject({ verified: true });
+    expect(Number(wait.amount)).toBe(0);
+  });
+
+  it('pays cancellation and waiting pay when the order is cancelled after the rider arrived', async () => {
+    http.on('POST', 'user', 'internal/audit-logs', { id: 'aud_1' });
+    const v1 = (await api().get('/api/v1/delivery/pricing').expect(200)).body;
+    await api()
+      .post('/api/v1/admin/delivery-pricing')
+      .set('Authorization', admin())
+      .send({ ...pick(v1), cancellationPay: 20, note: 'Pay riders for cancelled orders' })
+      .expect(201);
+
+    const { id } = await dispatchToNext();
+    await moveTo('next', PICKUP);
+    await step(id, 'arrived-pickup').expect(200);
+    await arrivedAgo(id, 6);
+    const cancelled = {
+      id: 'evt_c',
+      type: EventTypes.OrderCancelled,
+      data: { ...orderAccepted(1).data, status: 'CANCELLED' },
+    } as unknown as EventEnvelope<string, OrderStatusChangedEvent>;
+    await app.get(DeliveryEventHandlers).onCancelled(cancelled);
+    await app.get(DeliveryEventHandlers).onCancelled(cancelled); // redelivered: no second pay
+
+    const d = await prisma.delivery.findUniqueOrThrow({ where: { id }, include: { waits: true } });
+    expect(d.status).toBe('CANCELLED');
+    expect(Number(d.riderEarning)).toBe(23);
+    expect(d.waits).toEqual([expect.objectContaining({ endedBy: 'CANCELLED', verified: true })]);
+    expect(await earnings(id)).toEqual([
+      ['BASE_PAY', 20, 'Cancellation pay for FG-1'],
+      ['WAITING_TIME', 3, expect.stringMatching(/^Waited 6(\.\d)? min/)],
+    ]);
+    const events = await prisma.outboxEvent.findMany({
+      where: { type: EventTypes.DeliveryCancelled },
+    });
+    expect(events).toHaveLength(1);
+    expect(events[0]!.payload).toMatchObject({
+      riderEarning: '23.00',
+      riderUserId: RIDERS.next.userId,
+      status: 'CANCELLED',
+    });
+    const rider = await prisma.riderProfile.findUniqueOrThrow({ where: { id: RIDERS.next.id } });
+    expect(rider.isOnDelivery).toBe(false);
+  });
+
+  it('still cancels when the rider moves the delivery on while the cancellation runs', async () => {
+    const { id } = await dispatchToNext();
+    await step(id, 'picked-up').expect(200);
+    // the handler's first read is from before the pickup
+    const real = prisma.delivery.findUnique.bind(prisma.delivery);
+    const stale = await prisma.delivery.findUniqueOrThrow({ where: { id } });
+    const spy = jest
+      .spyOn(prisma.delivery, 'findUnique')
+      .mockImplementationOnce((() => Promise.resolve({ ...stale, status: 'ASSIGNED' })) as never);
+    try {
+      await app.get(DeliveryEventHandlers).onCancelled({
+        id: 'evt_c',
+        type: EventTypes.OrderCancelled,
+        data: { ...orderAccepted(1).data, status: 'CANCELLED' },
+      } as unknown as EventEnvelope<string, OrderStatusChangedEvent>);
+    } finally {
+      spy.mockRestore();
+    }
+    expect(await real({ where: { id } })).toMatchObject({ status: 'CANCELLED' });
+    expect(await prisma.outboxEvent.count({ where: { type: EventTypes.DeliveryCancelled } })).toBe(
+      1,
+    );
+  });
+
+  it('pays the outgoing rider their wait when ops hand the delivery to another rider', async () => {
+    const { id } = await dispatchToNext();
+    await moveTo('next', PICKUP);
+    await step(id, 'arrived-pickup').expect(200);
+    await arrivedAgo(id, 7);
+    await api()
+      .post(`/api/v1/admin/deliveries/${id}/reassign`)
+      .set('Authorization', admin())
+      .send({ riderId: RIDERS.near.id })
+      .expect(200);
+
+    // the first rider's wait is closed and paid to them, once
+    const first = await prisma.deliveryWait.findFirstOrThrow({
+      where: { deliveryId: id, riderId: RIDERS.next.id },
+    });
+    expect(first).toMatchObject({ endedBy: 'SEARCHING', verified: true });
+    expect(Number(first.amount)).toBe(3);
+    const released = await prisma.outboxEvent.findMany({
+      where: { type: EventTypes.DeliveryRiderReleased },
+    });
+    expect(released.map((e) => e.payload)).toEqual([
+      expect.objectContaining({ riderPay: '3.00', riderUserId: RIDERS.next.userId }),
+    ]);
+
+    // the new rider can arrive, wait and deliver; the first rider's wait is not theirs
+    await goOnline('near');
+    const [offer] = await pendingOffers('near');
+    await api()
+      .post(`/api/v1/deliveries/offers/${offer!.id}/accept`)
+      .set('Authorization', auth('near'))
+      .expect(200);
+    const near = (action: string) =>
+      api().post(`/api/v1/deliveries/${id}/${action}`).set('Authorization', auth('near'));
+    await near('arrived-pickup').expect(200);
+    await near('picked-up').expect(200);
+    await moveTo('near', DROP);
+    await near('complete').send({ otp: OTP }).expect(200);
+    const lines = await prisma.riderEarning.findMany({ where: { deliveryId: id } });
+    expect(
+      lines.filter((l) => l.type === 'WAITING_TIME').map((l) => [l.riderId, Number(l.amount)]),
+    ).toEqual([[RIDERS.next.id, 3]]);
+    expect(
+      lines
+        .filter((l) => l.riderId === RIDERS.near.id)
+        .map((l) => l.type)
+        .sort(),
+    ).toEqual(['BASE_PAY', 'DISTANCE_PAY', 'TIP']);
+  });
+
+  it('pays nothing when the order is cancelled before the rider reached the pickup', async () => {
+    const { id } = await dispatchToNext();
+    await app.get(DeliveryEventHandlers).onCancelled({
+      id: 'evt_c',
+      type: EventTypes.OrderCancelled,
+      data: { ...orderAccepted(1).data, status: 'CANCELLED' },
+    } as unknown as EventEnvelope<string, OrderStatusChangedEvent>);
+    const d = await prisma.delivery.findUniqueOrThrow({ where: { id } });
+    expect(d.status).toBe('CANCELLED');
+    expect(Number(d.riderEarning)).toBe(0);
+    expect(await earnings(id)).toEqual([]);
+  });
+
+  it('lets finance change delivery pricing as a new audited version used by new quotes', async () => {
+    http.on('POST', 'user', 'internal/audit-logs', { id: 'aud_1' });
+    const quote = (subtotal: number) =>
+      api()
+        .get('/api/v1/internal/delivery/quote')
+        .set('x-service-token', issueServiceToken('order-service'))
+        .query({
+          pickupLat: PICKUP.lat,
+          pickupLng: PICKUP.lng,
+          dropLat: DROP.lat,
+          dropLng: DROP.lng,
+          subtotal,
+        })
+        .expect(200);
+    // through the API, which also refreshes the cached zone list
+    const zone = await api()
+      .post('/api/v1/admin/delivery-zones')
+      .set('Authorization', admin())
+      .send({
+        name: 'Koramangala',
+        city: 'Bengaluru',
+        polygon: [
+          [77.5, 12.8],
+          [77.8, 12.8],
+          [77.8, 13.1],
+          [77.5, 13.1],
+          [77.5, 12.8],
+        ],
+        centerLat: PICKUP.lat,
+        centerLng: PICKUP.lng,
+        surgeMultiplier: 1.5,
+      })
+      .expect(201);
+    try {
+      const v1 = (await api().get('/api/v1/delivery/pricing').expect(200)).body;
+      expect(v1).toMatchObject({
+        version: 1,
+        customerFlatFee: 15,
+        freeDeliveryAbove: 399,
+        riderPerKm: 10,
+        riderMinPayout: 33,
+        waitingThresholdMins: 5,
+        waitingPay: 3,
+      });
+      // who changed pricing and why stays in the admin view
+      expect(v1).not.toHaveProperty('createdBy');
+      expect(v1).not.toHaveProperty('note');
+      // surge raises rider pay, never the flat fee
+      expect((await quote(398.99)).body).toMatchObject({ deliveryFee: 15, freeDeliveryAbove: 399 });
+      expect((await quote(399)).body).toMatchObject({ deliveryFee: 0, pricingVersion: 1 });
+
+      const change = { ...pick(v1), freeDeliveryAbove: 499, note: 'Free delivery from ₹499' };
+      await api()
+        .post('/api/v1/admin/delivery-pricing')
+        .set('Authorization', auth('next'))
+        .send(change)
+        .expect(403);
+      const finance = `Bearer ${issueTestToken({ sub: 'fin_1', roles: ['FINANCE'] })}`;
+      await api()
+        .post('/api/v1/admin/delivery-pricing')
+        .set('Authorization', finance)
+        .send({ ...change, riderMinPayout: -1 })
+        .expect(400);
+      const v2 = await api()
+        .post('/api/v1/admin/delivery-pricing')
+        .set('Authorization', finance)
+        .send(change)
+        .expect(201);
+      expect(v2.body).toMatchObject({ version: 2, freeDeliveryAbove: 499, createdBy: 'fin_1' });
+      expect(http.callsTo('user', 'internal/audit-logs')).toEqual([
+        expect.objectContaining({
+          body: expect.objectContaining({
+            actorId: 'fin_1',
+            action: 'delivery_pricing.create',
+            entityType: 'DeliveryPricingPolicy',
+          }),
+        }),
+      ]);
+      expect((await quote(450)).body).toMatchObject({ deliveryFee: 15, pricingVersion: 2 });
+
+      const list = await api()
+        .get('/api/v1/admin/delivery-pricing')
+        .set('Authorization', finance)
+        .expect(200);
+      expect(list.body.current).toMatchObject({ version: 2, createdBy: 'fin_1' });
+      expect(list.body.history.map((v: { version: number }) => v.version)).toEqual([2, 1]);
+
+      // a change made from version 1 after version 2 exists would undo it: refused
+      const stale = await api()
+        .post('/api/v1/admin/delivery-pricing')
+        .set('Authorization', finance)
+        .send({ ...change, customerFlatFee: 20 })
+        .expect(409);
+      expect(stale.body.code).toBe('PRICING_CHANGED');
+      expect(await prisma.deliveryPricingPolicy.count()).toBe(2);
+      const v3 = { ...pick(list.body.current), customerFlatFee: 20 };
+
+      // the audit log is written first: when it is down, nothing changes
+      http.reset(); // user-service unreachable
+      await api()
+        .post('/api/v1/admin/delivery-pricing')
+        .set('Authorization', finance)
+        .send(v3)
+        .expect(503);
+      expect(await prisma.deliveryPricingPolicy.count()).toBe(2);
+      http.on('POST', 'user', 'internal/audit-logs', { id: 'aud_2' });
+      await api()
+        .post('/api/v1/admin/delivery-pricing')
+        .set('Authorization', finance)
+        .send(v3)
+        .expect(201);
+      expect((await quote(100)).body).toMatchObject({ deliveryFee: 20, pricingVersion: 3 });
+    } finally {
+      // the zone list is cached across tests: retire the zone so later deliveries skip it
+      await api()
+        .patch(`/api/v1/admin/delivery-zones/${zone.body.id}`)
+        .set('Authorization', admin())
+        .send({ isActive: false })
+        .expect(200);
+    }
   });
 
   it('locks the delivery code after five wrong tries', async () => {

@@ -133,6 +133,8 @@ files.
    RAZORPAY_KEY_ID=          # required: payment-service does not start in production without them
    RAZORPAY_KEY_SECRET=
    RAZORPAY_WEBHOOK_SECRET=  # Razorpay dashboard → Webhooks → https://<gateway-domain>/api/v1/payments/webhooks/razorpay
+   PLATFORM_GSTIN=           # your GSTIN, printed on commission and delivery-fee invoices
+   PLATFORM_STATE_CODE=      # its first two digits, e.g. 09 for Uttar Pradesh (default 29, Karnataka)
    S3_MEDIA_BUCKET=          # S3-compatible storage for uploads (e.g. Cloudflare R2)
    S3_ENDPOINT=
    S3_FORCE_PATH_STYLE=true
@@ -173,8 +175,24 @@ files.
 6. Deploy. Each API service runs `prisma migrate deploy` before it starts (it is
    idempotent and takes a lock; services that time out waiting for the lock while another
    one migrates retry), so the database schema is created on the first deploy.
-   Demo data (optional, never in production): from your machine,
-   `DATABASE_URL=<Postgres public URL> pnpm db:seed`.
+7. **First-time setup** (once, from your machine, against the production database): the
+   first admin account and a city-wide delivery zone. Deliveries are only quoted for
+   restaurants inside an active zone, and admin-web has no screen for zones yet. It never
+   adds demo data and is safe to run again.
+
+   ```sh
+   DATABASE_URL='<Postgres public URL>' ADMIN_EMAIL=you@example.com ADMIN_NAME='Your Name' \
+   ADMIN_PASSWORD='<12+ characters>' pnpm --filter @foodgrid/database db:setup
+   ```
+
+   The zone defaults to Prayagraj, 15 km around the city centre; `ZONE_CITY=Bengaluru` is
+   the other preset. For any other city, add its centre:
+   `ZONE_CITY=Lucknow ZONE_LAT=26.8467 ZONE_LNG=80.9462 ZONE_RADIUS_KM=18`; run it once per
+   city. Then sign in to admin-web with that email and password.
+
+   Demo data is for a separate test database only, never production: from your machine,
+   `DATABASE_URL=<test database URL> pnpm db:seed`. It adds made-up restaurants, riders and
+   orders that customers would see.
 
 ### 2. Vercel: the web apps
 
@@ -182,14 +200,21 @@ Each web app is its own Vercel project, so a deployment holds one app (the Hobby
 allows 12 functions per deployment) and a push builds only the apps it changes. A project
 at the repository root builds nothing: the root `vercel.json` skips it.
 
-| Project          | Root Directory        | Domain                           |
-| ---------------- | --------------------- | -------------------------------- |
-| `customer-web`   | `apps/customer-web`   | `foodgrid.in`, `www.foodgrid.in` |
-| `admin-web`      | `apps/admin-web`      | `admin.foodgrid.in`              |
-| `restaurant-web` | `apps/restaurant-web` | `partner.foodgrid.in`            |
-| `vendor-web`     | `apps/vendor-web`     | `business.foodgrid.in`           |
-| `supplier-web`   | `apps/supplier-web`   | `supplier.foodgrid.in`           |
-| `rider-web`      | `apps/rider-web`      | `rider.foodgrid.in`              |
+| Project          | Root Directory        | Domain                            |
+| ---------------- | --------------------- | --------------------------------- |
+| `customer-web`   | `apps/customer-web`   | `foodgrid.in`, `www.foodgrid.in`  |
+| `admin-web`      | `apps/admin-web`      | `admin.foodgrid.in`               |
+| `restaurant-web` | `apps/restaurant-web` | `partner.foodgrid.in`             |
+| `vendor-web`     | `apps/vendor-web`     | `business.foodgrid.in` (optional) |
+| `supplier-web`   | `apps/supplier-web`   | `supplier.foodgrid.in`            |
+| `rider-web`      | `apps/rider-web`      | `rider.foodgrid.in`               |
+
+restaurant-web is the Food Seller Portal (restaurants and food carts) and supplier-web the
+Product Seller Portal (suppliers, wholesalers and retailers). vendor-web now only shows
+links to the two portals for old `business.` bookmarks: set `FOOD_SELLER_PORTAL_URL` and
+`PRODUCT_SELLER_PORTAL_URL` on its project, or delete the project if nobody uses that
+address. Kubernetes sets both in `foodgrid-config` (the staging overlay points them at the
+staging hosts), and docker compose at the local portal ports.
 
 For each app:
 
@@ -197,8 +222,15 @@ For each app:
    **Root Directory** to the app's folder. Framework, install and build commands come from
    the app's `vercel.json`; leave them on their defaults. Keep "Include files outside the
    root directory in the Build Step" on (the app builds the shared packages).
-2. Environment variables: `API_URL=https://<gateway-domain>/api/v1`; on `customer-web` and
-   `rider-web` also `GOOGLE_WEB_CLIENT_ID` for Google sign-in.
+2. Environment variables: `API_URL=https://<gateway-domain>/api/v1`; on `customer-web`,
+   `rider-web`, `restaurant-web` and `supplier-web` also `GOOGLE_WEB_CLIENT_ID` for
+   "Continue with Google" (Google Cloud Console → APIs & Services → Credentials → OAuth
+   client ID, type Web; add each app's `https://` domain under Authorized JavaScript
+   origins, and the same client id to `GOOGLE_CLIENT_IDS` on Railway). Until SMS login
+   codes are set up (DLT), Google is the only way new customers, riders and sellers can
+   sign up. `NEXT_PUBLIC_CITY` on `customer-web` picks the city the site opens in
+   (`prayagraj` by default, `bengaluru` for the demo data); it is built into the pages, so
+   redeploy after changing it.
 3. Deploy, then Settings → Domains → add the app's domain.
 4. Settings → Build and Deployment → Root Directory: keep **Skip deployment** on, so a
    push that does not touch the app or the packages it uses does not redeploy it.

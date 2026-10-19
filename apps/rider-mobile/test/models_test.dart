@@ -21,6 +21,10 @@ void main() {
     expect(d.codAmount, 583);
     expect(d.toPickup, isTrue);
     expect(Delivery.fromJson(deliveryJson(status: 'PICKED_UP')).toPickup, isFalse);
+    // a cancelled trip keeps its pay lines but not the tip
+    final cancelled = Delivery.fromJson(deliveryJson(status: 'CANCELLED'));
+    expect(cancelled.tipEarned, 0);
+    expect(cancelled.totalEarning, closeTo(37.6, 1e-9));
   });
 
   test('offers flatten the nested delivery and count down to zero', () {

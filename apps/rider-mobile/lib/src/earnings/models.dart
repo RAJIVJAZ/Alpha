@@ -138,3 +138,12 @@ class Payout {
     );
   }
 }
+
+/// Statement line types in the rider's words (BASE_PAY tops a short trip up to the minimum
+/// payout and carries cancellation pay; see delivery-service RiderPayService).
+String earningLabel(String type) => switch (type) {
+      'BASE_PAY' => 'Minimum and cancellation pay',
+      'DISTANCE_PAY' => 'Distance pay',
+      'WAITING_TIME' => 'Waiting pay',
+      _ => humanize(type),
+    };

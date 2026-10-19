@@ -85,9 +85,16 @@ describe('computePricing', () => {
     expect(withTip.taxTotal).toBe(computePricing(base).taxTotal);
   });
 
-  it('has a sane fallback delivery fee', () => {
-    expect(fallbackDeliveryFee(1.5)).toBe(25);
-    expect(fallbackDeliveryFee(5)).toBe(49);
+  it('falls back to the launch delivery fee: ₹15 below ₹399, free from it', () => {
+    expect(fallbackDeliveryFee(0)).toBe(15);
+    expect(fallbackDeliveryFee(398.99)).toBe(15);
+    expect(fallbackDeliveryFee(399)).toBe(0);
+  });
+
+  it('falls back to the last fee rule seen from delivery-service', () => {
+    expect(fallbackDeliveryFee(450, { customerFlatFee: 20, freeDeliveryAbove: 499 })).toBe(20);
+    expect(fallbackDeliveryFee(499, { customerFlatFee: 20, freeDeliveryAbove: 499 })).toBe(0);
+    expect(fallbackDeliveryFee(5000, { customerFlatFee: 20, freeDeliveryAbove: null })).toBe(20);
   });
 
   it('splits CGST and SGST evenly on the bill, not line by line', () => {
