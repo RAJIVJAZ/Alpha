@@ -25,7 +25,7 @@
     "bcryptjs": "^3.0.2",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.2",
-    "google-auth-library": "^10.4.0",
+    "google-auth-library": "^11.3.2",
     "helmet": "^8.1.0",
     "ioredis": "^5.8.0",
     "nestjs-pino": "^4.4.1",
