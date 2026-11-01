@@ -66,7 +66,7 @@
     "prisma": "6.19.3",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
-    "ts-jest": "^29.4.5",
+    "ts-jest": "^29.4.15",
     "tsx": "^4.20.6",
     "typescript": "~5.9.3"
   }
