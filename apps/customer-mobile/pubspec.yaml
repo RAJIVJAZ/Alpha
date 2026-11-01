@@ -37,7 +37,7 @@ dependencies:
   foodgrid_core:
     path: ../../packages/flutter_core
   flutter_riverpod: ^3.4.3
-  go_router: ^18.0.2
+  go_router: ^18.1.2
   flutter_map: ^8.3.2
   latlong2: ^0.10.1
   mobile_scanner: ^7.4.2
