@@ -21,7 +21,7 @@
     "@nestjs/common": "^11.1.0",
     "@nestjs/core": "^11.1.0",
     "@nestjs/platform-express": "^11.1.0",
-    "@nestjs/platform-socket.io": "^11.1.0",
+    "@nestjs/platform-socket.io": "^12.3.2",
     "@nestjs/schedule": "^6.0.1",
     "@nestjs/swagger": "^11.2.0",
     "@nestjs/websockets": "^11.1.0",
